@@ -45,12 +45,7 @@
     },
     "releases": [
         {
-            "image": "ubuntu-focal-builder",
-            "codeName": "focal",
-            "type": "deb"
-        },
-        {
-            "image": "rocky-el8-builder",
+            "image": "node-rocky-el8-builder",
             "codeName": "el8",
             "type": "el"
         }
