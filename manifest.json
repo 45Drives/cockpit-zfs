@@ -22,21 +22,7 @@
         "urgency": "medium"
     },
     "dependencies": {
-        "deb": {
-            "bionic": [
-                "cockpit",
-                "python3"
-            ],
-            "focal": [
-                "cockpit",
-                "python3"
-            ]
-        },
         "el": {
-            "el7": [
-                "cockpit",
-                "python3"
-            ],
             "el8": [
                 "cockpit",
                 "python3"
