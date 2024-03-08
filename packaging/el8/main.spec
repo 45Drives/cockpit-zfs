@@ -18,12 +18,13 @@ BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root
 %setup -q
 
 %build
+make OS_PACKAGE_RELEASE=el8
 
 %install
 make DESTDIR=%{buildroot} install
 
 %files
-/usr/share/cockpit/package-name/*
+/usr/share/cockpit/zfs/*
 
 %changelog
 * Fri Mar 08 2024 Jordan Keough <jkeough@45drives.com> 0.1.0-1
