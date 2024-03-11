@@ -8,9 +8,9 @@ def main():
 
         for p in zfs.find_import():
             pool = p.asdict()
-
-            pool['scan']['start_time'] = str(pool['scan']['start_time'])
-            pool['scan']['end_time'] = str(pool['scan']['end_time'])
+            if 'scan' in pool:
+                pool['scan']['start_time'] = str(pool['scan']['start_time'])
+                pool['scan']['end_time'] = str(pool['scan']['end_time'])
             
             z_pools.append(pool)
 

@@ -1,3 +1,3 @@
-## cockpit zfs 0.1.0-1
+## cockpit zfs 0.1.0-2
 
-* initial release
+* bug fix for scan property

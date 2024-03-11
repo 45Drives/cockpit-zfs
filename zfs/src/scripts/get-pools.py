@@ -18,9 +18,12 @@ def main():
             pool = p.asdict()
 
             pool['root_dataset']['properties']['creation']['parsed'] = str(pool['root_dataset']['properties']['creation']['parsed'])
-            pool['scan']['start_time'] = str(pool['scan']['start_time'])
-            pool['scan']['end_time'] = str(pool['scan']['end_time'])
-            pool['scan']['pause'] = str(pool['scan']['pause'])
+
+            if 'scan' in pool:
+                pool['scan']['start_time'] = str(pool['scan']['start_time'])
+                pool['scan']['end_time'] = str(pool['scan']['end_time'])
+                pool['scan']['pause'] = str(pool['scan']['pause'])
+                
             pool['root_dataset']['children'] = basic_typed_children(pool['root_dataset']['children'])
 
             z_pools.append(pool)
