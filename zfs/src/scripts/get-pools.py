@@ -17,16 +17,18 @@ def main():
         for p in zfs.pools:
             pool = p.asdict()
 
-            if 'root_dataset' in pool:
+            root_dataset = pool.get('root_dataset')  # Check if 'root_dataset' exists
+            if root_dataset is not None:
                 pool['root_dataset']['properties']['creation']['parsed'] = str(pool['root_dataset']['properties']['creation']['parsed'])
-            # pool['root_dataset']['properties']['creation']['parsed'] = str(pool['root_dataset']['properties']['creation']['parsed'])
-
-            if 'scan' in pool:
-                pool['scan']['start_time'] = str(pool['scan']['start_time'])
-                pool['scan']['end_time'] = str(pool['scan']['end_time'])
-                pool['scan']['pause'] = str(pool['scan']['pause'])
-
-            pool['root_dataset']['children'] = basic_typed_children(pool['root_dataset']['children'])
+                
+                if 'scan' in pool:
+                    pool['scan']['start_time'] = str(pool['scan']['start_time'])
+                    pool['scan']['end_time'] = str(pool['scan']['end_time'])
+                    pool['scan']['pause'] = str(pool['scan']['pause'])
+                    
+                pool['root_dataset']['children'] = basic_typed_children(pool['root_dataset']['children'])
+            else:
+                pool['root_dataset'] = None  # Set 'root_dataset' to None if it doesn't exist
 
             z_pools.append(pool)
 
