@@ -86,58 +86,116 @@ export async function loadDisksThenPools(disks, pools) {
 				parsedJSON[i].groups.special.forEach(vDev => parseVDevData(vDev, parsedJSON[i].name, disks, 'special'));
 				
 				//adds pool data from JSON into pool data object, pushes into array 
-				const poolData = {
-					name: parsedJSON[i].name,
-					status: parsedJSON[i].status,
-					guid: parsedJSON[i].guid,
-					properties: {
-						rawsize: parsedJSON[i].properties.size.parsed,
-						size: convertBytesToSize(parsedJSON[i].properties.size.parsed),
-						allocated: convertBytesToSize(parsedJSON[i].properties.allocated.parsed),
-						capacity: parsedJSON[i].properties.capacity.rawvalue,
-						free:  convertBytesToSize(parsedJSON[i].properties.free.parsed),
-						readOnly: parsedJSON[i].properties.readonly.parsed,
-						sector: parsedJSON[i].properties.ashift.rawvalue,
-						record: parsedJSON[i].root_dataset.properties.recordsize.value ? parsedJSON[i].root_dataset.properties.recordsize.value : '',
-						compression: parsedJSON[i].root_dataset.properties.compression.parsed ? parsedJSON[i].root_dataset.properties.compression.parsed : false,
-						deduplication: onOffToBool(parsedJSON[i].root_dataset.properties.dedup.parsed) ? onOffToBool(parsedJSON[i].root_dataset.properties.dedup.parsed) : false,
-						refreservationRawSize: parsedJSON[i].root_dataset.properties.refreservation.parsed ? parsedJSON[i].root_dataset.properties.refreservation.parsed : 0,
-						autoExpand: parsedJSON[i].properties.autoexpand.parsed,
-						autoReplace: parsedJSON[i].properties.autoreplace.parsed,
-						autoTrim: onOffToBool(parsedJSON[i].properties.autotrim.parsed),
-						delegation: parsedJSON[i].properties.delegation.parsed,
-						listSnapshots: parsedJSON[i].properties.listsnapshots.parsed,
-						// multiHost: isBoolOnOff(parsedJSON[i].properties.multihost),
-						health: parsedJSON[i].properties.health.parsed,
-						altroot: parsedJSON[i].properties.altroot.value,
-					},
-					failMode: parsedJSON[i].properties.failmode.parsed,
-					comment: parsedJSON[i].properties.comment.value !== '-' ? parsedJSON[i].properties.comment.value : '',
-					scan: {
+				if (parsedJSON[i].root_dataset != null) {
+					const poolData = {
 						name: parsedJSON[i].name,
-						function: parsedJSON[i].scan.function,
-						start_time: parsedJSON[i].scan.start_time,
-						end_time: parsedJSON[i].scan.end_time,
-						pause: parsedJSON[i].scan.pause,
-						state: parsedJSON[i].scan.state,
-						errors: parsedJSON[i].scan.errors,
-						percentage: parsedJSON[i].scan.percentage,
-						total_secs_left: parsedJSON[i].scan.total_secs_left,
-						bytes_issued: parsedJSON[i].scan.bytes_issued,
-						bytes_processed: parsedJSON[i].scan.bytes_processed,
-						bytes_to_process: parsedJSON[i].scan.bytes_to_process,
-					},
-					
-					//adds VDev array to Pool data object
-					vdevs: vDevs.value,
+						status: parsedJSON[i].status,
+						guid: parsedJSON[i].guid,
+						properties: {
+							rawsize: parsedJSON[i].properties.size.parsed,
+							size: convertBytesToSize(parsedJSON[i].properties.size.parsed),
+							allocated: convertBytesToSize(parsedJSON[i].properties.allocated.parsed),
+							capacity: parsedJSON[i].properties.capacity.rawvalue,
+							free:  convertBytesToSize(parsedJSON[i].properties.free.parsed),
+							readOnly: parsedJSON[i].properties.readonly.parsed,
+							sector: parsedJSON[i].properties.ashift.rawvalue,
+							record: parsedJSON[i].root_dataset.properties.recordsize.value,
+							compression: parsedJSON[i].root_dataset.properties.compression.parsed,
+							deduplication: onOffToBool(parsedJSON[i].root_dataset.properties.dedup.parsed),
+							refreservationRawSize: parsedJSON[i].root_dataset.properties.refreservation.parsed,
+							autoExpand: parsedJSON[i].properties.autoexpand.parsed,
+							autoReplace: parsedJSON[i].properties.autoreplace.parsed,
+							autoTrim: onOffToBool(parsedJSON[i].properties.autotrim.parsed),
+							delegation: parsedJSON[i].properties.delegation.parsed,
+							listSnapshots: parsedJSON[i].properties.listsnapshots.parsed,
+							// multiHost: isBoolOnOff(parsedJSON[i].properties.multihost),
+							health: parsedJSON[i].properties.health.parsed,
+							altroot: parsedJSON[i].properties.altroot.value,
+						},
+						failMode: parsedJSON[i].properties.failmode.parsed,
+						comment: parsedJSON[i].properties.comment.value !== '-' ? parsedJSON[i].properties.comment.value : '',
+						scan: {
+							name: parsedJSON[i].name,
+							function: parsedJSON[i].scan.function,
+							start_time: parsedJSON[i].scan.start_time,
+							end_time: parsedJSON[i].scan.end_time,
+							pause: parsedJSON[i].scan.pause,
+							state: parsedJSON[i].scan.state,
+							errors: parsedJSON[i].scan.errors,
+							percentage: parsedJSON[i].scan.percentage,
+							total_secs_left: parsedJSON[i].scan.total_secs_left,
+							bytes_issued: parsedJSON[i].scan.bytes_issued,
+							bytes_processed: parsedJSON[i].scan.bytes_processed,
+							bytes_to_process: parsedJSON[i].scan.bytes_to_process,
+						},
+						
+						//adds VDev array to Pool data object
+						vdevs: vDevs.value,
+	
+						// fileSystems: parsedJSON[i].root_dataset.value,
+					}
+					pools.value.push(poolData);
 
-					// fileSystems: parsedJSON[i].root_dataset.value,
+					console.log("poolData after JSON load:", poolData);
+					vDevs.value = [];
+				} else {
+						//adds pool data from JSON into pool data object, pushes into array 
+				if (parsedJSON[i].root_dataset != null) {
+					const poolData = {
+						name: parsedJSON[i].name,
+						status: parsedJSON[i].status,
+						guid: parsedJSON[i].guid,
+						properties: {
+							rawsize: parsedJSON[i].properties.size.parsed,
+							size: convertBytesToSize(parsedJSON[i].properties.size.parsed),
+							allocated: convertBytesToSize(parsedJSON[i].properties.allocated.parsed),
+							capacity: parsedJSON[i].properties.capacity.rawvalue,
+							free:  convertBytesToSize(parsedJSON[i].properties.free.parsed),
+							readOnly: parsedJSON[i].properties.readonly.parsed,
+							sector: parsedJSON[i].properties.ashift.rawvalue,
+							record: '',
+							compression: false,
+							deduplication: false,
+							refreservationRawSize: 0,
+							autoExpand: parsedJSON[i].properties.autoexpand.parsed,
+							autoReplace: parsedJSON[i].properties.autoreplace.parsed,
+							autoTrim: onOffToBool(parsedJSON[i].properties.autotrim.parsed),
+							delegation: parsedJSON[i].properties.delegation.parsed,
+							listSnapshots: parsedJSON[i].properties.listsnapshots.parsed,
+							// multiHost: isBoolOnOff(parsedJSON[i].properties.multihost),
+							health: parsedJSON[i].properties.health.parsed,
+							altroot: parsedJSON[i].properties.altroot.value,
+						},
+						failMode: parsedJSON[i].properties.failmode.parsed,
+						comment: parsedJSON[i].properties.comment.value !== '-' ? parsedJSON[i].properties.comment.value : '',
+						scan: {
+							name: parsedJSON[i].name,
+							function: parsedJSON[i].scan.function,
+							start_time: parsedJSON[i].scan.start_time,
+							end_time: parsedJSON[i].scan.end_time,
+							pause: parsedJSON[i].scan.pause,
+							state: parsedJSON[i].scan.state,
+							errors: parsedJSON[i].scan.errors,
+							percentage: parsedJSON[i].scan.percentage,
+							total_secs_left: parsedJSON[i].scan.total_secs_left,
+							bytes_issued: parsedJSON[i].scan.bytes_issued,
+							bytes_processed: parsedJSON[i].scan.bytes_processed,
+							bytes_to_process: parsedJSON[i].scan.bytes_to_process,
+						},
+						
+						//adds VDev array to Pool data object
+						vdevs: vDevs.value,
+	
+						// fileSystems: parsedJSON[i].root_dataset.value,
+					}
+					pools.value.push(poolData);
+
+					console.log("poolData after JSON load:", poolData);
+					vDevs.value = [];
 				}
+				
 
-				pools.value.push(poolData);
-
-				console.log("poolData after JSON load:", poolData);
-				vDevs.value = [];
+			
 			}
 
 			const poolDiskTypes = pools.value.map(pool => {
