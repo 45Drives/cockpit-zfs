@@ -139,8 +139,6 @@ export async function loadDisksThenPools(disks, pools) {
 					console.log("poolData after JSON load:", poolData);
 					vDevs.value = [];
 				} else {
-						//adds pool data from JSON into pool data object, pushes into array 
-				if (parsedJSON[i].root_dataset != null) {
 					const poolData = {
 						name: parsedJSON[i].name,
 						status: parsedJSON[i].status,
@@ -193,9 +191,7 @@ export async function loadDisksThenPools(disks, pools) {
 					console.log("poolData after JSON load:", poolData);
 					vDevs.value = [];
 				}
-				
-
-			
+							
 			}
 
 			const poolDiskTypes = pools.value.map(pool => {
