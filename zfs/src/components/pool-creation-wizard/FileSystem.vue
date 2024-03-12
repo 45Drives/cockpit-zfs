@@ -39,36 +39,38 @@
 
 			<div v-if="fileSystemConfig.encrypted">
 				<!-- Passphrase (Text) -->
-				<div class="col-span-3 justify-between text-center items-center grid grid-cols-3 my-2">
-					<div class="col-span-2 flex flex-row justify-between gap-4 text-center items-center">
-						<label :for="getIdKey('passphrase')" class="mt-1 block text-sm font-medium leading-6 text-default">Passphrase</label>
-						<input v-if="showPassword == false" :id="getIdKey('passphrase-hidden')" type="password" v-model="passphrase" name="passphrase" class="mt-1 block w-full input-textlike bg-default" placeholder="Passphrase" />
-						<input v-if="showPassword == true" :id="getIdKey('passphrase-shown')" type="text" v-model="passphrase" name="passphrase" class="mt-1 block w-full input-textlike bg-default" placeholder="Passphrase" />
+				<div class="w-full">
+					<div class="justify-between text-center items-center grid grid-cols-3 my-2">
+						<div class="col-span-2 grid grid-cols-3 justify-between gap-4 text-center items-center">
+							<label :for="getIdKey('passphrase')" class="col-span-1 mt-1 block text-sm font-medium leading-6 text-default">Passphrase</label>
+							<input v-if="showPassword == false" :id="getIdKey('passphrase-hidden')" type="password" v-model="passphrase" name="passphrase" class="col-span-2 mt-1 block w-full input-textlike bg-default" placeholder="Passphrase" />
+							<input v-if="showPassword == true" :id="getIdKey('passphrase-shown')" type="text" v-model="passphrase" name="passphrase" class="col-span-2 mt-1 block w-full input-textlike bg-default" placeholder="Passphrase" />
+						</div>
+						<div class="col-span-1 button-group-row justify-end">
+							<button v-if="showPassword == true" class="btn btn-secondary max-h-min" @click="showPassword = false">
+								<EyeSlashIcon class="h-5"/>
+							</button>
+							<button v-if="showPassword == false" class="btn btn-secondary max-h-min" @click="showPassword = true">
+								<EyeIcon class="h-5"/>
+							</button>
+						</div>
 					</div>
-					<div class="col-span-1 button-group-row justify-end">
-						<button v-if="showPassword == true" class="btn btn-secondary max-h-min" @click="showPassword = false">
-							<EyeSlashIcon class="h-5"/>
-						</button>
-						<button v-if="showPassword == false" class="btn btn-secondary max-h-min" @click="showPassword = true">
-							<EyeIcon class="h-5"/>
-						</button>
-					</div>
-				</div>
-				
-				<!-- Confirm Passphrase (Text) -->
-				<div class="col-span-3 justify-between text-center items-center grid grid-cols-3 my-2">
-					<div class="col-span-2 flex flex-row justify-between gap-4 text-center items-center">
-						<label :for="getIdKey('passphrase-confirm')" class="mt-1 block text-sm font-medium leading-6 text-default">Confirm</label>
-						<input v-if="showPasswordConfirm == false" :id="getIdKey('passphrase-confirm-hidden')" type="password" v-model="passphraseConfirm" name="passphrase-confirm" class="mt-1 block w-full input-textlike bg-default" placeholder="Confirm Passphrase" />
-						<input v-if="showPasswordConfirm == true" :id="getIdKey('passphrase-confirm-shown')" type="text" v-model="passphraseConfirm" name="passphrase-confirm" class="mt-1 block w-full input-textlike bg-default" placeholder="Confirm Passphrase" />
-					</div>
-					<div class="col-span-1 button-group-row justify-end">
-						<button v-if="showPasswordConfirm == true" class="btn btn-secondary max-h-min" @click="showPasswordConfirm = false">
-							<EyeSlashIcon class="h-5"/>
-						</button>
-						<button v-if="showPasswordConfirm == false" class="btn btn-secondary max-h-min" @click="showPasswordConfirm = true">
-							<EyeIcon class="h-5"/>
-						</button>
+					
+					<!-- Confirm Passphrase (Text) -->
+					<div class="col-span-3 justify-between text-center items-center grid grid-cols-3 my-2">
+						<div class="col-span-2 grid grid-cols-3 justify-between gap-4 text-center items-center">
+							<label :for="getIdKey('passphrase-confirm')" class="col-span-1 mt-1 block text-sm font-medium leading-6 text-default">Confirm</label>
+							<input v-if="showPasswordConfirm == false" :id="getIdKey('passphrase-confirm-hidden')" type="password" v-model="passphraseConfirm" name="passphrase-confirm" class="col-span-2 mt-1 block w-full input-textlike bg-default" placeholder="Confirm Passphrase" />
+							<input v-if="showPasswordConfirm == true" :id="getIdKey('passphrase-confirm-shown')" type="text" v-model="passphraseConfirm" name="passphrase-confirm" class="col-span-2 mt-1 block w-full input-textlike bg-default" placeholder="Confirm Passphrase" />
+						</div>
+						<div class="col-span-1 button-group-row justify-end">
+							<button v-if="showPasswordConfirm == true" class="btn btn-secondary max-h-min" @click="showPasswordConfirm = false">
+								<EyeSlashIcon class="h-5"/>
+							</button>
+							<button v-if="showPasswordConfirm == false" class="btn btn-secondary max-h-min" @click="showPasswordConfirm = true">
+								<EyeIcon class="h-5"/>
+							</button>
+						</div>
 					</div>
 				</div>
 				<!-- Cipher (Select) -->
@@ -282,37 +284,39 @@
 				</div>
 
 				<div v-if="newFileSystemConfig.encrypted">
-					<!-- Passphrase (Text) -->
-					<div class="col-span-3 justify-between text-center items-center grid grid-cols-3 my-2">
-						<div class="col-span-2 flex flex-row justify-between gap-4 text-center items-center">
-							<label :for="getIdKey('passphrase')" class="mt-1 block text-sm font-medium leading-6 text-default">Passphrase</label>
-							<input v-if="showPassword == false" :id="getIdKey('passphrase-hidden')" type="password" v-model="passphrase" name="passphrase" class="mt-1 block w-full input-textlike bg-default" placeholder="Passphrase" />
-							<input v-if="showPassword == true" :id="getIdKey('passphrase-shown')" type="text" v-model="passphrase" name="passphrase" class="mt-1 block w-full input-textlike bg-default" placeholder="Passphrase" />
+					<div class="w-full">
+						<!-- Passphrase (Text) -->
+						<div class="justify-between text-center items-center grid grid-cols-3 my-2">
+							<div class="col-span-2 grid grid-cols-3 justify-between text-left items-center">
+								<label :for="getIdKey('passphrase')" class="col-span-1 mt-1 block text-sm font-medium leading-6 text-default">Passphrase</label>
+								<input v-if="showPassword == false" :id="getIdKey('passphrase-hidden')" type="password" v-model="passphrase" name="passphrase" class="col-span-2 mt-1 block w-full input-textlike bg-default" placeholder="Passphrase" />
+								<input v-if="showPassword == true" :id="getIdKey('passphrase-shown')" type="text" v-model="passphrase" name="passphrase" class="col-span-2 mt-1 block w-full input-textlike bg-default" placeholder="Passphrase" />
+							</div>
+							<div class="col-span-1 button-group-row justify-end">
+								<button v-if="showPassword == true" class="btn btn-secondary max-h-min" @click="showPassword = false">
+									<EyeSlashIcon class="h-5"/>
+								</button>
+								<button v-if="showPassword == false" class="btn btn-secondary max-h-min" @click="showPassword = true">
+									<EyeIcon class="h-5"/>
+								</button>
+							</div>
 						</div>
-						<div class="col-span-1 button-group-row justify-end">
-							<button v-if="showPassword == true" class="btn btn-secondary max-h-min" @click="showPassword = false">
-								<EyeSlashIcon class="h-5"/>
-							</button>
-							<button v-if="showPassword == false" class="btn btn-secondary max-h-min" @click="showPassword = true">
-								<EyeIcon class="h-5"/>
-							</button>
-						</div>
-					</div>
-					
-					<!-- Confirm Passphrase (Text) -->
-					<div class="col-span-3 justify-between text-center items-center grid grid-cols-3 my-2">
-						<div class="col-span-2 flex flex-row justify-between gap-4 text-center items-center">
-							<label :for="getIdKey('passphrase-confirm')" class="mt-1 block text-sm font-medium leading-6 text-default">Confirm</label>
-							<input v-if="showPasswordConfirm == false" :id="getIdKey('passphrase-confirm-hidden')" type="password" v-model="passphraseConfirm" name="passphrase-confirm" class="mt-1 block w-full input-textlike bg-default" placeholder="Confirm Passphrase" />
-							<input v-if="showPasswordConfirm == true" :id="getIdKey('passphrase-confirm-shown')" type="text" v-model="passphraseConfirm" name="passphrase-confirm" class="mt-1 block w-full input-textlike bg-default" placeholder="Confirm Passphrase" />
-						</div>
-						<div class="col-span-1 button-group-row justify-end">
-							<button v-if="showPasswordConfirm == true" class="btn btn-secondary max-h-min" @click="showPasswordConfirm = false">
-								<EyeSlashIcon class="h-5"/>
-							</button>
-							<button v-if="showPasswordConfirm == false" class="btn btn-secondary max-h-min" @click="showPasswordConfirm = true">
-								<EyeIcon class="h-5"/>
-							</button>
+						
+						<!-- Confirm Passphrase (Text) -->
+						<div class="col-span-3 justify-between text-center items-center grid grid-cols-3 my-2">
+							<div class="col-span-2 grid grid-cols-3 justify-between text-left items-center">
+								<label :for="getIdKey('passphrase-confirm')" class="col-span-1 mt-1 block text-sm font-medium leading-6 text-default">Confirm</label>
+								<input v-if="showPasswordConfirm == false" :id="getIdKey('passphrase-confirm-hidden')" type="password" v-model="passphraseConfirm" name="passphrase-confirm" class="col-span-2 mt-1 block w-full input-textlike bg-default" placeholder="Confirm Passphrase" />
+								<input v-if="showPasswordConfirm == true" :id="getIdKey('passphrase-confirm-shown')" type="text" v-model="passphraseConfirm" name="passphrase-confirm" class="col-span-2 mt-1 block w-full input-textlike bg-default" placeholder="Confirm Passphrase" />
+							</div>
+							<div class="col-span-1 button-group-row justify-end">
+								<button v-if="showPasswordConfirm == true" class="btn btn-secondary max-h-min" @click="showPasswordConfirm = false">
+									<EyeSlashIcon class="h-5"/>
+								</button>
+								<button v-if="showPasswordConfirm == false" class="btn btn-secondary max-h-min" @click="showPasswordConfirm = true">
+									<EyeIcon class="h-5"/>
+								</button>
+							</div>
 						</div>
 					</div>
 					<!-- Cipher (Select) -->

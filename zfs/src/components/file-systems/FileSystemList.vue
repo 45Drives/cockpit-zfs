@@ -456,7 +456,16 @@ watch(confirmCreateSnap, async (newVal, oldVal) => {
 
 ////////////// Destroy File System //////////////////
 /////////////////////////////////////////////////////
-const hasChildren = ref(false);
+// const hasChildren = ref(false);
+const hasChildren = computed(() => {
+	if (selectedDataset.value) {
+		if ((!findPoolDataset(selectedDataset.value) && selectedDataset.value!.children!.length > 0) || findSnapDataset(selectedDataset.value)) {
+			return true;
+		} else {
+			return false;
+		}
+	}
+});
 // const forceDestroy = ref(false);
 const destroyChildren = ref(false);
 const destroyAllDependents = ref(false);
@@ -476,13 +485,14 @@ async function deleteFileSystem(fileSystem) {
 	// await refreshDatasetSnaps(selectedDataset.value);
 	// console.log('snapshots', snapshots.value);
 	console.log('findSnapDataset', findSnapDataset(selectedDataset.value));
-	if (selectedDataset.value) { 
-		if ((!findPoolDataset(selectedDataset.value) && selectedDataset.value!.children!.length > 0) || findSnapDataset(selectedDataset.value)) {
-			hasChildren.value = true;
-		} else {
-			hasChildren.value = false;
-		}
-	}
+	console.log('hasChildren', hasChildren.value);
+	// if (selectedDataset.value) { 
+	// 	if ((!findPoolDataset(selectedDataset.value) && selectedDataset.value!.children!.length > 0) || findSnapDataset(selectedDataset.value)) {
+	// 		hasChildren.value = true;
+	// 	} else {
+	// 		hasChildren.value = false;
+	// 	}
+	// }
 	await loadDeleteFileSystemComponent();
 	showDeleteFileSystemConfirm.value = true;
 	console.log('selected for deletion:', selectedDataset.value);
@@ -510,14 +520,15 @@ watch(confirmDelete, async (newValue, oldValue) => {
 				confirmDelete.value = false;
 			} else {
 				operationRunning.value = false;
-				await refreshData();
-				await refreshDatasetSnaps(selectedDataset.value);
+			
 				console.log('deleted:', selectedDataset.value!);
 				firstOptionToggle.value = false;
 				thirdOptionToggle.value = false;
 				fourthOptionToggle.value = false;
 				confirmDelete.value = false;
 				notifications.value.constructNotification('File System Destroyed', selectedDataset.value!.name + " destroyed.", 'success');
+				await refreshData();
+				await refreshDatasetSnaps(selectedDataset.value);
 				showDeleteFileSystemConfirm.value = false;
 			}
 

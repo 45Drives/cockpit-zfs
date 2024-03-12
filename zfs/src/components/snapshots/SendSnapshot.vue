@@ -143,7 +143,7 @@ const mostRecentRemoteDestSnap = ref<SnapSnippet>();
 const mostRecentDestSnapMsg = ref('');
 const invalidConfig = ref(false);
 const invalidConfigMsg = ref('');
-const useForceOverwriteMsg = ref("Use 'Force Overwrite' to force a COMPLETE OVERWRITE of Destination File System.");
+const useForceOverwriteMsg = ref("Use 'Force Overwrite' to force a COMPLETE OVERWRITE of Destination File System - including any Encryption.");
 const invalidFlags = ref(false);
 const invalidFlagMsg = ref('');
 const destinationHostUser = ref('');
@@ -220,6 +220,16 @@ function doesRecvDatasetExist() {
     }
 }
 
+function isRecvDatasetEncrypted() {
+    try {
+        console.log('isDatasetEncrypted:', datasets.value.find(dataset => dataset.name === sendingData.value.recvName)!.encrypted);
+        return datasets.value.find(dataset => dataset.name === sendingData.value.recvName)!.encrypted;
+    } catch (error) {
+        console.error('Error checking dataset:', error);
+        return false; // Return false if an error occurs during the check
+    }
+}
+
 async function doesRemoteDatasetExist() {
     try {
         return await doesDatasetExist(sendingData.value);
@@ -276,19 +286,26 @@ async function setSendData() {
 
         if (isSendLocal.value) {
             if (doesRecvDatasetExist()) {
-                lastCommonSnap.value = await checkForLastCommonSnap();
-                console.log('local lastCommonSnap:', lastCommonSnap.value);
-                if (lastCommonSnap.value) {
-                    sendIncremental.value = true;
-                    sendingData.value.sendOpts.incremental = sendIncremental!.value;
-                    sendingData.value.sendIncName! = lastCommonSnap.value.name;
-                    invalidConfig.value = false;
+                if (!isRecvDatasetEncrypted()) {
+                    lastCommonSnap.value = await checkForLastCommonSnap();
+                    console.log('local lastCommonSnap:', lastCommonSnap.value);
+                    if (lastCommonSnap.value != null) {
+                        sendIncremental.value = true;
+                        sendingData.value.sendOpts.incremental = sendIncremental!.value;
+                        sendingData.value.sendIncName! = lastCommonSnap.value.name;
+                        invalidConfig.value = false;
+                    } else {
+                        sendIncremental.value = false;
+                        sendingData.value.sendIncName! = "";
+                        invalidConfig.value = true;
+                        invalidConfigMsg.value = "Destination already exists and has been modified since most recent snapshot.";
+                        mostRecentDestSnapMsg.value = `Most recent snapshot: ${mostRecentLocalDestSnap.value!.name}`;
+                    }
                 } else {
                     sendIncremental.value = false;
                     sendingData.value.sendIncName! = "";
                     invalidConfig.value = true;
-                    invalidConfigMsg.value = "Destination already exists and has been modified since most recent snapshot.";
-                    mostRecentDestSnapMsg.value = `Most recent snapshot: ${mostRecentLocalDestSnap.value!.name}`;
+                    invalidConfigMsg.value = 'Destination is encrypted.';
                 }
             } else {
                 if (doesPoolExist()) {
@@ -371,22 +388,31 @@ async function checkForLastCommonSnap() {
 
 function compareLocalTimestamp(destinationDatasetSnaps : Snapshot[], sourceDatasetSnaps : Snapshot[], sourceSendSnap : Snapshot) {
     mostRecentLocalDestSnap.value = destinationDatasetSnaps[0];
-    // console.log('local mostRecentLocalDestSnap:', mostRecentLocalDestSnap.value);
+    console.log('local mostRecentLocalDestSnap:', mostRecentLocalDestSnap.value);
 
-    if (Number(mostRecentLocalDestSnap.value.creationTimestamp) < Number(sourceSendSnap.creationTimestamp)) {
-        const sourceSnapMatch = computed(() => {
-            return sourceDatasetSnaps.find(snap => snap.guid == mostRecentLocalDestSnap.value!.guid);
-        });
-        // console.log('local sourceSnapMatch:', sourceSnapMatch.value);
-        return sourceSnapMatch.value;
-        
-    } else if (mostRecentLocalDestSnap.value.guid == sourceSendSnap.guid) {
-        console.log('sendSnap is the same as mostRecentDestSnap');
-        return null;
+    if (mostRecentLocalDestSnap.value.creationTimestamp) {
+        console.log('local sourceSendSnap.creationTimestamp:', sourceSendSnap.creationTimestamp);
+        if (sourceSendSnap.creationTimestamp) {
+            if (Number(mostRecentLocalDestSnap.value.creationTimestamp) < Number(sourceSendSnap.creationTimestamp)) {
+                const sourceSnapMatch = computed(() => {
+                    return sourceDatasetSnaps.find(snap => snap.guid == mostRecentLocalDestSnap.value!.guid);
+                });
+                console.log('local sourceSnapMatch:', sourceSnapMatch.value);
+                return sourceSnapMatch.value;
+                
+            } else if (mostRecentLocalDestSnap.value.guid == sourceSendSnap.guid) {
+                console.log('sendSnap is the same as mostRecentDestSnap');
+                return null;
+            } else {
+                console.log('invalid local lastCommonSnap match');
+                return null;
+            }
+        }
     } else {
-        console.log('invalid local lastCommonSnap match');
+        console.log('no snaps to match');
         return null;
     }
+  
 }
 
 async function compareRemoteTimestamp(snapSnips : SnapSnippet[], sourceDatasetSnaps : Snapshot[], sourceSendSnap : Snapshot) {
@@ -497,11 +523,11 @@ async function readSendProgress(sendProgressData : SendProgress[], fileReader : 
                 // console.log('file changed')
                 tracking.value = true;
                 if (content == null) {
-                    console.log('error: content nul, send data too small to track');
+                    console.log('error: content null, send data too small to track');
                 } else {
                     sendProgressData.push(content)
-                    totalSendSize.value = getTotalSendSize(content.totalSize);
-                    sendProgressAmount.value = getSendProgress(content.sent);
+                    totalSendSize.value = getTotalSendSize(content.totalSize)!;
+                    sendProgressAmount.value = getSendProgress(content.sent)!;
                     console.log(`content.totalSize: ${content.totalSize}, content.sent: ${content.sent}`);
                     console.log(`totalSendSize: ${totalSendSize.value}, sendProgAmount: ${sendProgressAmount.value}`);
                 }    

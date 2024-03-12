@@ -67,7 +67,7 @@ export const convertSizeToBytes = (size) => {
     return bytes;
 };
 
-export const convertSizeToBytesDecimal = (size) => {
+/* export const convertSizeToBytesDecimal = (size) => {
     const sizesWithoutByte = ['B', 'K', 'M', 'G', 'TB', 'P', 'E', 'Z', 'Y'];
 	const sizesWithByte = sizesWithoutByte.map(unit => unit + 'B');
 
@@ -78,7 +78,34 @@ export const convertSizeToBytesDecimal = (size) => {
     const bytes = parseFloat(value) * Math.pow(1000, index); // Use 1000 for decimal prefixes
 
     return bytes;
+}; */
+
+export const convertSizeToBytesDecimal = (size) => {
+    if (size === null || size === undefined) {
+        // Return null or handle the case according to your requirement
+        return null;
+    }
+    const sizesWithoutByte = ['B', 'K', 'M', 'G', 'TB', 'P', 'E', 'Z', 'Y'];
+    const sizesWithByte = sizesWithoutByte.map(unit => unit + 'B');
+    const combinedSizes = [...sizesWithoutByte, ...sizesWithByte];
+    const matchResult = size.match(/(\d+\.?\d*)\s?(\w+)/i);
+    if (!matchResult) {
+        // Handle invalid size format
+        // Return null or throw an error according to your requirement
+        return null;
+    }
+    const [value, unit] = matchResult.slice(1);
+    const index = combinedSizes.findIndex((sizeUnit) => sizeUnit.toLowerCase() === unit.toLowerCase());
+    if (index === -1) {
+        // Handle unknown unit
+        // Return null or throw an error according to your requirement
+        return null;
+    }
+    const bytes = parseFloat(value) * Math.pow(1000, index); // Use 1000 for decimal prefixes
+
+    return bytes;
 };
+
 
 
 //get size number from data size string
