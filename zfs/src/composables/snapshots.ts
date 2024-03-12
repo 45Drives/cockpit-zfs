@@ -8,6 +8,8 @@ import send_dataset_script from "../scripts/send-dataset.py?raw";
 import check_dataset_script from"../scripts/check-dataset.py?raw";
 // @ts-ignore
 import get_recent_snaps_script from"../scripts/find-last-common-snap.py?raw";
+// @ts-ignore
+import check_remote_snaps_script from"../scripts/check-remote-snapshots.py?raw";
 
 //['/usr/bin/env', 'python3', '-c', script, ...args ]
 
@@ -178,6 +180,26 @@ export async function doesDatasetExist(sendingData : SendingDataset) {
 	}
 }
 
+export async function doesDatasetHaveSnaps(sendingData : SendingDataset) {
+    try {
+        console.log('sendingData (snapshots.ts - checkDataset):', sendingData);
+
+		const state = useSpawn(['/usr/bin/env', 'python3', '-c', check_remote_snaps_script, sendingData.recvName, sendingData.recvHost, sendingData.recvPort, sendingData.recvHostUser], { superuser: 'try', stderr: 'out'});
+
+		const output = await state.promise();
+		console.log(output);
+		
+		if (output.stdout.includes('True')) {
+			return true;
+		} else {
+			return false;
+		}
+    } catch (state) {
+		console.error(errorString(state));
+		return null;
+	}
+}
+
 export async function getRecentSnaps(sendingData : SendingDataset) {
     try {
         console.log('sendingData (snapshots.ts - getRecentSnaps):', sendingData);
@@ -201,14 +223,19 @@ export async function formatRecentSnaps(sendingData : SendingDataset, snapSnips 
         if (rawJSON) {
             const parsedJSON = (JSON.parse(rawJSON));
             parsedJSON.forEach(snap => {
-                console.log('snap:', snap);
-                const snapSnip : SnapSnippet = {
-                    name: snap.name,
-                    guid: snap.guid,
-                    creation: convertTimestampToLocal(convertTimestampFormat(snap.creation)),
+                if (snap) {
+                    console.log('snap:', snap);
+                    const snapSnip : SnapSnippet = {
+                        name: snap.name,
+                        guid: snap.guid,
+                        creation: convertTimestampToLocal(convertTimestampFormat(snap.creation)),
+                    }
+                    console.log('snapSnip after:', snapSnip);
+                    snapSnips.push(snapSnip);
+                } else {
+                    console.log('no recent snaps');
                 }
-                console.log('snapSnip after:', snapSnip);
-                snapSnips.push(snapSnip);
+               
             });
         } else {
             console.error("No data received from getRecentSnaps");

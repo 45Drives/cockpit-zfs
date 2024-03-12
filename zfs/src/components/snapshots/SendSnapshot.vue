@@ -110,7 +110,7 @@
 import Modal from '../common/Modal.vue';
 import { BetterCockpitFile } from '@45drives/cockpit-helpers';
 import { ref, Ref, inject, computed } from 'vue';
-import { sendSnapshot, doesDatasetExist, formatRecentSnaps } from '../../composables/snapshots';
+import { sendSnapshot, doesDatasetExist, formatRecentSnaps, doesDatasetHaveSnaps } from '../../composables/snapshots';
 import { convertTimestampToLocal, getRawTimestampFromString, convertRawTimestampToString, convertSizeToBytesDecimal } from '../../composables/helpers';
 
 interface SendSnapshotProps {
@@ -235,6 +235,16 @@ async function doesRemoteDatasetExist() {
         return await doesDatasetExist(sendingData.value);
     } catch (error) {
         console.error('Error checking dataset', error);
+        return false; 
+    }
+}
+
+async function doesRemoteDatasetHaveSnaps() {
+    try {
+        return await doesDatasetHaveSnaps(sendingData.value);
+    } catch (error) {
+        console.error('Error checking dataset', error);
+        return false; 
     }
 }
 
@@ -320,19 +330,27 @@ async function setSendData() {
         } else {
             datasetCheckResult.value = await doesRemoteDatasetExist();
             if (datasetCheckResult.value) {
-                lastCommonSnap.value = await checkForLastCommonSnap();
-                console.log('remote lastCommonSnap:', lastCommonSnap.value);
-                if (lastCommonSnap.value) {
-                    sendIncremental.value = true;
-                    sendingData.value.sendOpts.incremental = sendIncremental!.value;
-                    sendingData.value.sendIncName! = lastCommonSnap.value.name;
-                    invalidConfig.value = false;
+                const doesRecvHaveSnaps = await doesRemoteDatasetHaveSnaps();
+                if (doesRecvHaveSnaps) {
+                    lastCommonSnap.value = await checkForLastCommonSnap();
+                    console.log('remote lastCommonSnap:', lastCommonSnap.value);
+                    if (lastCommonSnap.value) {
+                        sendIncremental.value = true;
+                        sendingData.value.sendOpts.incremental = sendIncremental!.value;
+                        sendingData.value.sendIncName! = lastCommonSnap.value.name;
+                        invalidConfig.value = false;
+                    } else {
+                        sendIncremental.value = false;
+                        sendingData.value.sendIncName! = "";
+                        invalidConfig.value = true;
+                        invalidConfigMsg.value = "Remote destination already exists and has been modified since most recent snapshot.";
+                        mostRecentDestSnapMsg.value = `Most recent remote snapshot: ${mostRecentRemoteDestSnap.value!.name}`;
+                    }
                 } else {
                     sendIncremental.value = false;
                     sendingData.value.sendIncName! = "";
                     invalidConfig.value = true;
-                    invalidConfigMsg.value = "Remote destination already exists and has been modified since most recent snapshot.";
-                    mostRecentDestSnapMsg.value = `Most recent remote snapshot: ${mostRecentRemoteDestSnap.value!.name}`;
+                    invalidConfigMsg.value = "Remote destination already exists.";
                 }
             } else {
                 sendIncremental.value = false;
@@ -383,6 +401,7 @@ async function checkForLastCommonSnap() {
        
     } catch (error) {
         console.error('Error checking snapshot', error);
+        return null;
     }
 }
 
@@ -418,29 +437,35 @@ function compareLocalTimestamp(destinationDatasetSnaps : Snapshot[], sourceDatas
 async function compareRemoteTimestamp(snapSnips : SnapSnippet[], sourceDatasetSnaps : Snapshot[], sourceSendSnap : Snapshot) {
     console.log('snapSnips', snapSnips);
     // console.log('snapSnips length', snapSnips.length);
-    mostRecentRemoteDestSnap.value = snapSnips[0];
-    console.log('remote mostRecentRemoteDestSnap:', mostRecentRemoteDestSnap.value);
+    if (snapSnips[0]) {
+        mostRecentRemoteDestSnap.value = snapSnips[0];
+        console.log('remote mostRecentRemoteDestSnap:', mostRecentRemoteDestSnap.value);
 
-    console.log('mostRecentRemoteDestSnap.value.creation', Number(getRawTimestampFromString(mostRecentRemoteDestSnap.value.creation)));
-    console.log('sourceSendSnap.creationTimestamp', Number(getRawTimestampFromString(convertTimestampToLocal(convertRawTimestampToString(sourceSendSnap.creationTimestamp)))));
+        console.log('mostRecentRemoteDestSnap.value.creation', Number(getRawTimestampFromString(mostRecentRemoteDestSnap.value.creation)));
+        console.log('sourceSendSnap.creationTimestamp', Number(getRawTimestampFromString(convertTimestampToLocal(convertRawTimestampToString(sourceSendSnap.creationTimestamp)))));
 
-    if (mostRecentRemoteDestSnap.value.guid == sourceSendSnap.guid) {
-        console.log('sendSnap is the same as mostRecentDestSnap');
-        return null;
-    } else {
-        if (Number(getRawTimestampFromString(mostRecentRemoteDestSnap.value.creation)) < Number(getRawTimestampFromString(convertTimestampToLocal(convertRawTimestampToString(sourceSendSnap.creationTimestamp))))) {
-            const sourceSnapMatch = computed(() => {
-                const source = sourceDatasetSnaps.find(snap => snap.guid == mostRecentRemoteDestSnap.value!.guid);
-                console.log('source', source);
-                return source; 
-            });
-            console.log('remote sourceSnapMatch:', sourceSnapMatch.value);
-            return sourceSnapMatch.value;
-        } else {
-            console.log('invalid remote lastCommonSnap match');
+        if (mostRecentRemoteDestSnap.value.guid == sourceSendSnap.guid) {
+            console.log('sendSnap is the same as mostRecentDestSnap');
             return null;
+        } else {
+            if (Number(getRawTimestampFromString(mostRecentRemoteDestSnap.value.creation)) < Number(getRawTimestampFromString(convertTimestampToLocal(convertRawTimestampToString(sourceSendSnap.creationTimestamp))))) {
+                const sourceSnapMatch = computed(() => {
+                    const source = sourceDatasetSnaps.find(snap => snap.guid == mostRecentRemoteDestSnap.value!.guid);
+                    console.log('source', source);
+                    return source; 
+                });
+                console.log('remote sourceSnapMatch:', sourceSnapMatch.value);
+                return sourceSnapMatch.value;
+            } else {
+                console.log('invalid remote lastCommonSnap match');
+                return null;
+            }
         }
+    } else {
+        console.log('No snap snips to compare');
+        return null;
     }
+    
 }
 
 async function sendBtn() {

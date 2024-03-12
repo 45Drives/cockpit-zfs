@@ -167,7 +167,18 @@ export function getSnapshotTimestamp() {
 	return timestamp;
 }
 
+/* export function getRawTimestampFromString(timestampString) {
+	const rawTimestamp = new Date(timestampString).getTime() / 1000;
+	return rawTimestamp;
+}
+ */
 export function getRawTimestampFromString(timestampString) {
+	// Check if timestampString is undefined or null
+	if (timestampString === undefined || timestampString === null) {
+	  // Return an appropriate value, for example, you can return null or throw an error
+	  return null; // or throw new Error('Timestamp string is undefined or null');
+	}
+  
 	const rawTimestamp = new Date(timestampString).getTime() / 1000;
 	return rawTimestamp;
 }

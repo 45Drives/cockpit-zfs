@@ -83,8 +83,8 @@ def send_dataset(sendName, recvName, sendName2="", forceOverwrite=False, compres
         if recvHost != "":
             remove_remote_file(recvHost, recvHostUser, recvPort)
             # If force overwrite required  
-            if forceOverwrite == True:
-                destroy_for_overwrite_remote(recvName, recvHostUser, recvHost, recvPort)
+            # if forceOverwrite == True:
+            #     destroy_for_overwrite_remote(recvName, recvHostUser, recvHost, recvPort)
 
         # Initial local send command
         send_cmd = ['zfs', 'send', '-v']

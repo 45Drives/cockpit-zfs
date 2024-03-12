@@ -26,7 +26,8 @@ def check_if_recv_dataset_exists(recvName, recvHost, recvPort, recvHostUser):
         return False
     else:
         # Check if the output matches the recvName
-        return stdout.strip() == recvName
+        # return stdout.strip() == recvName
+        return bool(stdout.strip())
 
 def main() :
     parser = argparse.ArgumentParser(description='Send ZFS Dataset')
@@ -42,10 +43,10 @@ def main() :
     recvPort = args.recvPort
     recvHostUser = args.recvHostUser
 
-    # if recvPort == '22':
-    #     print(f"ssh {recvHostUser}@{recvHost} 'zfs list -H -o name {recvName}'")
-    # else:
-    #     print(f"ssh -p {recvPort} {recvHostUser}@{recvHost} 'zfs list -H -o name {recvName}'")
+    if recvPort == '22':
+        print(f"ssh {recvHostUser}@{recvHost} 'zfs list -H -o name {recvName}'")
+    else:
+        print(f"ssh -p {recvPort} {recvHostUser}@{recvHost} 'zfs list -H -o name {recvName}'")
 
     exists = check_if_recv_dataset_exists(recvName, recvHost, recvPort, recvHostUser)
 
