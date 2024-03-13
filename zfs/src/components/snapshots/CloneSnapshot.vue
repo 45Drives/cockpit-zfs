@@ -92,7 +92,7 @@ const datasets = inject<Ref<FileSystemData[]>>('datasets')!;
 const fileSystemsLoaded = inject<Ref<boolean>>('datasets-loaded')!;
 
 const cloning = inject<Ref<boolean>>('cloning')!;
-const confirmClone = inject<Ref<boolean>>('confirm-clone')!;
+const confirmCloneSnap = inject<Ref<boolean>>('confirm-clone-snap')!;
 const nameFeedback = ref('');
 
 const parentFS = ref(props.snapshot.dataset!);
@@ -101,7 +101,6 @@ const createNonExistParent = ref(false);
 
 function getChildDatasetIds(dataset, allDatasets): string[] {
     let childIds: string[] = [];
-
     const children = allDatasets.filter(child => child.parentFS === dataset.id);
 
     for (const child of children) {
@@ -126,31 +125,18 @@ const datasetsInSamePool = computed<FileSystemData[]>(() => {
 
 async function cloneBtn() {
     if (nameCheck(newName.value, parentFS.value)) {
-
-        // cloning.value = true;
-        // confirmClone.value = true;
-
-        // await cloneSnapshot(props.snapshot.name, parentFS.value, newName.value, createNonExistParent.value);
-        
-        // fileSystemsLoaded.value = false;
-        // datasets.value = [];
-        // await loadDatasets(datasets);
-        // showCloneSnapModal.value = false;
-        // cloning.value = false;
-        // fileSystemsLoaded.value = true;
-
         cloning.value = true;
         try {
             const output = await cloneSnapshot(props.snapshot.name, parentFS.value, newName.value, createNonExistParent.value);
             
             if (output == null) {
                 notifications.value.constructNotification('Snapshot Clone Failed', 'There was an error cloning this snapshot. Check console output.', 'error'); 
-                confirmClone.value = true;
+                confirmCloneSnap.value = true;
             } else {
-                confirmClone.value = true;
+                confirmCloneSnap.value = true;
                 fileSystemsLoaded.value = false;
-                datasets.value = [];
-                await loadDatasets(datasets);
+                // datasets.value = [];
+                // await loadDatasets(datasets);
                 fileSystemsLoaded.value = true;
                 notifications.value.constructNotification('Snapshot Cloned', `Cloned snapshot successfully.`, 'success');
                 showCloneSnapModal.value = false;
@@ -160,7 +146,6 @@ async function cloneBtn() {
         }
         cloning.value = false;
     }
-
 }
 
 const nameCheck = (fileSystemName, fileSystemParent) => {
@@ -200,7 +185,6 @@ function fileSystemNameExists(filesystemName, fileSystemParent, datasets : FileS
 			return true;
 		}
 	}
-
 	return false;
 }
 

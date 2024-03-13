@@ -96,16 +96,6 @@ interface ChildDiskData {
 	vDevType?: 'data' | 'cache' | 'log' | 'dedup' | 'special' | 'spare';
 }
 
-// interface PoolDiskStatus {
-// 	poolName: DiskStatus[];
-// }
-
-// interface DiskStatus {
-// 	name: string;
-// 	status: string;
-// 	guid: string;
-// }
-
 //object for importing pools
 interface ImportedPool {
 	poolGUID: string;
@@ -292,6 +282,7 @@ interface NewSnapshot {
 	snapChildren: boolean;
 }
 
+//object for tracking pool scan (scrub/resilver) data
 interface PoolScanObject {
 	name?: string;
 	function: string;
@@ -307,10 +298,12 @@ interface PoolScanObject {
 	bytes_to_process: number;
 }
 
+//object to encapsulate scan data objects
 interface PoolScanObjectGroup {
 	[poolName: string]: PoolScanObject;
 }
 
+//object for disk stats (trim data)
 interface DiskStats {
 	name: string;
 	stats: {
@@ -338,10 +331,12 @@ interface DiskStats {
 	status: string,
 }
 
+//object for encapsulating disk stats objects
 interface PoolDiskStats {
 	[poolName: string]: DiskStats[];
 }
 
+//activity status tracking for pool/disk operations (scrub/resilver/trim)
 interface Activity {
 	isActive: boolean;
 	isPaused: boolean;
@@ -349,10 +344,12 @@ interface Activity {
 	isFinished: boolean;
 }
 
+//object for encapsulating disk specific activity (trim)
 interface DiskTrimActivity {
 	[diskName: string]: Activity;
 }
 
+//sending snapshot data
 interface SendingDataset {
 	sendName: string;
 	sendIncName?: string;
@@ -372,12 +369,14 @@ interface SendingDataset {
 	}
 }
 
+//essential data from snapshots used in check functions for remote sends
 interface SnapSnippet {
 	name: string;
 	guid: string;
 	creation: string;
 }
 
+//object for storing progress of sends
 interface SendProgress {
 	snapshot: string;
 	status: string;

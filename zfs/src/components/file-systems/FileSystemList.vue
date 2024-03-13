@@ -781,7 +781,14 @@ watch(confirmSendSnap, async (newVal, oldVal) => {
 	}
 });
 
+const confirmCloneSnap = ref(false);
+watch(confirmCloneSnap, async (newVal, oldVal) => {
+	if (confirmCloneSnap.value == true) {
+		await refreshData();
+	}
+});
 
+provide('confirm-clone-snap', confirmCloneSnap);
 provide('confirm-send-snap', confirmSendSnap);
 provide('all-datasets', allDatasets);
 provide('all-datasets-loaded', allDatasetsLoaded);

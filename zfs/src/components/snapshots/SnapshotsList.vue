@@ -59,18 +59,18 @@
 								<transition enter-active-class="transition ease-out duration-100" enter-from-class="transform opacity-0 scale-95" enter-to-class="transform opacity-100 scale-100" leave-active-class="transition ease-in duration-75" leave-from-class="transform opacity-100 scale-100" leave-to-class="transform opacity-0 scale-95">
 									<MenuItems @click.stop class="absolute right-0 z-10 mt-2 w-max origin-top-left rounded-md bg-accent shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
 										<div class="py-1">
-											<MenuItem as="div" v-slot="{ active }">
+											<!-- <MenuItem as="div" v-slot="{ active }">
 												<a href="#" @click="cloneThisSnapshot(snapshot)" :class="[active ? 'bg-default text-default' : 'text-muted', 'block px-4 py-2 text-sm']">Clone Snapshot</a>
-											</MenuItem>
+											</MenuItem> -->
 											<MenuItem as="div" v-slot="{ active }">
 												<a href="#" @click="renameThisSnapshot(snapshot)" :class="[active ? 'bg-default text-default' : 'text-muted', 'block px-4 py-2 text-sm']">Rename Snapshot</a>
 											</MenuItem>
 											<MenuItem as="div" v-slot="{ active }">
 												<a href="#" @click="rollbackThisSnapshot(snapshot)" :class="[active ? 'bg-default text-default' : 'text-muted', 'block px-4 py-2 text-sm']">Roll Back Snapshot</a>
 											</MenuItem>
-											<MenuItem as="div" v-slot="{ active }">
+											<!-- <MenuItem as="div" v-slot="{ active }">
 												<a href="#" @click="sendThisDataset(snapshot)" :class="[active ? 'bg-default text-default' : 'text-muted', 'block px-4 py-2 text-sm']">Send Snapshot</a>
-											</MenuItem>
+											</MenuItem> -->
 											<MenuItem as="div" v-slot="{ active }">
 												<a href="#" @click="destroyThisSnapshot(snapshot)" :class="[active ? 'bg-danger text-default' : 'text-muted', 'block px-4 py-2 text-sm']">Destroy Snapshot</a>
 											</MenuItem>
@@ -377,7 +377,7 @@ watch (confirmDestroy, async (newVal, oldVal) => {
 /////////////////////////////////////////////////////
 const showCloneSnapshotModal = ref(false);
 const cloning = ref(false);
-const confirmClone = ref(false);
+const confirmCloneSnap = inject<Ref<boolean>>('confirm-clone-snap')!;
 
 const cloneSnapshotComponent = ref();
 const loadCloneSnapshotComponent = async () => {
@@ -396,11 +396,11 @@ const updateShowCloneSnapshot = (newVal) => {
 	showCloneSnapshotModal.value = newVal;
 }
 
-watch(confirmClone, async (newVal, oldVal) => {
-	if (confirmClone.value == true) {
+watch(confirmCloneSnap, async (newVal, oldVal) => {
+	if (confirmCloneSnap.value == true) {
 		operationRunning.value = true;
 		await refreshSnaps();
-		confirmClone.value = false;
+		confirmCloneSnap.value = false;
 		operationRunning.value = false;
 		// notifications.value.constructNotification('Snapshot Cloned', `Cloned snapshot ${selectedSnapshot.value!.name} .`, 'success');
 	}
@@ -527,7 +527,7 @@ watch(confirmSendSnap, async (newVal, oldVal) => {
 
 // provide('snapshots-loaded', snapshotsLoaded)!;
 provide('cloning', cloning);
-provide('confirm-clone', confirmClone);
+// provide('confirm-clone', confirmClone);
 provide('show-clone-modal', showCloneSnapshotModal);
 provide('renaming', renaming);
 provide('confirm-rename', confirmRename);
