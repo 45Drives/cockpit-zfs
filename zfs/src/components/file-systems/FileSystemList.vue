@@ -548,6 +548,8 @@ watch(confirmDelete, async (newValue, oldValue) => {
 				await refreshData();
 				
 				notifications.value.constructNotification('File System Destroyed', selectedDataset.value!.name + " destroyed.", 'success');
+				await refreshData();
+				// await refreshDatasetSnaps(selectedDataset.value);
 				showDeleteFileSystemConfirm.value = false;
 			}
 
