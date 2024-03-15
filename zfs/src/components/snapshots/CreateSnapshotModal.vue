@@ -1,5 +1,5 @@
 <template>
-    <Modal :isOpen="showSnapshotModal" :marginTop="'mt-48'" :width="'w-3/5'" :minWidth="'min-w-3/5'" class="z-20">
+    <Modal :isOpen="showSnapshotModal" :marginTop="'mt-48'" :width="'w-4/12'" :minWidth="'min-w-4/12'" class="z-20">
         <template v-slot:title>
             <legend class="flex justify-center">Create Snapshot</legend>
         </template>

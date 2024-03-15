@@ -138,7 +138,7 @@ async function cloneBtn() {
                 // datasets.value = [];
                 // await loadDatasets(datasets);
                 fileSystemsLoaded.value = true;
-                notifications.value.constructNotification('Snapshot Cloned', `Cloned snapshot successfully.`, 'success');
+                notifications.value.constructNotification('Snapshot Cloned', `Cloned snapshot ${props.snapshot.name} to ${newName.value} successfully.`, 'success');
                 showCloneSnapModal.value = false;
             }
         } catch (error) {

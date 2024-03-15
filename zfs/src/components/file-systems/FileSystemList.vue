@@ -273,6 +273,7 @@ const pools = inject<Ref<PoolData[]>>('pools')!;
 const fileSystems = inject<Ref<FileSystemData[]>>('datasets')!;
 const selectedDataset = ref<FileSystemData>();
 const snapshots = inject<Ref<Snapshot[]>>('snapshots')!;
+// const snapshotsInDataset = ref<Snapshot[]>([]);
 const snapshotsLoaded = inject<Ref<boolean>>('snapshots-loaded')!;
 const allDatasets = ref<any>([]);
 const allDatasetsLoaded = ref(false);
@@ -383,16 +384,25 @@ function findPoolDataset(fileSystem) {
 
 function findSnapDataset(fileSystem) {
     try {
-        return snapshots.value.some(snapshot => snapshot.dataset === fileSystem.name);
+        console.log('Searching for snapshot dataset:', fileSystem.name);
+        const foundSnapshot = snapshots.value.some(snapshot => {
+            console.log('Checking snapshot:', snapshot.dataset);
+            return snapshot.dataset === fileSystem.name;
+        });
+        
+        console.log('Snapshot dataset found:', foundSnapshot);
+        
+        return foundSnapshot;
     } catch (error) {
         console.error('Error finding snapshot:', error);
+        return false;
     }
 }
 
-async function refreshDatasetSnaps(filesystem) {
-	snapshots.value = [];
-	await loadSnapshotsInDataset(snapshots, filesystem);
-}
+// async function refreshDatasetSnaps(filesystem) {
+// 	snapshots.value = [];
+// 	await loadSnapshotsInDataset(snapshots, filesystem);
+// }
 
 ///////////////// New File System ///////////////////
 /////////////////////////////////////////////////////
@@ -454,16 +464,8 @@ watch(confirmCreateSnap, async (newVal, oldVal) => {
 
 ////////////// Destroy File System //////////////////
 /////////////////////////////////////////////////////
-// const hasChildren = ref(false);
-const hasChildren = computed(() => {
-	if (selectedDataset.value) {
-		if ((!findPoolDataset(selectedDataset.value) && selectedDataset.value!.children!.length > 0) || findSnapDataset(selectedDataset.value)) {
-			return true;
-		} else {
-			return false;
-		}
-	}
-});
+const hasChildren = ref(false);
+
 // const forceDestroy = ref(false);
 const destroyChildren = ref(false);
 const destroyAllDependents = ref(false);
@@ -480,9 +482,26 @@ const loadDeleteFileSystemComponent = async () => {
 async function deleteFileSystem(fileSystem) {
 	operationRunning.value = false;
 	selectedDataset.value = fileSystem;
+	
+	const datasetHasChildren = computed(() => {
+		if (selectedDataset.value && selectedDataset.value.children) {
+			const hasPoolDataset = findPoolDataset(selectedDataset.value);
+			const hasSnapDataset = findSnapDataset(selectedDataset.value);
+			console.log('hasPoolDataset:', hasPoolDataset);
+			console.log('hasSnapDataset:', hasSnapDataset);
+
+			// Check if hasPoolDataset is undefined and assign it false in that case
+			const hasPool = typeof hasPoolDataset !== 'undefined' ? hasPoolDataset : false;
+
+			return !hasPool && selectedDataset.value.children.length > 0 || hasSnapDataset;
+		}
+
+		return false;
+	});
+	console.log(`dataset ${selectedDataset.value?.name} HasChildren: ${datasetHasChildren.value}`);
+	hasChildren.value = datasetHasChildren.value!;
 	// await refreshDatasetSnaps(selectedDataset.value);
 	// console.log('snapshots', snapshots.value);
-	console.log('findSnapDataset', findSnapDataset(selectedDataset.value));
 	console.log('hasChildren', hasChildren.value);
 	// if (selectedDataset.value) { 
 	// 	if ((!findPoolDataset(selectedDataset.value) && selectedDataset.value!.children!.length > 0) || findSnapDataset(selectedDataset.value)) {
@@ -524,9 +543,11 @@ watch(confirmDelete, async (newValue, oldValue) => {
 				thirdOptionToggle.value = false;
 				fourthOptionToggle.value = false;
 				confirmDelete.value = false;
-				notifications.value.constructNotification('File System Destroyed', selectedDataset.value!.name + " destroyed.", 'success');
+
+				// await refreshDatasetSnaps(selectedDataset.value);
 				await refreshData();
-				await refreshDatasetSnaps(selectedDataset.value);
+				
+				notifications.value.constructNotification('File System Destroyed', selectedDataset.value!.name + " destroyed.", 'success');
 				showDeleteFileSystemConfirm.value = false;
 			}
 
@@ -600,7 +621,7 @@ watch(confirmUnmount, async (newValue, oldValue) => {
 				confirmUnmount.value = false;
 				forceUnmount.value = false;
 				await refreshData();
-				await refreshDatasetSnaps(selectedDataset.value);
+				// await refreshDatasetSnaps(selectedDataset.value);
 				unmounting.value = false;
 				operationRunning.value = false;
 				// lockThisFileSystem.value = false;
@@ -662,7 +683,7 @@ watch(confirmMount, async (newValue, oldValue) => {
 				confirmMount.value = false;
 				forceMount.value = false;
 				await refreshData();
-				await refreshDatasetSnaps(selectedDataset.value);
+				// await refreshDatasetSnaps(selectedDataset.value);
 				mounting.value = false;
 				operationRunning.value = false;
 				notifications.value.constructNotification('File System Mounted', selectedDataset.value!.name + " mounted.", 'success');

@@ -3,7 +3,7 @@ import { convertTimestampToLocal, convertTimestampFormat } from '../composables/
 // @ts-ignore
 import get_snapshots_script from "../scripts/get-snapshots.py?raw";
 // @ts-ignore
-import send_dataset_script from "../scripts/send-dataset.py?raw";
+import send_dataset_script from "../scripts/send-snapshot.py?raw";
 // @ts-ignore
 import check_dataset_script from"../scripts/check-dataset.py?raw";
 // @ts-ignore
