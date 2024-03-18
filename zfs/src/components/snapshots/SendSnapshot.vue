@@ -299,11 +299,15 @@ async function setSendData() {
                 if (!isRecvDatasetEncrypted()) {
                     lastCommonSnap.value = await checkForLastCommonSnap();
                     console.log('local lastCommonSnap:', lastCommonSnap.value);
-                    if (lastCommonSnap.value != null) {
+                    if (lastCommonSnap.value !== null && lastCommonSnap.value !== false) {
                         sendIncremental.value = true;
                         sendingData.value.sendOpts.incremental = sendIncremental!.value;
                         sendingData.value.sendIncName! = lastCommonSnap.value.name;
                         invalidConfig.value = false;
+                    } else if (lastCommonSnap.value === false) {
+                        sendIncremental.value = false;
+                        invalidConfig.value = true;
+                        invalidConfigMsg.value = "Destination already exists (but has no snapshots).";
                     } else {
                         sendIncremental.value = false;
                         sendingData.value.sendIncName! = "";
@@ -334,11 +338,15 @@ async function setSendData() {
                 if (doesRecvHaveSnaps) {
                     lastCommonSnap.value = await checkForLastCommonSnap();
                     console.log('remote lastCommonSnap:', lastCommonSnap.value);
-                    if (lastCommonSnap.value) {
+                    if (lastCommonSnap.value !== null && lastCommonSnap.value !== false) {
                         sendIncremental.value = true;
                         sendingData.value.sendOpts.incremental = sendIncremental!.value;
                         sendingData.value.sendIncName! = lastCommonSnap.value.name;
                         invalidConfig.value = false;
+                    } else if (lastCommonSnap.value === false) {
+                        sendIncremental.value = false;
+                        invalidConfig.value = true;
+                        invalidConfigMsg.value = "Remote destination already exists (but has no snapshots).";
                     } else {
                         sendIncremental.value = false;
                         sendingData.value.sendIncName! = "";
@@ -369,41 +377,50 @@ async function checkForLastCommonSnap() {
                 return b.creationTimestamp.localeCompare(a.creationTimestamp);
             });
         });
-        // console.log('sortedSnapshots:', sortedSnapshots.value);
+
         const sourceDataset = computed(() => {
             return sendName.value.split("@").shift();
         });
-        // console.log(`sourceDataset: ${sourceDataset.value}`);
+
         const sourceDatasetSnaps = computed(() => {
             return sortedSnapshots.value.filter(snapshot => snapshot.dataset == sourceDataset.value);
         });
-        // console.log('sourceDatasetSnaps:', sourceDatasetSnaps.value);
-        // console.log(`destinationDataset: ${destinationName.value}`)
+
         const sourceSnap = computed(() => {
             return sourceDatasetSnaps.value.find(snap => snap.name == sendName.value);
         });
-        // console.log('sourceSnap:', sourceSnap.value);
 
         if (isSendLocal.value) {
             const destinationDatasetSnaps = computed(() => {
                 return sortedSnapshots.value.filter(snapshot => snapshot.dataset == destinationName.value);
             });
-            // console.log('local destinationDatasetSnaps:', destinationDatasetSnaps.value);
-            return compareLocalTimestamp(destinationDatasetSnaps.value, sourceDatasetSnaps.value, sourceSnap.value!); 
 
+            // Check if destinationDatasetSnaps is empty
+            if (destinationDatasetSnaps.value.length === 0) {
+                // Handle the case where no destinationDatasetSnaps exist
+                console.log('No destination dataset snapshots found.');
+                return false; // Or return a default value, throw an error, etc.
+            }
+
+            return compareLocalTimestamp(destinationDatasetSnaps.value, sourceDatasetSnaps.value, sourceSnap.value!);
         } else {
             await formatRecentSnaps(sendingData.value, snapSnips.value);
-            // console.log('remote destinationDatasetSnaps:', snapSnips.value);
 
-            const result = await compareRemoteTimestamp(snapSnips.value, sourceDatasetSnaps.value, sourceSnap.value!);
-            return result; 
+            // Check if snapSnips is empty (assuming it corresponds to destinationDatasetSnaps in this context)
+            if (snapSnips.value.length === 0) {
+                // Handle the case where no destinationDatasetSnaps exist
+                console.log('No destination dataset snapshots found.');
+                return false; // Or return a default value, throw an error, etc.
+            }
+
+            return compareRemoteTimestamp(snapSnips.value, sourceDatasetSnaps.value, sourceSnap.value!);
         }
-       
     } catch (error) {
         console.error('Error checking snapshot', error);
         return null;
     }
 }
+
 
 function compareLocalTimestamp(destinationDatasetSnaps : Snapshot[], sourceDatasetSnaps : Snapshot[], sourceSendSnap : Snapshot) {
     mostRecentLocalDestSnap.value = destinationDatasetSnaps[0];
