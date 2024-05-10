@@ -1,3 +1,3 @@
-## cockpit zfs 0.1.0-7
+## cockpit zfs 0.1.0-10-1
 
-* wip bug fixing for root_dataset property
+* Fixed major bug with missing disks causing pools to break
