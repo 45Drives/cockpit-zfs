@@ -1,0 +1,8 @@
+[Unit]
+Description=Start houston dbus server
+
+[Service]
+ExecStart=/opt/45drives/houston/dbus_server.py
+
+[Install]
+WantedBy=multi-user.target
