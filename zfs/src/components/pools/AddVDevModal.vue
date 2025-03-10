@@ -1,5 +1,5 @@
 <template>
-    <Modal @clickOutside="closeModal()" :show="showAddVDevModal" class=" !w-3/5 !mt-28 rounded-lg">
+    <Modal @clickOutside="closeModal()" :show="showAddVDevModal" class=" !w-3/5 !mt-28 rounded-lg w-full">
         <!-- <OldModal @close="closeModal" :isOpen="showAddVDevModal" :marginTop="props.marginTop" :width="'w-3/5'"
         :minWidth="'min-w-3/5'" :closeOnBackgroundClick="false"> -->
         <CardContainer class="!w-3/5 !mt-28 mx-auto rounded-lg">
@@ -458,6 +458,9 @@ const diskSizeMatch = () => {
     diskSizeFeedback.value = '';
 
     if (newVDev.value!.forceAdd) {
+        return true;
+    }
+    if (newVDev.value.type === 'disk') {
         return true;
     }
 
