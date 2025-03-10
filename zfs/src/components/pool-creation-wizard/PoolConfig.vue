@@ -619,12 +619,15 @@ const diskSizeMatch = () => {
 		return true;
 	}
 
+
 	poolConfig.value.vdevs.forEach(vDev => {
 		let previousCapacity = 0;
 
 		vDev.selectedDisks!.forEach(selDisk => {
 			const disk = disks.value.find(fullDisk => fullDisk.name == selDisk);
-			
+			if(vDev.type === 'disk' || vDev.type === 'cache')  {
+        		return ;
+    		}
 			if (disk) {
 				const currentCapacity = convertSizeToBytes(disk.capacity!);
 
