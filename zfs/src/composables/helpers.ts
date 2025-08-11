@@ -569,16 +569,16 @@ export function getDiskIDName(disks: VDevDisk[], diskIdentifier: string, selecte
 	const partLabelPathPrefix = '/dev/disk/by-partlabel/';
 	const partUUIDPrefix = '/dev/disk/by-partuuid/';
 	const uuidPrefix = '/dev/disk/by-uuid/';
+	const wwnPrefix = '/dev/disk/by-id/wwn-';
 
 	const newDisk = ref();
 	const diskName = ref('');
 	const diskPath = ref('');
 
-	// console.log('diskIdentifier:', diskIdentifier);
-	// console.log('selectedDiskName:', selectedDiskName);
+	console.log('diskIdentifier:', diskIdentifier);
+	console.log('selectedDiskName:', selectedDiskName);
 
 	// Find the selected disk
-	// newDisk.value = disks.find(disk => disk.name!.trim() == selectedDiskName.trim());
 	newDisk.value = disks.find(disk => {
 		// console.log("Checking disk:", disk.name?.trim(), "against", selectedDiskName.trim());
 		return disk.name?.trim() === selectedDiskName.trim();
@@ -617,6 +617,11 @@ export function getDiskIDName(disks: VDevDisk[], diskIdentifier: string, selecte
 			diskPath.value = newDisk.value!.uuid;
 			diskName.value = diskPath.value.replace(uuidPrefix, '');
 			break;
+		case 'wwn_path': {
+			diskPath.value = newDisk.value!.wwn_path;
+			diskName.value = diskPath.value.replace(wwnPrefix, '');
+			break;
+		}
 		default:
 			console.log('Error with selectedDiskNames/diskIdentifier');
 			break;

@@ -234,6 +234,11 @@ async function finishBtn(newPoolData) {
 	console.log("PoolOptions: ", poolOptions)
 
 	try {
+		console.log(JSON.stringify(poolConfig.value.vdevs.map(v => ({
+			name: v.name, diskIdentifier: (v as any).diskIdentifier,
+			chosen: v.disks.map(d => ({ bay: d.name, wwn: d.wwn_path, sd: d.sd_path, vdev: d.vdev_path }))
+		})), null, 2));
+
 		const output: any = await zfsManager.createPool(poolBase, poolOptions);
 
 		if (output == null || output.error) {

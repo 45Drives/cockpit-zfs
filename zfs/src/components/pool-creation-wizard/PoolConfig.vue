@@ -48,6 +48,7 @@
 						<!-- <option value="">Disk/WWN</option> -->
 						<option value="phy_path">Hardware Path</option>
 						<option value="vdev_path">Device Alias</option>
+						<option value="wwn_path">World Wide Name (WWN)</option>
 					</select>
 				</div>
 

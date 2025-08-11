@@ -1,6 +1,6 @@
 import subprocess
 import json
-import re
+import os, glob, re
 import logging
 from logging.handlers import RotatingFileHandler
 
@@ -14,6 +14,17 @@ handler.setFormatter(formatter)
 logger = logging.getLogger('cockpit_zfs_getdisks')
 logger.setLevel(logging.DEBUG)
 logger.addHandler(handler)
+
+def get_wwn_path(dev_path):
+    """Return the /dev/disk/by-id/wwn-* symlink for this device, if any."""
+    base = re.sub(r'(p?\d+)$', '', dev_path)  # strip partition suffix
+    for link in glob.glob('/dev/disk/by-id/wwn-*'):
+        try:
+            if os.path.realpath(link) == base:
+                return link
+        except Exception:
+            continue
+    return None
 
 # Example usage of the logger in the script
 def get_lsdev_disks():
@@ -52,6 +63,10 @@ def get_lsdev_disks():
                     'power_on_time': disk['power-on-time'],
                     'has_partitions': False if partitions == 0 else True
                 }
+                
+                wwn_link = get_wwn_path(device_path)
+                disk_data['wwn_path'] = wwn_link if wwn_link else 'Unknown'
+                disk_data['wwn'] = os.path.basename(wwn_link) if wwn_link else 'Unknown'
                 
                 disk_log_data = {
                     'name': disk['bay-id'],
@@ -190,6 +205,11 @@ def get_lsblk_disks(nvme_only=False):
                 'power_on_time': smartctl_data['power_on_hours'],
                 'has_partitions': 'E: ID_PART_TABLE_TYPE' in udev_info
             }
+            
+            wwn_link = get_wwn_path(device['name'])  # e.g. /dev/nvme0n1 or /dev/sda
+            disk_data['wwn_path'] = wwn_link if wwn_link else 'Unknown'
+            disk_data['wwn'] = os.path.basename(wwn_link) if wwn_link else 'Unknown'
+
             # print('disk_data', disk_data)
 
             disk_log_data = {
