@@ -1,3 +1,3 @@
-## zfs module 1.2.6-1
+## zfs module 1.2.7-1
 
-* Fixes destroyPool error
+* fixes bug where pool creation failure would not notify and stay in endless loading state

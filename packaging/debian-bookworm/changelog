@@ -1,3 +1,10 @@
+cockpit-zfs (1.2.7-1bookworm) bookworm; urgency=medium
+
+  * fixes bug where pool creation failure would not notify and stay in endless loading
+    state
+
+ -- Jordan Keough <jkeough@45drives.com>  Thu, 14 Aug 2025 13:24:44 -0300
+
 cockpit-zfs (1.2.6-1bookworm) bookworm; urgency=medium
 
   * Fixes destroyPool error
