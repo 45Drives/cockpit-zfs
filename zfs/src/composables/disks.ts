@@ -1,46 +1,9 @@
 import { legacy, server, Command, unwrap } from '@45drives/houston-common-lib';
+import { exec } from './helpers';
 // @ts-ignore
 import script_py from "../scripts/get-disks.py?raw";
 
 const { errorString } = legacy;
-
-function toUtf8String(buf: unknown): string {
-	if (buf == null) return "";
-	if (typeof buf === "string") return buf;
-
-	// Browser/Node >= 11 have TextDecoder
-	const decode = (u8: Uint8Array) =>
-		(typeof TextDecoder !== "undefined")
-			? new TextDecoder().decode(u8)
-			: String.fromCharCode(...Array.from(u8));
-
-	// Native typed array
-	if (buf instanceof Uint8Array) return decode(buf);
-
-	// Numeric-key object: { "0": 123, "1": 34, ... }
-	if (typeof buf === "object") {
-		const rec = buf as Record<string, unknown>;
-		const keys = Object.keys(rec);
-		if (keys.length && keys.every(k => /^\d+$/.test(k))) {
-			const u8 = new Uint8Array(keys.sort((a, b) => +a - +b).map(k => Number(rec[k])));
-			return decode(u8);
-		}
-	}
-
-	// Last resort
-	return String(buf);
-}
-
-type ExecOut = { stdout: string; stderr: string };
-
-async function exec(cmd: string[]): Promise<ExecOut> {
-	// If unwrap is generic, you can keep the typing; otherwise cast to any.
-	const res: any = await unwrap(server.execute(new Command(cmd)));
-	return {
-		stdout: toUtf8String(res?.stdout).trim(),
-		stderr: toUtf8String(res?.stderr).trim(),
-	};
-}
 
 export async function getDisks() {
 	try {

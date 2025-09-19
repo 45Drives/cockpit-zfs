@@ -1,4 +1,4 @@
-import { legacy, ZPoolBase, ZpoolCreateOptions } from '@45drives/houston-common-lib';
+import { Command, legacy, server, unwrap, ZPoolBase, ZpoolCreateOptions } from '@45drives/houston-common-lib';
 import { ref, Ref } from 'vue';
 // @ts-ignore
 import test_ssh_script from"../scripts/test-ssh.py?raw";
@@ -806,3 +806,12 @@ export function changeUnitToBinary(capacity: any) {
 	return capacity;
 }
 
+export type ExecOut = { stdout: string; stderr: string };
+
+export async function exec(cmd: string[]): Promise<ExecOut> {
+	const res = await unwrap(server.execute(new Command(cmd, {superuser: 'try'})));
+	return {
+		stdout: res.getStdout().trim(),
+		stderr: res.getStderr().trim(),
+	};
+}

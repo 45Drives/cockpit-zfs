@@ -1,5 +1,5 @@
 import { legacy, ZPool, server, Command, unwrap } from '@45drives/houston-common-lib';
-import { convertSizeToBytes } from './helpers';
+import { convertSizeToBytes, exec } from './helpers';
 // @ts-ignore
 import get_pools_script from "../scripts/get-pools.py?raw";
 // @ts-ignore
@@ -8,21 +8,16 @@ import get_importable_pools_script from "../scripts/get-importable-pools.py?raw"
 import get_importable_destroyed_pools_script from "../scripts/get-importable-destroyed-pools.py?raw";
 import { PoolEditConfig } from '../types';
 import { sanitizeRawJson } from '../utils/json';
-import { toText } from '../utils/streams';
 
 //['/usr/bin/env', 'python3', '-c', script, ...args ]
 const { errorString, useSpawn } = legacy;
 
-// Helper: execute and return both streams
-async function exec(cmd: string[]) {
-	return await unwrap(server.execute(new Command(cmd)));
-}
 
 export async function getPools() {
 	try {
 		const { stdout, stderr } = await exec(['/usr/bin/env', 'python3', '-c', get_pools_script]);
 		if (stderr) console.warn('getPools warnings:', stderr);
-		return sanitizeRawJson(toText(stdout) ?? '', '[]');
+		return sanitizeRawJson((stdout) ?? '', '[]');
 	} catch (err: any) {
 		const errorMessage = errorString(err);
 		console.error(errorMessage);
@@ -214,7 +209,7 @@ export async function getImportablePools() {
 	try {
 		const { stdout, stderr } = await exec(['/usr/bin/env', 'python3', '-c', get_importable_pools_script]);
 		if (stderr) console.warn('getImportablePools warnings:', stderr);
-		return sanitizeRawJson(toText(stdout) ?? '', '[]');
+		return sanitizeRawJson((stdout) ?? '', '[]');
 	} catch (err: any) {
 		const errorMessage = errorString(err);
 		console.error(errorMessage);
@@ -226,7 +221,7 @@ export async function getImportableDestroyedPools() {
 	try {
 		const { stdout, stderr } = await exec(['/usr/bin/env', 'python3', '-c', get_importable_destroyed_pools_script]);
 		if (stderr) console.warn('getImportableDestroyedPools warnings:', stderr);
-		return sanitizeRawJson(toText(stdout) ?? '', '[]');
+		return sanitizeRawJson((stdout) ?? '', '[]');
 	} catch (err: any) {
 		const errorMessage = errorString(err);
 		console.error(errorMessage);

@@ -17,9 +17,4 @@ echo "[INFO] Starting services..."
 systemctl restart zed || true
 systemctl restart houston-dbus.service || true
 
-# Optional: Python dependencies (disabled by default)
-echo "[INFO] Installing Python dependencies..."
-pip3 install --upgrade pip
-pip3 install --upgrade google-auth google-auth-oauthlib
-
 echo "[SUCCESS] Services enabled, started, and system is ready."

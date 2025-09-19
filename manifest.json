@@ -25,7 +25,9 @@
             "sqlite3",
             "jq",
             "msmtp",
-            "python3-dateutil"
+            "python3-dateutil",
+            "python3-google-auth",
+            "python3-google-auth-oauthlib"
         ],
         "rocky_common": [
             "cockpit",
