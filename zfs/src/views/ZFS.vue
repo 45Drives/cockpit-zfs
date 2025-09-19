@@ -19,14 +19,12 @@
 
 <script setup lang="ts">
 import { ref, Ref, provide, watchEffect, onMounted } from 'vue';
-//import "@45drives/cockpit-css/src/index.css";
-//import "@45drives/cockpit-vue-components/dist/style.css";
+import { getUserCaps } from "../auth/capabilities";
 import { loadDisksThenPools, loadDatasets, loadScanObjectGroup, loadDiskStats, loadSnapshots } from '../composables/loadData';
 import { loadScanActivities, loadTrimActivities } from '../composables/helpers';
 import { ZPool, VDevDisk, ZFSFileSystemInfo } from '@45drives/houston-common-lib';
 import { notificationStore } from "../store/notification";
 import { ImportablePoolData, Snapshot, Activity, PoolScanObjectGroup, PoolDiskStats } from '../types';
-//import Notification from '../components/notification/Notification.vue';
 
 interface ZFSProps {
   	tag: string;
@@ -82,21 +80,21 @@ async function initialLoad(disks, pools, datasets, snapshots) {
 
 async function setUpMessageHandler(handler) {
     try {
-        console.log("Setting up DBus message handler...");
+        console.log("Setting up ZFS Notification DBus message handler...");
 
         const client = cockpit.dbus("org._45drives.Houston");
         const houston = await client.proxy("org._45drives.Houston", "/org/_45drives/Houston");
 
-        console.log("Connected to DBus. Subscribing to Message signal...");
+        console.log("Connected to ZFS Notification DBus. Subscribing to Message signal...");
 
         houston.addEventListener("Message", (_, message) => {
 			notificationStore.addNotification(message);
             handler(message);
         });
 
-        console.log("DBus message handler successfully set up.");
+        console.log("ZFS Notification DBus message handler successfully set up.");
     } catch (error) {
-        console.error("Error setting up DBus message handler:", error);
+        console.error("Error setting up ZFS Notification DBus message handler:", error);
     }
 }
 
@@ -135,10 +133,14 @@ const loadFileSystemListComponent = async () => {
 	const module = await import('../components/file-systems/FileSystemList.vue');
 	fileSystemListComponent.value = module.default;
 }
-onMounted(() => {
-//   notificationStore.fetchMissedNotifications();
-//   console.log("hello from navigation notification in zfs vue" )
+
+const canDestructive = ref(false);
+
+onMounted(async () => {
+	const caps = await getUserCaps();
+	canDestructive.value = caps.isRoot || caps.isAdminGroup;
 });
+
 watchEffect(() => {
 	if (props.tag === 'dashboard') {
 		loadDashboardComponent();
@@ -153,6 +155,7 @@ watchEffect(() => {
 /////////////////////////////////////////////////////
 
 //provide data for other components to inject
+provide("can-destructive", canDestructive);
 provide("pools", pools);
 provide("importable-pools", importablePools);
 provide("importable-destroyed-pools", importableDestroyedPools);

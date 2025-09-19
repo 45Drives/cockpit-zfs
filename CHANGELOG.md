@@ -1,3 +1,3 @@
-## zfs module 1.2.7-1
+## zfs module 1.2.8-1
 
-* fixes bug where pool creation failure would not notify and stay in endless loading state
+* Adds support for non-privledged users -> hides/disables any destructive actions (module is read-only with exception for creating datasets)

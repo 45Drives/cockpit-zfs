@@ -36,7 +36,7 @@ def determine_severity(event, message):
         return "warning"  # ⚠️ Pool usage threshold crossed
         
     if event in ["pool_fail", "pool_faulted"] or health == "FAULTED":
-        return "error"  # ❌ Critical failure
+        return "error"  # Critical failure
 
     if event in ["scrub_finish", "scrub_warning","snapshot_failed","zfs_replication_failed"] and errors and errors.lower() != "no":
         return "warning"  # ⚠️ Scrub completed with errors
@@ -51,13 +51,13 @@ def determine_severity(event, message):
 
 def store_notification(message):
     """Stores notifications in SQLite DB, updates statechange events if necessary, and returns the message with ID."""
-    print(f"[DEBUG] Attempting to store: {message}")  
+    # print(f"[DEBUG] Attempting to store: {message}")  
 
     try:
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
 
-        print(f"[DEBUG] Checking if {message.get('event')} already exists")
+        # print(f"[DEBUG] Checking if {message.get('event')} already exists")
 
         if message["event"] == "statechange":
             cursor.execute("""
@@ -70,7 +70,7 @@ def store_notification(message):
             if existing_event:
                 existing_id, existing_state, existing_health = existing_event
 
-                # ✅ If state or health changed, update
+                # If state or health changed, update
                 if existing_state != message.get("state") or existing_health != message.get("health"):
                     new_severity = determine_severity(message.get("event"), message)
                     cursor.execute("""
@@ -84,15 +84,15 @@ def store_notification(message):
                         existing_id
                     ))
                     conn.commit()
-                    print(f"✅ [UPDATE] Statechange event updated: {message}")
+                    # print(f"[UPDATE] Statechange event updated: {message}")
                     message["id"] = existing_id
                     message["severity"] = new_severity
                     return message
 
-                print(f"❌ Duplicate statechange detected, skipping insert: {message}")
+                print(f"Duplicate statechange detected, skipping insert: {message}")
                 return None
 
-        # ✅ Insert new notification for all other event types
+        # Insert new notification for all other event types
         severity = determine_severity(message.get("event"), message)
 
         cursor.execute("""
@@ -115,13 +115,13 @@ def store_notification(message):
 
         conn.commit()
         notification_id = cursor.lastrowid
-        print(f"✅ [INSERT] New event stored: {message}")
+        # print(f"[INSERT] New event stored: {message}")
         message["id"] = notification_id
         message["severity"] = severity
         return message
 
     except Exception as e:
-        print(f"❌ [DB Insert Error] {e}")
+        print(f"[DB Insert Error] {e}")
         return None
 
     finally:
@@ -144,7 +144,7 @@ def store_notification(message):
 #         tls = "on" if config.get("tls", True) else "off"
 
 #         if not recipient_email or "@" not in recipient_email:
-#             return "❌ Invalid recipient email."
+#             return "Invalid recipient email."
 
 #         email_content = f"Subject: Test Email from 45Drives\n\nThis is a test email."
 
@@ -196,12 +196,12 @@ def store_notification(message):
 #             os.unlink(temp_config_path)
 
 #         if process.returncode == 0:
-#             return f"✅ Test email sent to {recipient_email} via SMTP!"
+#             return f"Test email sent to {recipient_email} via SMTP!"
 #         else:
-#             return f"❌ SMTP error: {process.stderr.strip()}"
+#             return f"SMTP error: {process.stderr.strip()}"
 
 #     except Exception as e:
-#         return f"❌ Exception in SMTP send: {str(e)}"
+#         return f"Exception in SMTP send: {str(e)}"
 import tempfile
 import subprocess
 import os
@@ -221,7 +221,7 @@ def sendTestEmailViaSMTP(config):
         if not recipients:
             return {
                 "success": False,
-                "message": "❌ No valid recipients provided."
+                "message": "No valid recipients provided."
             }
 
         # Determine TLS type
@@ -262,18 +262,18 @@ tls_starttls {"off" if implicit_tls else "on"}
         if proc.returncode == 0:
             return {
                 "success": True,
-                "message": f"✅ Test email sent successfully to: {', '.join(recipients)}"
+                "message": f"Test email sent successfully to: {', '.join(recipients)}"
             }
         else:
             return {
                 "success": False,
-                "message": f"❌ Failed to send test email:\n{proc.stderr.strip()}"
+                "message": f"Failed to send test email:\n{proc.stderr.strip()}"
             }
 
     except Exception as e:
         return {
             "success": False,
-            "message": f"❌ SMTP test failed: {str(e)}"
+            "message": f"SMTP test failed: {str(e)}"
         }
 
 
@@ -284,10 +284,10 @@ import email.message
 # def sendTestEmailViaGmailApi(config):
 #     try:
 #         if not os.path.exists(MSMTP_OAUTH_JSON_PATH):
-#             return "❌ Gmail OAuth credentials file not found."
+#             return "Gmail OAuth credentials file not found."
 
-#         # 🔄 Refresh access token
-#         logging.info("🔄 Refreshing Gmail token...")
+#         # Refresh access token
+#         logging.info("Refreshing Gmail token...")
 #         refresh = subprocess.run(
 #             ["python3", MSMTP_OAUTH_REFRESH_SCRIPT],
 #             stdout=subprocess.PIPE,
@@ -296,10 +296,10 @@ import email.message
 #         )
 
 #         if refresh.returncode != 0:
-#             logging.error(f"❌ Refresh script failed: {refresh.stderr.strip()}")
-#             return f"❌ Token refresh failed: {refresh.stderr.strip()}"
+#             logging.error(f"Refresh script failed: {refresh.stderr.strip()}")
+#             return f"Token refresh failed: {refresh.stderr.strip()}"
 
-#         # ✅ Load refreshed token data
+#         # Load refreshed token data
 #         with open(MSMTP_OAUTH_JSON_PATH) as f:
 #             oauth = json.load(f)
 
@@ -308,7 +308,7 @@ import email.message
 #         recipient_email = config.get("recipientEmail", "").strip()
 
 #         if not all([access_token, sender_email, recipient_email]):
-#             return "❌ Missing required fields: access token, sender, or recipient."
+#             return "Missing required fields: access token, sender, or recipient."
 
 #         # 🔁 Call your own API endpoint
 #         payload = {
@@ -329,16 +329,16 @@ import email.message
 #         if response.status_code == 200:
 #             return response.text.strip()
 #         else:
-#             return f"❌ Failed to send via API ({response.status_code}): {response.text.strip()}"
+#             return f"Failed to send via API ({response.status_code}): {response.text.strip()}"
 
 #     except Exception as e:
-#         logging.error(f"❌ Exception in sendViaGmailApi: {str(e)}")
-#         return f"❌ Exception in sendViaGmailApi: {str(e)}"
+#         logging.error(f"Exception in sendViaGmailApi: {str(e)}")
+#         return f"Exception in sendViaGmailApi: {str(e)}"
 
 
 def sendTestEmailViaGmailApi(config):
     try:
-        # 🔄 Refresh token first
+        # Refresh token first
         if not os.path.exists(MSMTP_OAUTH_REFRESH_SCRIPT):
             return {
                 "success": False,
@@ -358,7 +358,7 @@ def sendTestEmailViaGmailApi(config):
                 "message": f"Failed to refresh OAuth token: {refresh.stderr.strip()}"
             }
 
-        # ✅ Load refreshed token info
+        # Load refreshed token info
         if not os.path.exists(MSMTP_OAUTH_JSON_PATH):
             return {
                 "success": False,
@@ -376,7 +376,7 @@ def sendTestEmailViaGmailApi(config):
         if isinstance(recipients, str):
             recipients = [r.strip() for r in recipients.split(",") if r.strip()]
 
-        # ✅ Validate required fields
+        # Validate required fields
         missing = []
         if not access_token:
             missing.append("OAuth access token")
@@ -391,7 +391,7 @@ def sendTestEmailViaGmailApi(config):
                 "message": f"Missing required fields for Gmail API test: {', '.join(missing)}"
             }
 
-        # ✅ Compose payload with joined recipients
+        # Compose payload with joined recipients
         payload = {
             "accessToken": access_token,
             "from": sender_email,
@@ -438,7 +438,7 @@ def sendTestEmail(config_json):
             return sendTestEmailViaSMTP(config)
 
     except Exception as e:
-        error_message = f"❌ Error sending test email: {str(e)}"
+        error_message = f"Error sending test email: {str(e)}"
         logging.error(error_message)
         return {
 			"success": False,
@@ -477,14 +477,14 @@ def sendTestEmail(config_json):
 
 #         print(f"[DEBUG] Missed Notifications Processed: {notifications}")
 
-#         return json.dumps(notifications)  # ✅ Return JSON for easy integration with D-Bus
+#         return json.dumps(notifications)  # Return JSON for easy integration with D-Bus
 
 #     except Exception as e:
-#         print(f"❌ [DB Error] Failed to fetch missed notifications: {e}")
+#         print(f"[DB Error] Failed to fetch missed notifications: {e}")
 #         return json.dumps([])  # Return an empty list on failure
 
 #     finally:
-#         conn.close()  # ✅ Always close the database connection
+#         conn.close()  # Always close the database connection
 
 def get_missed_notifications(limit=100, offset=0):
     """Fetch paginated missed notifications (received = 0), mark them as received, and return as JSON."""
@@ -505,7 +505,7 @@ def get_missed_notifications(limit=100, offset=0):
         """, (limit, offset))
 
         rows = cursor.fetchall()
-        print(f"[DEBUG] Raw Rows from DB: {rows}")
+        # print(f"[DEBUG] Raw Rows from DB: {rows}")
 
         # Step 2: Prepare the structured notification list
         notifications = []
@@ -537,13 +537,13 @@ def mark_notification_as_read(notification_id):
         conn.commit()
 
         if cursor.rowcount == 0:
-            return "❌ Notification not found"
+            return "Notification not found"
 
         conn.close()
-        return f"✅ Notification {notification_id} marked as read"
+        return f"Notification {notification_id} marked as read"
 
     except Exception as e:
-        return f"❌ DB Error: {str(e)}"
+        return f"DB Error: {str(e)}"
         
 def mark_all_notifications_as_read():
     """Mark all unread notifications as read via D-Bus."""
@@ -564,10 +564,10 @@ def mark_all_notifications_as_read():
         conn.commit()
         conn.close()
 
-        return f"✅ Marked {unread_count} notifications as read"  # ✅ Ensure string return type
+        return f"Marked {unread_count} notifications as read"  # Ensure string return type
 
     except Exception as e:
-        return f"❌ DB Error: {str(e)}"  # ✅ Return error as a string
+        return f"DB Error: {str(e)}"  # Return error as a string
 
 
 MSMTP_CONFIG_PATH = "/etc/45drives/msmtp"
@@ -578,7 +578,7 @@ def updateSMTPConfig(config_json):
     Updates either msmtp (plain auth) or Gmail API (OAuth2) config depending on selected authMethod.
     """
     try:
-        print("🔄 Updating email config...")
+        print("Updating email config...")
 
         config = json.loads(config_json)
 
@@ -619,7 +619,7 @@ def updateSMTPConfig(config_json):
                 f.write("")
             os.chmod(MSMTP_CONFIG_PATH, 0o600)
 
-            print("✅ Gmail API config (OAuth2) saved and msmtp config cleared.")
+            print("Gmail API config (OAuth2) saved and msmtp config cleared.")
 
         else:
             # Traditional SMTP config (msmtp)
@@ -655,13 +655,13 @@ tls_starttls {use_starttls}
                 f.write(config_content)
             os.chmod(MSMTP_CONFIG_PATH, 0o600)
 
-            print("✅ SMTP (msmtp) config updated successfully.")
+            print("SMTP (msmtp) config updated successfully.")
 
         updateEmailSeverities(config_json)
-        return "✅ Email configuration saved!"
+        return "Email configuration saved!"
 
     except Exception as e:
-        error_message = f"❌ Error updating email config: {str(e)}"
+        error_message = f"Error updating email config: {str(e)}"
         print(error_message)
         return error_message
 
@@ -680,7 +680,7 @@ def sendEmailNotification(subject, message, severity):
         oauth_exists = os.path.exists(MSMTP_OAUTH_JSON_PATH) and os.stat(MSMTP_OAUTH_JSON_PATH).st_size > 0
 
         if not msmtp_exists and not oauth_exists:
-            msg = "❌ No email configuration found. Cannot send notification."
+            msg = "No email configuration found. Cannot send notification."
             print(msg)
             logging.error(msg)
             return msg
@@ -695,7 +695,7 @@ def sendEmailNotification(subject, message, severity):
             use_gmail_api = True
 
         if not os.path.exists(MSMTP_RECIPIENT_PATH):
-            return "❌ Recipient email file missing."
+            return "Recipient email file missing."
 
         with open(MSMTP_RECIPIENT_PATH, "r") as f:
             raw_recipients = f.read().strip()
@@ -703,10 +703,10 @@ def sendEmailNotification(subject, message, severity):
         recipients = [email.strip() for email in raw_recipients.split(",") if email.strip()]
 
         if not recipients:
-            return "❌ No valid recipients found."
+            return "No valid recipients found."
 
         if use_gmail_api:
-            logging.info("🔄 Using Gmail API. Refreshing token...")
+            logging.info("Using Gmail API. Refreshing token...")
             refresh_process = subprocess.run(
                 ["python3", MSMTP_OAUTH_REFRESH_SCRIPT],
                 stdout=subprocess.PIPE,
@@ -727,7 +727,7 @@ def sendEmailNotification(subject, message, severity):
             sender_email = oauth_data.get("user_email")
 
             if not all([access_token, sender_email]):
-                return "❌ Missing required OAuth fields."
+                return "Missing required OAuth fields."
 
             payload = {
                 "accessToken": access_token,
@@ -745,11 +745,11 @@ def sendEmailNotification(subject, message, severity):
             )
 
             if response.status_code == 200:
-                logging.info("✅ Gmail API email sent successfully.")
+                logging.info("Gmail API email sent successfully.")
                 return response.text.strip()
             else:
-                logging.error(f"❌ Gmail API error {response.status_code}: {response.text.strip()}")
-                return f"❌ Gmail API error {response.status_code}: {response.text.strip()}"
+                logging.error(f"Gmail API error {response.status_code}: {response.text.strip()}")
+                return f"Gmail API error {response.status_code}: {response.text.strip()}"
 
         else:
             # Use msmtp
@@ -769,18 +769,18 @@ def sendEmailNotification(subject, message, severity):
             logging.debug(f"[msmtp STDERR]: {process.stderr.strip()}")
 
             if process.returncode == 0:
-                success_msg = f"✅ Notification sent to: {', '.join(recipients)}"
+                success_msg = f"Notification sent to: {', '.join(recipients)}"
                 print(success_msg)
                 logging.info(success_msg)
                 return success_msg
             else:
-                error_message = f"❌ Failed to send notification: {process.stderr.strip()}"
+                error_message = f"Failed to send notification: {process.stderr.strip()}"
                 print(error_message)
                 logging.error(error_message)
                 return error_message
 
     except Exception as e:
-        error_message = f"❌ Error sending notification: {str(e)}"
+        error_message = f"Error sending notification: {str(e)}"
         print(error_message)
         logging.exception(error_message)
         return error_message
@@ -981,10 +981,10 @@ def updateWarningLevels(config_json):
 
         conn.commit()
         conn.close()
-        return "✅ Warning levels updated successfully."
+        return "Warning levels updated successfully."
 
     except Exception as e:
-        return f"❌ Failed to update warning levels: {str(e)}"
+        return f"Failed to update warning levels: {str(e)}"
 
 def should_send_email(severity: str):
     conn = sqlite3.connect(DB_PATH)
@@ -1029,10 +1029,10 @@ def updateEmailSeverities(json_string):
 
         conn.commit()
         conn.close()
-        return "✅ Email severity flags updated."
+        return "Email severity flags updated."
 
     except Exception as e:
-        return f"❌ Failed to update email severity config: {str(e)}"
+        return f"Failed to update email severity config: {str(e)}"
 
 
 if __name__ == "__main__":
@@ -1078,7 +1078,7 @@ def getNotificationCount():
         return total
 
     except Exception as e:
-        return f"❌ DB Error: {str(e)}"
+        return f"DB Error: {str(e)}"
 
 def getHighestMissedSeverity():
     conn = sqlite3.connect(DB_PATH)

@@ -487,8 +487,8 @@ const vDevAvailDisks = computed<VDevDisk[][]>(() => {
 		const claimed = poolConfig.value.vdevs
 		.filter((_, idx) => idx !== vdevIdx)
 		.flatMap(vdev => vdev.selectedDisks);
-		console.log('claimed:', claimed);
-		console.log('disks filtered:', disks.value.filter(disk => disk.guid === "" && !claimed.includes(disk.name)));
+		// console.log('claimed:', claimed);
+		// console.log('disks filtered:', disks.value.filter(disk => disk.guid === "" && !claimed.includes(disk.name)));
 		return disks.value.filter(disk => disk.guid === "" && !claimed.includes(disk.name));
 	});
 });
@@ -697,7 +697,7 @@ const diskCheck = () => {
 	let result = true;
 	diskFeedback.value = '';
 	poolConfig.value.vdevs.forEach(vdev => {
-		console.log("diskCheck selectedDisks: ", vdev.selectedDisks! )
+		// console.log("diskCheck selectedDisks: ", vdev.selectedDisks! )
 
 		if (vdev.type == 'mirror' && vdev.selectedDisks!.length < 2) {
 			result = false;
@@ -803,7 +803,7 @@ const newPoolData = inject<Ref<ZPoolBase & ZpoolCreateOptions>>('new-pool-data')
 const newVDevDisks = ref<VDevDisk[]>([]);
 
 function fillNewPoolData() {
-	console.log("fillData function's poolConfig:", poolConfig.value);
+	// console.log("fillData function's poolConfig:", poolConfig.value);
 
 	newPoolData.value.name = poolConfig.value.name;
 	poolConfig.value.vdevs.forEach(vDev => {
@@ -813,24 +813,24 @@ function fillNewPoolData() {
 		}
 		newVDev.type = vDev.type;
 		newVDev.isMirror = vDev.isMirror;
-		console.log("fillNewPoolData vDev before disks: ", vDev)
+		// console.log("fillNewPoolData vDev before disks: ", vDev)
 
 		vDev.selectedDisks!.forEach(selectedDisk => {
 			// const diskNameFinal = getDiskIDName(disks.value, vDev.diskIdentifier!, diskObject.path.toString());
-			console.log('selectedDisk being checked:', selectedDisk);
+			// console.log('selectedDisk being checked:', selectedDisk);
 			const diskNameFinal = getDiskIDName(disks.value, vDev.diskIdentifier!, selectedDisk);
 			// const fullDisk = disks.value.find(disk => disk.path === diskNameFinal);
 			const fullDisk = getFullDiskInfo(disks.value, selectedDisk);
 
 			if (fullDisk) {
 				newVDevDisks.value.push(fullDisk);
-				console.log('fullVDevDisk:', fullDisk);
+				// console.log('fullVDevDisk:', fullDisk);
 			} else {
 				console.error(`Disk with path ${diskNameFinal} not found in available disks.`);
 			}
 		});
 		
-		console.log("fillNewPoolData vDev after disks: ", vDev)
+		// console.log("fillNewPoolData vDev after disks: ", vDev)
 
 		newVDev.disks = newVDevDisks.value;
 		newVDevDisks.value = [];
@@ -850,7 +850,7 @@ function fillNewPoolData() {
 	newPoolData.value.refreservationPercent = poolConfig.value.refreservationPercent!;
 	newPoolData.value.sectorsize = Number(poolConfig.value.sectorsize);
 
-	console.log("newPoolData sent:", newPoolData);
+	// console.log("newPoolData sent:", newPoolData);
 }
 
 onMounted(() => {
@@ -860,7 +860,7 @@ onMounted(() => {
 const fsConfig = ref();
 
 async function createNewFileSystem() {
-	console.log('fsConfig', fsConfig.value);
+	// console.log('fsConfig', fsConfig.value);
 
 	await fsConfig.value.newFileSystemInPoolWizard();
 }

@@ -1,12 +1,23 @@
 <template>
-	<div class="inline-block min-w-full min-h-full py-4 align-middle sm:px-4 lg:px-6 overflow-visible bg-accent rounded-md border border-default">
-		<div class="flex bg-well justify-between rounded-md p-2 shadow text-default rounded-b-md ring-1 ring-black ring-opacity-5">
-			<div class="button-group-row justify-start">
+	<div
+		class="inline-block min-w-full min-h-full py-4 align-middle sm:px-4 lg:px-6 overflow-visible bg-accent rounded-md border border-default">
+		<div
+			class="flex bg-well justify-between rounded-md p-2 shadow text-default rounded-b-md ring-1 ring-black ring-opacity-5">
+			<div v-if="canDestructive" class="button-group-row justify-start">
 				<button id="createPool" class="btn btn-primary" @click="newPoolWizardBtn">Create Storage Pool</button>
 				<button id="importPool" class="btn btn-secondary" @click="importNewPoolBtn">Import Storage Pool</button>
 			</div>
+			<div v-else class="button-group-row justify-start">
+				<button id="createPool" disabled :title="!canDestructive ? 'Requires administrative privileges' : ''"
+					class="btn btn-primary" @click="newPoolWizardBtn">Create Storage Pool</button>
+				<button id="importPool" disabled :title="!canDestructive ? 'Requires administrative privileges' : ''"
+					class="btn btn-secondary" @click="importNewPoolBtn">Import Storage
+					Pool</button>
+			</div>
 			<div class="button-group-row justify-end">
-				<button id="refreshPools" class="btn btn-secondary " @click="refreshAllData"><ArrowPathIcon class="w-5 h-5 m-1"/></button>
+				<button id="refreshPools" class="btn btn-secondary " @click="refreshAllData">
+					<ArrowPathIcon class="w-5 h-5 m-1" />
+				</button>
 			</div>
 		</div>
 
@@ -20,49 +31,57 @@
 								<th class="relative py-2 rounded-tl-md col-span-1">
 									<span class="sr-only"></span>
 								</th>
-								<th class="py-2 font-semibold text-default col-span-1 flex flex-row justify-start" :class="truncateText" title="Name">Name</th>
-								<th class="py-2 font-semibold text-default col-span-1" :class="truncateText" title="Status">Status</th>
-								<th class="py-2 font-semibold text-default col-span-1" :class="truncateText" title="Used (%)">Used (%)</th>
-								<th class="py-2 font-semibold text-default col-span-1" :class="truncateText" title="Used">Used</th>
-								<th class="py-2 font-semibold text-default col-span-1" :class="truncateText" title="Available">Available</th>
-								<th class="py-2 font-semibold text-default col-span-1" :class="truncateText" title="Total">Total</th>
-								<th class="py-2 font-semibold text-default col-span-2" :class="truncateText" title="Message">Message</th>
+								<th class="py-2 font-semibold text-default col-span-1 flex flex-row justify-start"
+									:class="truncateText" title="Name">Name</th>
+								<th class="py-2 font-semibold text-default col-span-1" :class="truncateText"
+									title="Status">Status</th>
+								<th class="py-2 font-semibold text-default col-span-1" :class="truncateText"
+									title="Used (%)">Used (%)</th>
+								<th class="py-2 font-semibold text-default col-span-1" :class="truncateText"
+									title="Used">Used</th>
+								<th class="py-2 font-semibold text-default col-span-1" :class="truncateText"
+									title="Available">Available</th>
+								<th class="py-2 font-semibold text-default col-span-1" :class="truncateText"
+									title="Total">Total</th>
+								<th class="py-2 font-semibold text-default col-span-2" :class="truncateText"
+									title="Message">Message</th>
 								<th class="relative py-2 sm:pr-6 lg:pr-8 rounded-tr-md col-span-1">
 									<span class="sr-only"></span>
 								</th>
 
 							</tr>
 						</thead>
-						
+
 						<tbody class="">
 							<tr class="border border-collapse border-default ">
 								<div v-if="poolData.length > 0 && poolsLoaded == true" class="">
 									<div v-for="pool, poolIdx in poolData" :key="poolIdx" class="">
-										<PoolListElement :poolIdx="poolIdx" :pool="pool"/>
+										<PoolListElement :poolIdx="poolIdx" :pool="pool" />
 									</div>
 								</div>
 							</tr>
 						</tbody>
 					</table>
-									
+
 					<div v-if="poolsLoaded == false" class="p-2 flex justify-center bg-default ">
-						<LoadingSpinner :width="'w-10'" :height="'h-10'" :baseColor="'text-gray-200'" :fillColor="'fill-slate-500'"  class="font-semibold text-lg my-0.5"/>
+						<LoadingSpinner :width="'w-10'" :height="'h-10'" :baseColor="'text-gray-200'"
+							:fillColor="'fill-slate-500'" class="font-semibold text-lg my-0.5" />
 					</div>
 					<div v-if="poolData.length < 1 && poolsLoaded == true" class="p-2 flex bg-default justify-center ">
 						<span class="font-semibold text-lg my-2">No Pools Found</span>
 					</div>
-	
+
 				</div>
 			</div>
 		</div>
 	</div>
 
 	<div v-if="showNewPoolWizard">
-		<component :is="createPoolComponent" @close="showNewPoolWizard = false"/>
+		<component :is="createPoolComponent" @close="showNewPoolWizard = false" />
 	</div>
 
 	<div v-if="showImportModal">
-		<component :is="importPoolComponent" :idKey="'import-pool'"/>
+		<component :is="importPoolComponent" :idKey="'import-pool'" />
 	</div>
 </template>
 
@@ -90,6 +109,7 @@ const poolDiskStats = inject<Ref<PoolDiskStats>>('pool-disk-stats')!;
 const scanActivities = inject<Ref<Map<string, Activity>>>('scan-activities')!;
 const trimActivities = inject<Ref<Map<string, Activity>>>('trim-activities')!;
 const truncateText = inject<Ref<string>>('style-truncate-text')!;
+const canDestructive = inject<Ref<boolean>>('can-destructive')!;
 
 async function refreshAllData() {
 	disksLoaded.value = false;
@@ -107,7 +127,7 @@ async function refreshAllData() {
 	disksLoaded.value = true;
 	poolsLoaded.value = true;
 	fileSystemsLoaded.value = true;
-	console.log('PoolList trimActivities', trimActivities.value);
+	// console.log('PoolList trimActivities', trimActivities.value);
 }
 
 /////////////// Create/Import Pool //////////////////

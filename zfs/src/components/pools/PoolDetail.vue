@@ -99,7 +99,8 @@
 						<label :for="getIdKey('settings-pool-fail-mode')"
 							class="bg-default block text-base leading-6 text-default">Fail Mode</label>
 						<select :id="getIdKey('settings-pool-fail-mode')" v-model="poolConfig.failMode"
-							name="pool-fail-mode"
+							:disabled="settingsLocked"
+							:title="settingsLocked ? 'Requires administrative privileges' : ''" name="pool-fail-mode"
 							class="mt-1 block w-full rounded-md border-0 py-1.5 text-default bg-default ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-slate-600 sm:text-sm sm:leading-6">
 							<option value="wait">Wait</option>
 							<option value="continue">Continue</option>
@@ -120,7 +121,12 @@
 						<label :for="getIdKey('settings-pool-auto-expand')"
 							class="mt-1 block text-sm leading-6 text-default">Auto-Expand Pool</label>
 						<Switch v-model="poolConfig.properties.autoExpand" :id="getIdKey('settings-pool-auto-expand')"
-							:class="[poolConfig.properties.autoExpand ? 'bg-secondary' : 'bg-accent', 'mt-1 relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-slate-600 focus:ring-offset-2']">
+							:disabled="settingsLocked" :aria-disabled="settingsLocked"
+							:title="settingsLocked ? 'Requires administrative privileges' : ''" :class="[
+								settingsLocked ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer',
+								poolConfig.properties.autoExpand ? 'bg-secondary' : 'bg-accent',
+								'mt-1 relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-slate-600 focus:ring-offset-2'
+							]">
 							<span class="sr-only">Use setting</span>
 							<span
 								:class="[poolConfig.properties.autoExpand ? 'translate-x-5' : 'translate-x-0', 'pointer-events-none relative inline-block h-5 w-5 transform rounded-full bg-default shadow ring-0 transition duration-200 ease-in-out']">
@@ -149,7 +155,10 @@
 						<label :for="getIdKey('settings-pool-auto-replace')"
 							class="mt-1 block text-sm leading-6 text-default">Auto-Replace Drives</label>
 						<Switch v-model="poolConfig.properties.autoReplace" :id="getIdKey('settings-pool-auto-replace')"
-							:class="[poolConfig.properties.autoReplace ? 'bg-secondary' : 'bg-accent', 'mt-1 relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-slate-600 focus:ring-offset-2']">
+							:disabled="settingsLocked" :aria-disabled="settingsLocked"
+							:title="settingsLocked ? 'Requires administrative privileges' : ''"
+							:class="[
+								settingsLocked ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer', poolConfig.properties.autoReplace ? 'bg-secondary' : 'bg-accent', 'mt-1 relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-slate-600 focus:ring-offset-2']">
 							<span class="sr-only">Use setting</span>
 							<span
 								:class="[poolConfig.properties.autoReplace ? 'translate-x-5' : 'translate-x-0', 'pointer-events-none relative inline-block h-5 w-5 transform rounded-full bg-default shadow ring-0 transition duration-200 ease-in-out']">
@@ -178,8 +187,11 @@
 						<label :for="getIdKey('settings-pool-display-snapshots')"
 							class="mt-1 block text-sm leading-6 text-default">List Snapshots With File Systems</label>
 						<Switch v-model="poolConfig.properties.listSnapshots"
-							:id="getIdKey('settings-pool-display-snapshots')"
-							:class="[poolConfig.properties.listSnapshots ? 'bg-secondary' : 'bg-accent', 'mt-1 relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-slate-600 focus:ring-offset-2']">
+							:id="getIdKey('settings-pool-display-snapshots')" :disabled="settingsLocked"
+							:aria-disabled="settingsLocked"
+							:title="settingsLocked ? 'Requires administrative privileges' : ''"
+							:class="[
+								settingsLocked ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer', poolConfig.properties.listSnapshots ? 'bg-secondary' : 'bg-accent', 'mt-1 relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-slate-600 focus:ring-offset-2']">
 							<span class="sr-only">Use setting</span>
 							<span
 								:class="[poolConfig.properties.listSnapshots ? 'translate-x-5' : 'translate-x-0', 'pointer-events-none relative inline-block h-5 w-5 transform rounded-full bg-default shadow ring-0 transition duration-200 ease-in-out']">
@@ -211,8 +223,11 @@
 							<p class="text-xs text-muted mt-0.5">(Access based on dataset permissions)</p>
 						</div>
 						<Switch :initialFocus="null" v-model="poolConfig.properties.delegation"
-							:id="getIdKey('settings-pool-delegation')"
-							:class="[poolConfig.properties.delegation ? 'bg-secondary' : 'bg-accent', 'mt-1 relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-slate-600 focus:ring-offset-2']">
+							:id="getIdKey('settings-pool-delegation')" :disabled="settingsLocked"
+							:aria-disabled="settingsLocked"
+							:title="settingsLocked ? 'Requires administrative privileges' : ''"
+							:class="[
+								settingsLocked ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer', poolConfig.properties.delegation ? 'bg-secondary' : 'bg-accent', 'mt-1 relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-slate-600 focus:ring-offset-2']">
 							<span class="sr-only">Use setting</span>
 							<span
 								:class="[poolConfig.properties.delegation ? 'translate-x-5' : 'translate-x-0', 'pointer-events-none relative inline-block h-5 w-5 transform rounded-full bg-default shadow ring-0 transition duration-200 ease-in-out']">
@@ -242,7 +257,10 @@
 						<label :for="getIdKey('settings-pool-auto-trim')"
 							class="mt-1 block text-sm leading-6 text-default">Auto-TRIM Pool</label>
 						<Switch v-model="poolConfig.properties.autoTrim" :id="getIdKey('settings-pool-auto-trim')"
-							:class="[poolConfig.properties.autoTrim ? 'bg-secondary' : 'bg-accent', 'mt-1 relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-slate-600 focus:ring-offset-2']">
+							:disabled="settingsLocked" :aria-disabled="settingsLocked"
+							:title="settingsLocked ? 'Requires administrative privileges' : ''"
+							:class="[
+								settingsLocked ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer', poolConfig.properties.autoTrim ? 'bg-secondary' : 'bg-accent', 'mt-1 relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-slate-600 focus:ring-offset-2']">
 							<span class="sr-only">Use setting</span>
 							<span
 								:class="[poolConfig.properties.autoTrim ? 'translate-x-5' : 'translate-x-0', 'pointer-events-none relative inline-block h-5 w-5 transform rounded-full bg-default shadow ring-0 transition duration-200 ease-in-out']">
@@ -284,14 +302,15 @@
 				<div class="justify-self-end">
 					<div v-if="navTag == 'topology'">
 						<div class="mt-2">
-							<button @click="addVDevButton()" :id="getIdKey('add-vdev-btn')" name="add-vdev-btn"
-								class="mt-1 btn btn-primary">Add Virtual Device</button>
+							<button v-if="canDestructive" @click="addVDevButton()" :id="getIdKey('add-vdev-btn')"
+								name="add-vdev-btn" class="mt-1 btn btn-primary">Add Virtual Device</button>
 						</div>
 					</div>
 					<div v-if="navTag == 'snapshots'">
 						<div class="mt-2">
-							<button @click="createSnapshotBtn()" :id="getIdKey('create-snap-wizard-btn')"
-								name="create-snap-wizard-btn" class="mt-1 btn btn-primary">Create Snapshot</button>
+							<button v-if="canDestructive" @click="createSnapshotBtn()"
+								:id="getIdKey('create-snap-wizard-btn')" name="create-snap-wizard-btn"
+								class="mt-1 btn btn-primary">Create Snapshot</button>
 						</div>
 					</div>
 					<div v-if="navTag == 'settings'">
@@ -324,23 +343,14 @@
 	<div v-if="showSnapshotModal">
 		<component :is="createSnapshotComponent" @close="updateShowNewSnapshot" :poolName="props.pool.name"
 			:item="'pool'" />
-		<!-- <CreateSnapshotModal @close="updateShowNewSnapshot" :poolName="props.pool.name" :item="'pool'" /> -->
 	</div>
 	<div v-if="showAddVDevModal">
 		<component :is="addVDevComponent" @close="updateShowAddVDev" :key="showAddVDevModal"
 			:idKey="getIdKey(`show-vdev-modal`)" :pool="poolConfig" :marginTop="'mt-48'" />
-		<!-- <AddVDevModal @close="updateShowAddVDev" :idKey="getIdKey(`show-vdev-modal`)"
-			:pool="poolConfig" :marginTop="'mt-48'" /> -->
 	</div>
 
 </template>
-<!-- <style >
-.inert {
-    pointer-events: none !important;
-    opacity: 0.5;
-}
 
-</style> -->
 
 <script setup lang="ts">
 import { reactive, ref, inject, Ref, computed, provide, watch } from 'vue';
@@ -352,8 +362,9 @@ import OldModal from '../common/OldModal.vue';
 import PoolCapacity from '../common/PoolCapacity.vue';
 import Navigation from '../common/Navigation.vue';
 import PoolDetailDiskCard from '../disks/PoolDetailDiskCard.vue';
-import AddVDevModal from './AddVDevModal.vue';
-import CreateSnapshotModal from '../snapshots/CreateSnapshotModal.vue';
+
+const canDestructive = inject<Ref<boolean>>('can-destructive')!;
+const settingsLocked = computed(() => !canDestructive.value);
 
 interface PoolDetailsProps {
 	pool: ZPool;
@@ -527,56 +538,24 @@ const updatedProperties: Partial<PoolEditConfig> = ({
 async function checkForChanges() {
 	const changes: Partial<PoolEditConfig> = {};
 
-	if (poolConfig.value.failMode !== props.pool.failMode) changes.failmode = poolConfig.value.failMode;
-	if (poolConfig.value.comment !== props.pool.comment) changes.comment = poolConfig.value.comment;
-	if (poolConfig.value.properties.autoExpand !== props.pool.properties.autoExpand) changes.autoexpand = isBoolOnOff(poolConfig.value.properties.autoExpand);
-	if (poolConfig.value.properties.autoReplace !== props.pool.properties.autoReplace) changes.autoreplace = isBoolOnOff(poolConfig.value.properties.autoReplace);
-	if (poolConfig.value.properties.autoTrim !== props.pool.properties.autoTrim) changes.autotrim = isBoolOnOff(poolConfig.value.properties.autoTrim);
-	if (poolConfig.value.properties.delegation !== props.pool.properties.delegation) changes.delegation = isBoolOnOff(poolConfig.value.properties.delegation!);
-	if (poolConfig.value.properties.listSnapshots !== props.pool.properties.listSnapshots) changes.listsnapshots = isBoolOnOff(poolConfig.value.properties.listSnapshots!);
+	// Always allow comment (non-destructive)
+	if (poolConfig.value.comment !== props.pool.comment) {
+		changes.comment = poolConfig.value.comment;
+	}
+
+	// Only include the rest if we are allowed to make destructive/admin changes
+	if (!settingsLocked.value) {
+		if (poolConfig.value.failMode !== props.pool.failMode) changes.failmode = poolConfig.value.failMode;
+		if (poolConfig.value.properties.autoExpand !== props.pool.properties.autoExpand) changes.autoexpand = isBoolOnOff(poolConfig.value.properties.autoExpand);
+		if (poolConfig.value.properties.autoReplace !== props.pool.properties.autoReplace) changes.autoreplace = isBoolOnOff(poolConfig.value.properties.autoReplace);
+		if (poolConfig.value.properties.autoTrim !== props.pool.properties.autoTrim) changes.autotrim = isBoolOnOff(poolConfig.value.properties.autoTrim);
+		if (poolConfig.value.properties.delegation !== props.pool.properties.delegation) changes.delegation = isBoolOnOff(poolConfig.value.properties.delegation!);
+		if (poolConfig.value.properties.listSnapshots !== props.pool.properties.listSnapshots) changes.listsnapshots = isBoolOnOff(poolConfig.value.properties.listSnapshots!);
+	}
 
 	newChangesToPool.value = { ...newChangesToPool.value, ...changes };
 	return Object.keys(changes).length > 0;
 }
-
-// async function checkForChanges(poolDataCheck) {
-// 	//failmode
-// 	if (poolDataCheck.failMode != props.pool.failMode) {
-// 		updatedProperties.failmode = poolDataCheck.failMode;
-// 	}
-// 	//comment
-// 	if (poolDataCheck.comment != props.pool.comment) {
-// 		updatedProperties.comment = poolDataCheck.comment;
-// 	}
-// 	//autoexpand
-// 	if (poolDataCheck.properties.autoExpand != props.pool.properties.autoExpand) {
-// 		updatedProperties.autoexpand = isBoolOnOff(poolDataCheck.properties.autoExpand);
-// 	}
-// 	//autoreplace
-// 	if (poolDataCheck.properties.autoReplace != props.pool.properties.autoReplace) {
-// 		updatedProperties.autoreplace = isBoolOnOff(poolDataCheck.properties.autoReplace);
-// 	}
-// 	//autotrim
-// 	if (poolDataCheck.properties.autoTrim != props.pool.properties.autoTrim) {
-// 		updatedProperties.autotrim = isBoolOnOff(poolDataCheck.properties.autoTrim);
-// 	}
-// 	//delegation
-// 	if (poolDataCheck.properties.delegation != props.pool.properties.delegation) {
-// 		updatedProperties.delegation = isBoolOnOff(poolDataCheck.properties.delegation);
-// 	}
-// 	//listsnapshots
-// 	if (poolDataCheck.properties.listSnapshots != props.pool.properties.listSnapshots) {
-// 		updatedProperties.listsnapshots = isBoolOnOff(poolDataCheck.properties.listSnapshots);
-// 	}
-
-// 	const newChanges = {
-//         ...newChangesToPool.value,
-//         ...updatedProperties,
-//     }
-
-//     newChangesToPool.value = newChanges;
-
-// }
 
 const commentLengthCheck = (poolData) => {
 	let result = true;
@@ -606,39 +585,6 @@ async function refreshAllData() {
 
 const confirmSavePool = inject<Ref<boolean>>('confirm-save-pool')!;
 	
-// async function poolConfigureBtn() {
-// 	if (commentLengthCheck(poolConfig.value)) {
-// 		await checkForChanges();
-		
-// 		if (newChangesToPool.value)
-// 		saving.value = true;
-// 		try {
-// 			const result = await configurePool(newChangesToPool.value);
-
-// 			if (!result.success) {
-// 				const errorMessage = result.error || 'Unknown error occurred';
-// 				console.log('configurePool failed');
-// 				pushNotification(new Notification('Save Pool Config Failed',`There was an error saving this pool: ${errorMessage}`,'error', 5000));
-
-// 				confirmSavePool.value = false;
-// 			} else {
-// 				console.log('configurePool succeeded');
-// 				pushNotification(new Notification('Pool Config Saved',"Successfully saved this pool's configuration.",'success', 5000));
-// 				console.log('notification triggered in PoolDetail')
-// 				confirmSavePool.value = true;
-// 				showPoolDetails.value = false;
-// 			}
-
-// 			saving.value = false;
-
-// 		} catch (error: any) {
-// 			console.error(error);
-// 			pushNotification(new Notification('Operation Failed', `An unexpected error occurred: ${error.message}`, 'error', 5000));
-
-// 		}
-// 	}
-// }
-
 async function poolConfigureBtn() {
 	if (commentLengthCheck(poolConfig.value)) {
 		if (!(await checkForChanges())) {

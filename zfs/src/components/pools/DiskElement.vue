@@ -7,7 +7,7 @@
 			<!-- <div name="disk-name" class="py-1 mt-1 col-span-2" :class="truncateText" :title="props.disk.name">{{ props.disk.name }} {{ diskSdName }}</div> -->
 			<div name="disk-name" class="py-1 mt-1 col-span-2" :class="truncateText" :title="props.disk.name">
 				{{ props.disk.name }} {{ diskSdName }} <span v-if="props.disk.replacingTarget">
-					<span class="text-orange-600">replacing</span> {{ props.disk.replacingTarget }}</span>
+					<span class="text-orange-600">replacing</span> {{ props.disk.replacingTargetLabel }}</span>
 			</div>
 			<div name="disk-state" class="py-1 mt-1 col-span-1 font-semibold"
 				:class="[formatStatus(diskState), truncateText]" :title="diskState">{{ diskState }}</div>
@@ -26,8 +26,12 @@
 				<div class="relative py-1 pl-3 pr-4 text-right font-medium sm:pr-6 lg:pr-8">
 					<Menu as="div" class="relative inline-block text-right">
 						<div>
-							<MenuButton @click.stop
-								class="flex items-center rounded-full bg-accent p-2 hover:text-default focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 focus:ring-offset-gray-100">
+							<MenuButton @click.stop :disabled="!canDestructive" :aria-disabled="!canDestructive"
+								:title="!canDestructive ? 'Requires administrative privileges' : ''" :class="[
+									'flex items-center rounded-full p-2 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 focus:ring-offset-gray-100',
+									canDestructive ? 'bg-accent hover:text-white cursor-pointer'
+										: 'bg-accent/60 text-muted cursor-not-allowed'
+								]">
 								<span class="sr-only">Open options</span>
 								<EllipsisVerticalIcon class="w-5" aria-hidden="true" />
 							</MenuButton>
@@ -45,49 +49,49 @@
 									<!-- <MenuItem as="div" v-slot="{ active }">
                                         <a href="#" @click="clearDiskErrors(props.pool.name, props.disk.name)" :class="[active ? 'bg-default text-default' : 'text-muted', 'block px-4 py-2 text-sm']">Clear Disk Errors</a>
                                     </MenuItem> -->
-									<MenuItem as="div" v-slot="{ active }">
+									<MenuItem as="div" v-slot="{ active }" >
 									<a v-if="props.vDev.disks.length > 1 && diskState !== 'REMOVED'" href="#"
 										@click="detachThisDisk(props.pool, props.disk)"
 										:class="[active ? 'bg-danger text-default' : 'text-muted', 'block px-4 py-2 text-sm']">Detach
 										Disk</a>
 									</MenuItem>
-									<MenuItem as="div" v-slot="{ active }">
+									<MenuItem as="div" v-slot="{ active }" >
 									<a v-if="diskState == 'ONLINE'" href="#"
 										@click="offlineThisDisk(props.pool, props.disk)"
 										:class="[active ? 'bg-danger text-default' : 'text-muted', 'block px-4 py-2 text-sm']">Offline
 										Disk</a>
 									</MenuItem>
-									<MenuItem as="div" v-slot="{ active }">
+									<MenuItem as="div" v-slot="{ active }" >
 									<a v-if="diskState == 'OFFLINE'" href="#"
 										@click="onlineThisDisk(props.pool, props.disk)"
 										:class="[active ? 'bg-green-600 text-default' : 'text-muted', 'block px-4 py-2 text-sm']">Online
 										Disk</a>
 									</MenuItem>
-									<MenuItem as="div" v-slot="{ active }">
+									<MenuItem as="div" v-slot="{ active }" >
 									<a v-if="diskState !== 'REMOVED'" href="#"
 										@click="replaceThisDisk(props.pool, props.vDev, props.disk)"
 										:class="[active ? 'bg-default text-default' : 'text-muted', 'block px-4 py-2 text-sm']">Replace
 										Disk</a>
 									</MenuItem>
-									<MenuItem as="div" v-slot="{ active }">
+									<MenuItem as="div" v-slot="{ active }" >
 									<a v-if="!trimActivity!.isActive && !trimActivity!.isPaused && props.pool.diskType != 'HDD' && getIsTrimmable() && diskState !== 'REMOVED'"
 										href="#" @click="trimThisDisk(props.pool, props.disk)"
 										:class="[active ? 'bg-default text-default' : 'text-muted', 'block px-4 py-2 text-sm']">TRIM
 										Disk</a>
 									</MenuItem>
-									<MenuItem as="div" v-slot="{ active }">
+									<MenuItem as="div" v-slot="{ active }" >
 									<a v-if="trimActivity!.isPaused && props.pool.diskType != 'HDD' && getIsTrimmable() && diskState !== 'REMOVED'"
 										href="#" @click="resumeTrim(props.pool, props.disk)"
 										:class="[active ? 'bg-default text-default' : 'text-muted', 'block px-4 py-2 text-sm']">TRIM
 										Disk</a>
 									</MenuItem>
-									<MenuItem as="div" v-slot="{ active }">
+									<MenuItem as="div" v-slot="{ active }" >
 									<a v-if="trimActivity!.isActive && props.pool.diskType != 'HDD' && getIsTrimmable() && diskState !== 'REMOVED'"
 										href="#" @click="pauseTrim(props.pool, props.disk)"
 										:class="[active ? 'bg-default text-default' : 'text-muted', 'block px-4 py-2 text-sm']">Pause
 										TRIM (Disk)</a>
 									</MenuItem>
-									<MenuItem as="div" v-slot="{ active }">
+									<MenuItem as="div" v-slot="{ active }" >
 									<a v-if="trimActivity!.isActive || trimActivity!.isPaused && props.pool.diskType != 'HDD' && getIsTrimmable() && diskState !== 'REMOVED'"
 										href="#" @click="stopTrim(props.pool, props.disk)"
 										:class="[active ? 'bg-default text-default' : 'text-muted', 'block px-4 py-2 text-sm']">Cancel
@@ -179,7 +183,7 @@ interface DiskListElementProps {
 }
 
 const props = defineProps<DiskListElementProps>();
-
+const canDestructive = inject<Ref<boolean>>('can-destructive')!;
 
 const selectedPool = ref<ZPool>();
 const selectedDisk = ref<VDevDisk>();
@@ -242,7 +246,7 @@ async function refreshAllData() {
 	disksLoaded.value = true;
 	poolsLoaded.value = true;
 	fileSystemsLoaded.value = true;
-	console.log('DiskElement trimActivities', trimActivities.value);
+	// console.log('DiskElement trimActivities', trimActivities.value);
 }
 
 const starting = ref(false);
@@ -250,7 +254,7 @@ const starting = ref(false);
 const scanStatusBox = inject<Ref<any>>('scan-status-box')!;
 
 async function getScanStatus() {
-	console.log('scanStatusBox', scanStatusBox.value);
+	// console.log('scanStatusBox', scanStatusBox.value);
 	await scanStatusBox.value.pollScanStatus();
 }
 
@@ -302,7 +306,7 @@ watch(confirmDetach, async (newValue, oldValue) => {
 		console.log("now detaching:", selectedDisk.value!.name, "from:", selectedPool.value!.name);
 
 		try {
-			const output: any = await detachDisk(selectedPool.value!.name, selectedDisk.value!.name);
+			const output: any = await detachDisk(selectedPool.value!.name, selectedDisk.value!.name!);
 
 			if (output == null || output.error) {
 				const errorMessage = output?.error || 'Unknown error';
@@ -345,7 +349,7 @@ const loadOfflineDiskComponent = async () => {
 async function offlineThisDisk(pool: ZPool, disk: VDevDisk) {
 	selectedPool.value = pool;
 	selectedDisk.value = disk;
-	console.log('selected pool:', selectedPool.value, 'selected disk:', selectedDisk.value);
+	// console.log('selected pool:', selectedPool.value, 'selected disk:', selectedDisk.value);
 	await loadOfflineDiskComponent();
 	showOfflineDiskModal.value = true;
 }
@@ -365,7 +369,7 @@ watch(confirmOffline, async (newVal, oldVal) => {
 		console.log('now offlining:', selectedDisk.value);
 
 		try {
-			const output: any = await offlineDisk(selectedPool.value!.name, selectedDisk.value!.name, firstOptionToggle.value, secondOptionToggle.value);
+			const output: any = await offlineDisk(selectedPool.value!.name, selectedDisk.value!.name!, firstOptionToggle.value, secondOptionToggle.value);
 			
 			if (output == null || output.error) {
 				const errorMessage = output?.error || 'Unknown error';
@@ -404,7 +408,7 @@ const loadOnlineDiskComponent = async () => {
 async function onlineThisDisk(pool: ZPool, disk: VDevDisk) {
 	selectedPool.value = pool;
 	selectedDisk.value = disk;
-	console.log('selected pool:', selectedPool.value, 'selected disk:', selectedDisk.value);
+	// console.log('selected pool:', selectedPool.value, 'selected disk:', selectedDisk.value);
 	await loadOnlineDiskComponent();
 	showOnlineDiskModal.value = true;
 }
@@ -424,7 +428,7 @@ watch(confirmOnline, async (newVal, oldVal) => {
 		console.log('now onlining:', selectedDisk.value);
 
 		try {
-			const output: any = await onlineDisk(selectedPool.value!.name, selectedDisk.value!.name, firstOptionToggle.value);
+			const output: any = await onlineDisk(selectedPool.value!.name, selectedDisk.value!.name!, firstOptionToggle.value);
 
 			if (output == null || output.error) {
 				const errorMessage = output?.error || 'Unknown error';
@@ -502,7 +506,7 @@ const loadTrimStopDiskComponent = async () => {
 async function trimThisDisk(pool: ZPool, disk: VDevDisk) {
 	selectedPool.value = pool;
 	selectedDisk.value = disk;
-	console.log('selected pool:', selectedPool.value, 'selected disk:', selectedDisk.value);
+	// console.log('selected pool:', selectedPool.value, 'selected disk:', selectedDisk.value);
 	await loadTrimDiskComponent();
 	showTrimDiskModal.value = true;
 }
@@ -677,7 +681,7 @@ async function replaceThisDisk(pool: ZPool,  vdev: VDev, disk: VDevDisk) {
 	selectedPool.value = pool;
 	selectedDisk.value = disk;
 	selectedVDev.value = vdev;
-	console.log('selected pool:', selectedPool.value, 'selectedVDev:', selectedVDev, 'selected disk:', selectedDisk.value);
+	// console.log('selected pool:', selectedPool.value, 'selectedVDev:', selectedVDev, 'selected disk:', selectedDisk.value);
 	await loadReplaceDiskComponent();
 	showReplaceDiskModal.value = true;
 }

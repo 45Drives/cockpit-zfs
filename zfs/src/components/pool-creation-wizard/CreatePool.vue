@@ -409,7 +409,7 @@ const next = () => {
 	const currentItem = navigation.find(item => item.tag === currentTag);
 	const currentIndex = navigation.indexOf(currentItem!);
 	if (currentIndex === navigation.length) {
-		console.log('Last tab');
+		// console.log('Last tab');
 		return;
 	}
 	const nextIndex = currentIndex + 1;
@@ -456,7 +456,7 @@ const prev = () => {
 	const currentItem = navigation.find(item => item.tag === currentTag);
 	const currentIndex = navigation.indexOf(currentItem!);
 	if (currentIndex === 0) {
-		console.log('First tab');
+		// console.log('First tab');
 		return;
 	}
 	const prevIndex = currentIndex - 1;

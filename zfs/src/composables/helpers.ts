@@ -277,7 +277,7 @@ export async function loadScanActivities(pools, scanActivities) {
 	pools.value.forEach(pool => {
 		addActivity(pool.name, scanActivities);
 	});
-	console.log('scanActivities', scanActivities);
+	// console.log('scanActivities', scanActivities);
 }
 
 export async function loadTrimActivities(pools, trimActivities) {
@@ -293,7 +293,7 @@ export async function loadTrimActivities(pools, trimActivities) {
 		});		
 	});
 	
-	console.log('trimActivities', trimActivities);
+	// console.log('trimActivities', trimActivities);
 }
 
 export function getValue(type : string, value : string) {
@@ -453,11 +453,11 @@ export function checkInheritance(type: string, value : string, poolConfigOptions
 
 export async function testSSH(sshTarget) {
     try {
-        console.log(`target: ${sshTarget}`);
+        // console.log(`target: ${sshTarget}`);
         const state = useSpawn(['/usr/bin/env', 'python3', '-c', test_ssh_script, sshTarget], { superuser: 'try' });
 
         const output = await state.promise();
-        console.log('testSSH output:', output);
+        // console.log('testSSH output:', output);
 
         if (output.stdout!.includes('True')) {
 			return true;
@@ -532,7 +532,7 @@ export function getFullDiskInfo(disks: VDevDisk[], diskName: string): VDevDisk |
 		uuid: '/dev/disk/by-uuid/',
 	};
 
-	console.log("Searching for disk with name:", diskName);
+	// console.log("Searching for disk with name:", diskName);
 
 	// Find the disk by matching its name against possible paths
 	const foundDisk = disks.find(disk => {
@@ -553,7 +553,7 @@ export function getFullDiskInfo(disks: VDevDisk[], diskName: string): VDevDisk |
 	});
 
 	if (foundDisk) {
-		console.log("Found disk:", foundDisk);
+		// console.log("Found disk:", foundDisk);
 	}
 
 	return foundDisk;
@@ -626,34 +626,86 @@ export function getDiskIDName(disks: VDevDisk[], diskIdentifier: string, selecte
 }
 
 
-export function findDiskByPath(disks, path) {
-	// Regex to match partition suffixes like '-part1'
-	const partitionSuffixRegex = /-part[0-9]+$/;
+// export function findDiskByPathAndClean(disks, path) {
+// 	// Regex to match partition suffixes like '-part1'
+// 	const partitionSuffixRegex = /-part[0-9]+$/;
 
-	// Only strip the partition if it's a partition (and not something like 'nvme0n1')
-	const basePath = path.match(partitionSuffixRegex) ? path.replace(partitionSuffixRegex, '') : path;
+// 	// Only strip the partition if it's a partition (and not something like 'nvme0n1')
+// 	const basePath = path.match(partitionSuffixRegex) ? path.replace(partitionSuffixRegex, '') : path;
 
-	// console.log('Checking path:', path, 'Base path:', basePath);
+// 	// console.log('Checking path:', path, 'Base path:', basePath);
 
-	return disks.find((disk) => {
-		// Clean paths for each disk property
-		const sdPath = disk.sd_path ? cleanDiskPath(disk.sd_path) : null;
-		const phyPath = disk.phy_path ? cleanDiskPath(disk.phy_path) : null;
-		const vdevPath = disk.vdev_path ? cleanDiskPath(disk.vdev_path) : null;
+// 	return disks.find((disk) => {
+// 		// Clean paths for each disk property
+// 		const sdPath = disk.sd_path ? cleanDiskPath(disk.sd_path) : null;
+// 		const phyPath = disk.phy_path ? cleanDiskPath(disk.phy_path) : null;
+// 		const vdevPath = disk.vdev_path ? cleanDiskPath(disk.vdev_path) : null;
 
-		// Log paths being compared
-		// console.log(`Comparing with disk paths: sd_path: ${sdPath}, phy_path: ${phyPath}, vdev_path: ${vdevPath}`);
+// 		// Log paths being compared
+// 		// console.log(`Comparing with disk paths: sd_path: ${sdPath}, phy_path: ${phyPath}, vdev_path: ${vdevPath}`);
 
-		// Check if any cleaned path matches
-		return [sdPath, phyPath, vdevPath]
-			.some((diskPath) => diskPath === path || diskPath === basePath);
-	});
-}
+// 		// Check if any cleaned path matches
+// 		return [sdPath, phyPath, vdevPath]
+// 			.some((diskPath) => diskPath === path || diskPath === basePath);
+// 	});
+// }
 
 // Helper function to clean disk paths by removing partition numbers but leaving the rest intact
-function cleanDiskPath(path) {
-	return path.replace(/-part[0-9]+$/, ''); // Only remove partition suffix like '-part1'
+// function cleanDiskPath(path) {
+// 	return path.replace(/-part[0-9]+$/, ''); // Only remove partition suffix like '-part1'
+// }
+
+// One canonical matcher. Works with reactive arrays (pass disks.value) or plain arrays.
+export function matchDiskByVdevOrPath(disks: Array<any>, vdevPathOrAnyPath: string) {
+	if (!vdevPathOrAnyPath) return undefined;
+
+	// 1) Fast path: by-vdev → match by bay-id to disk.name
+	const byVdev = vdevPathOrAnyPath.match(/\/dev\/disk\/by-vdev\/([0-9A-Za-z\-]+)(?:-part\d+)?$/);
+	if (byVdev) {
+		const bay = byVdev[1]; // e.g., "1-10"
+		const hit = disks.find(d => d?.name === bay);
+		if (hit) return hit;
+	}
+
+	// 2) Normalize both sides
+	const clean = (p?: string) => {
+		if (!p) return "";
+		// Strip ANSI partitions styles:
+		//  /dev/nvme0n1p2 → /dev/nvme0n1
+		p = p.replace(/(\/nvme\d+n\d+)p\d+$/, "$1");
+		//  /dev/mmcblk0p1 → /dev/mmcblk0
+		p = p.replace(/(\/mmcblk\d+)p\d+$/, "$1");
+		//  /dev/sda2 → /dev/sda
+		p = p.replace(/(\/sd[a-z]+)\d+$/, "$1");
+		//  by-vdev ...-partN → base
+		p = p.replace(/-part\d+$/, "");
+		return p;
+	};
+
+	const sameOrStartsWith = (a: string, b: string) =>
+		a === b || (a && b && (b.startsWith(a) || a.startsWith(b)));
+
+	const want = vdevPathOrAnyPath;
+	const wantBase = clean(want);
+
+	// 3) Try strict then relaxed matches across known fields
+	const candidates = ["sd_path", "phy_path", "vdev_path", "id_path", "label_path", "part_label_path", "part_uuid", "uuid"];
+
+	// strict match: exact or exact-after-clean
+	let d = disks.find(dd => candidates.some(k => {
+		const v = dd?.[k];
+		return v === want || clean(v) === wantBase;
+	}));
+	if (d) return d;
+
+	// relaxed: allow startsWith for cases like /dev/sda1 vs /dev/sda
+	d = disks.find(dd => candidates.some(k => {
+		const v = dd?.[k];
+		return sameOrStartsWith(v ?? "", want) || sameOrStartsWith(clean(v ?? ""), wantBase);
+	}));
+	return d;
 }
+
 
 
 export function truncateName(name : string, threshold : number) {
@@ -732,27 +784,25 @@ export function formatCapacityString(capacityStr) {
 }
 
 
-export function changeUnitToBinary(capacityStr) {
-	// console.log('capacityStr:', capacityStr);
-	// Check if the input is already in binary format (e.g., ends with "KiB", "MiB", "GiB", "TiB", "PiB")
-	if (/^\d+(\.\d+)?\s*[KMGTPE]{1}iB$/i.test(capacityStr)) {
-		return capacityStr; // Return as is if already in binary format
-	}
+export function changeUnitToBinary(capacity: any) {
+	if (capacity == null) return capacity;
 
-	// Define a regex to match capacity strings like "9.1 TB"
-	const match = capacityStr.match(/^(\d+(\.\d+)?)(\s*[KMGTP]{1}B)$/i);
-	if (!match) {
-		throw new Error("Invalid capacity string format. Expected format like '9.1 TB', '500 GB', etc.");
-	}
+	// Only operate on strings
+	if (typeof capacity !== 'string') return capacity;
 
-	// Extract the numeric value and unit
-	const value = match[1]; // Numeric part
-	const unit = match[3].trim().toUpperCase(); // Unit part (e.g., "KB", "MB", "GB", "TB", "PB")
+	const s = capacity.trim();
 
-	// Append "i" to the unit to make it binary (e.g., "TB" -> "TiB")
-	const binaryUnit = unit.replace(/B$/, "iB");
+	// Leave percents or plain numbers alone (e.g., "73%", "0", "12.5")
+	if (/^\d+(\.\d+)?\s*%$/.test(s) || /^\d+(\.\d+)?$/.test(s)) return capacity;
 
-	// Return the updated capacity string
-	return `${value} ${binaryUnit}`;
+	// Already binary (KiB/MiB/GiB/TiB/PiB) → return as-is (normalize single space)
+	if (/^\d+(\.\d+)?\s*[KMGTPE]iB$/i.test(s)) return s.replace(/\s+/, ' ');
+
+	// Decimal KB/MB/GB/TB/PB → add "i"
+	const m = s.match(/^(\d+(?:\.\d+)?)\s*([KMGTPE])B$/i);
+	if (m) return `${m[1]} ${m[2]}iB`;
+
+	// Non-matching strings like "Unknown", "-", "bytes", etc. → leave unchanged
+	return capacity;
 }
 

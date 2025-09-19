@@ -212,10 +212,10 @@ const diskCardClass = (diskName) => {
 
 function setDiskNamePath() {
     oldDisk.value = props.disk;
-    console.log('setting oldDisk.value:', oldDisk.value);
-    console.log('getting selectedDisk.value:', selectedDisk.value);
+    // console.log('setting oldDisk.value:', oldDisk.value);
+    // console.log('getting selectedDisk.value:', selectedDisk.value);
     newDisk.value = allDisks.value.find(disk => disk.name === selectedDisk.value);
-    console.log('setting newDisk.value:', newDisk.value);
+    // console.log('setting newDisk.value:', newDisk.value);
     
     switch (diskIdentifier.value) {
         case 'vdev_path':
@@ -223,24 +223,24 @@ function setDiskNamePath() {
             diskNewName.value = selectedDisk.value;
             diskExistPath.value = oldDisk.value!.path;
             diskExistName.value = oldDisk.value!.name;
-            console.log('diskNewPath:', diskNewPath.value, 'diskNewName:', diskNewName.value);
-            console.log('diskExistPath:', diskExistPath.value, 'diskExistName:', diskExistName.value);
+            // console.log('diskNewPath:', diskNewPath.value, 'diskNewName:', diskNewName.value);
+            // console.log('diskExistPath:', diskExistPath.value, 'diskExistName:', diskExistName.value);
             break;
         case 'phy_path':
             diskNewPath.value = newDisk.value!.phy_path;
              diskNewName.value = diskNewPath.value.replace(phyPathPrefix, '');
             diskExistPath.value = oldDisk.value!.path;
              diskExistName.value = diskExistPath.value.replace(phyPathPrefix, '');
-            console.log('diskNewPath:', diskNewPath.value, 'diskNewName:', diskNewName.value);
-            console.log('diskExistPath:', diskExistPath.value, 'diskExistName:', diskExistName.value);
+            // console.log('diskNewPath:', diskNewPath.value, 'diskNewName:', diskNewName.value);
+            // console.log('diskExistPath:', diskExistPath.value, 'diskExistName:', diskExistName.value);
             break;
         case 'sd_path':
             diskNewPath.value = newDisk.value!.sd_path;
              diskNewName.value = diskNewPath.value.replace(sdPathPrefix, '');
             diskExistPath.value = oldDisk.value!.path;
              diskExistName.value = diskExistPath.value.replace(sdPathPrefix, '');
-            console.log('diskNewPath:', diskNewPath.value, 'diskNewName:', diskNewName.value);
-            console.log('diskExistPath:', diskExistPath.value, 'diskExistName:', diskExistName.value);
+            // console.log('diskNewPath:', diskNewPath.value, 'diskNewName:', diskNewName.value);
+            // console.log('diskExistPath:', diskExistPath.value, 'diskExistName:', diskExistName.value);
             break;
         default:
             console.log('error with set diskName/paths');
@@ -255,7 +255,7 @@ async function replaceDiskBtn() {
             setDiskNamePath();
             diskVDevPoolData.value.newDiskName = diskNewName.value;
             diskVDevPoolData.value.existingDiskName = diskExistName.value;
-            console.log('all data of disk being replaceed:', diskVDevPoolData.value);
+            // console.log('all data of disk being replaceed:', diskVDevPoolData.value);
                 
             adding.value = true;
             try {
@@ -283,7 +283,7 @@ async function replaceDiskBtn() {
 const diskSizeMatch = () => {
     let result = true;
     diskSizeFeedback.value = '';
-    console.log("Checking disk:", selectedDisk.value);
+    // console.log("Checking disk:", selectedDisk.value);
     
     if (selectedDisk.value == '') {
         diskSizeFeedback.value = 'At least one disk is required.'
@@ -293,18 +293,18 @@ const diskSizeMatch = () => {
     const newDiskData = allDisks.value.find(fullDisk => fullDisk.name === selectedDisk.value);
 
     if (newDiskData) {
-        console.log('newDiskCapacity before conversion:', newDiskData!.capacity);
+        // console.log('newDiskCapacity before conversion:', newDiskData!.capacity);
         const newCapacity = convertSizeToBytes(newDiskData!.capacity!);
-        console.log('newCapacity:', newCapacity);
+        // console.log('newCapacity:', newCapacity);
 
         const oldDisks = props.vDev.disks;
-        console.log('oldDisks:', oldDisks);
+        // console.log('oldDisks:', oldDisks);
 
         for (const oldDisk of oldDisks) {
 
-            console.log('currentCapacity before conversion:', oldDisk!.capacity, false);
+            // console.log('currentCapacity before conversion:', oldDisk!.capacity, false);
             const currentCapacity = convertSizeToBytes(oldDisk.capacity!);
-            console.log('currentCapacity:', currentCapacity);
+            // console.log('currentCapacity:', currentCapacity);
 
             if (newCapacity < currentCapacity) {
                 diskSizeFeedback.value = "Cannot replace. Please select a disk that has capacity greater than or equal to current disks."
@@ -326,23 +326,23 @@ const diskBelongsToImportablePool = () => {
 		return false;
 	}
     const selectedNewDisk = allDisks.value.find(fullDisk => fullDisk.name == selectedDisk.value);
-        console.log('selectedDisk:', selectedDisk);
+        // console.log('selectedDisk:', selectedDisk);
         importablePools.value.forEach(pool => {
-            console.log('importablePool:', pool);
+            // console.log('importablePool:', pool);
             pool.vdevs.forEach(importableVDev => {
-                console.log('importableVDev:', importableVDev);
+                // console.log('importableVDev:', importableVDev);
                 importableVDev.disks.forEach(disk => {
-                    console.log('importableDisk:', disk);
+                    // console.log('importableDisk:', disk);
                     if (selectedNewDisk!.name == disk.name) {
                         result = true;
                         diskBelongsFeedback.value = `This disk was used in exported pool '${pool.name}'.\n Use Force Add to override and use disk in new Vdev.`;
-                        console.log(`Disk belongs to importable pool: ${pool.name}`);
+                        // console.log(`Disk belongs to importable pool: ${pool.name}`);
                     }
                 });
             });
         });
 
-	console.log('diskBelongsFeedback:', diskBelongsFeedback.value);
+	// console.log('diskBelongsFeedback:', diskBelongsFeedback.value);
 	return result;
 }
 

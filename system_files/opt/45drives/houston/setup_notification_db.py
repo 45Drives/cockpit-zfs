@@ -25,7 +25,7 @@ def setup_database():
     if table_exists:
         existing_columns = get_existing_columns()
         if existing_columns != EXPECTED_COLUMNS:
-            print("⚠️ Schema mismatch detected. Rebuilding 'notifications' table...")
+            print("Schema mismatch detected. Rebuilding 'notifications' table...")
 
             cursor.execute("ALTER TABLE notifications RENAME TO notifications_old")
 
@@ -57,9 +57,9 @@ def setup_database():
 
             cursor.execute("DROP TABLE notifications_old")
         else:
-            print("✅ 'notifications' table is up to date.")
+            print("'notifications' table is up to date.")
     else:
-        print("✅ Creating new 'notifications' table")
+        print("Creating new 'notifications' table")
         cursor.execute("""
         CREATE TABLE notifications (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -121,8 +121,8 @@ def setup_database():
     VALUES (1, 0, 1, 1)
     """)
 
-    # ✅ Create index on 'received' column for fast unread count queries
-    print("✅ Ensuring index on 'received' column...")
+    # Create index on 'received' column for fast unread count queries
+    print("Ensuring index on 'received' column...")
     cursor.execute("""
     CREATE INDEX IF NOT EXISTS idx_notifications_received
     ON notifications (received)

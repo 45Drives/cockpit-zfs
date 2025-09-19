@@ -193,8 +193,8 @@ const filesystemCreated = inject<Ref<boolean>>('filesystem-created')!;
 
 const truncateText = inject<Ref<string>>('style-truncate-text')!;
 
-console.log('ReviewTab -> poolConfig:', poolConfig.value);
-console.log('ReviewTab -> fileSystemData:', fileSystemData.value);
-console.log('ReviewTab -> all disks:', disks.value);
+// console.log('ReviewTab -> poolConfig:', poolConfig.value);
+// console.log('ReviewTab -> fileSystemData:', fileSystemData.value);
+// console.log('ReviewTab -> all disks:', disks.value);
 
 </script>

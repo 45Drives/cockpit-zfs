@@ -65,7 +65,7 @@
                     </div>
                     <div class="flex flex-row justify-between">
                         <div v-if="fileSystemConfig.properties.quota.raw !== null" class="mt-2 justify-self-start">
-                            <p class="text-muted">Used Space: {{ convertBytesToSize(fileSystemConfig.properties.used) }}</p>
+                            <p class="text-muted">Used Space: {{ convertBytesToSize(fileSystemConfig.properties.used!) }}</p>
                         </div>
                         <div v-if="fileSystemConfig.properties.quota.raw === null || !fileSystemConfig.properties.quota.raw" class="mt-2 justify-self-end">
                             <p class="text-muted">There is no quota currently set.</p>
@@ -394,9 +394,9 @@ const fileSystemsLoaded = inject<Ref<boolean>>('datasets-loaded')!;
 
 async function fsConfigureBtn() {
     if (checkSizes()) {
-        console.log('filesystem:', fileSystemConfig.value);
+        // console.log('filesystem:', fileSystemConfig.value);
         await checkForChanges(fileSystemConfig.value);
-        console.log('newChanges:', newChangesToFileSystem.value);
+        // console.log('newChanges:', newChangesToFileSystem.value);
         try {
             saving.value = true;
             const output: any =  await configureDataset(newChangesToFileSystem.value);

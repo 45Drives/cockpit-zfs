@@ -4,7 +4,7 @@
 DBUS_CLIENT="/opt/45drives/houston/houston-notify"
 DEBUG_LOG="/tmp/zed_vdev_attach_debug.log"
 
-# ✅ Log that the script was triggered
+# Log that the script was triggered
 echo "[INFO] VDEV attach event detected at $(date)" >> "$DEBUG_LOG"
 
 # Extract event details
@@ -16,19 +16,19 @@ EVENT_POOL_GUID="${ZEVENT_POOL_GUID:-Unknown}"
 EVENT_TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S')  # Capture timestamp
 EVENT_HOST=$(hostname)
 
-# ✅ Ensure EVENT_POOL is set (required for valid notifications)
+# Ensure EVENT_POOL is set (required for valid notifications)
 if [[ "$EVENT_POOL" == "Unknown" ]]; then
     echo "[ERROR] Missing EVENT_POOL - Notification aborted" >> "$DEBUG_LOG"
     exit 1
 fi
 
-# ✅ Generate an appropriate message
+# Generate an appropriate message
 IMPACT_MESSAGE="A new device has been successfully attached to the ZFS pool '$EVENT_POOL'. This may have been done to expand storage capacity or improve redundancy."
 RECOMMENDATION="Verify the new device is functioning correctly and update any documentation if necessary."
 
 
 
-# ✅ Construct Subject & User-Friendly Email Message
+# Construct Subject & User-Friendly Email Message
 EMAIL_SUBJECT="ZFS Alert: New Device Attached to Pool '$EVENT_POOL'"
 
 EMAIL_MESSAGE=$(cat <<EOF
@@ -65,7 +65,7 @@ For further details, refer to system logs or ZFS documentation.
 EOF
 )
 
-# ✅ Construct JSON message for forwarding to Houston UI
+# Construct JSON message for forwarding to Houston UI
 FORWARD_MESSAGE=$(jq -n \
   --arg timestamp "$EVENT_TIMESTAMP" \
   --arg event "$EVENT_CLASS" \
@@ -77,7 +77,7 @@ FORWARD_MESSAGE=$(jq -n \
   --arg email_message "$EMAIL_MESSAGE" \
   '{timestamp: $timestamp, event: $event, pool: $pool, vdev: $vdev, vdev_guid: $vdev_guid, pool_guid: $pool_guid,subject: $subject, email_message: $email_message}')
 
-# ✅ Logging event details for debugging
+# Logging event details for debugging
 {
   echo "==== DEBUG START ===="
   echo "DEBUG: Timestamp = $EVENT_TIMESTAMP"
@@ -92,12 +92,12 @@ FORWARD_MESSAGE=$(jq -n \
   echo "==== DEBUG END ===="
 } >> "$DEBUG_LOG"
 
-# ✅ Send event notification to Houston UI
+# Send event notification to Houston UI
 python3 "$DBUS_CLIENT" "$FORWARD_MESSAGE" >> "$DEBUG_LOG" 2>&1
 FORWARD_STATUS=$?
 
 
-# ✅ Log final result
+# Log final result
 if [ "$FORWARD_STATUS" -eq 0 ]; then
   echo "[SUCCESS] VDEV attach event successfully forwarded to Houston UI" >> "$DEBUG_LOG"
 else

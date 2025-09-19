@@ -1,39 +1,68 @@
 <template>
-    <div class="">
+	<div class="">
 		<div class="">
 			<Disclosure v-slot="{ open }" :defaultOpen="true">
-				<DisclosureButton class="grid grid-cols-8 grid-flow-cols w-full text-center bg-primary text-sm text-white">
+				<DisclosureButton
+					class="grid grid-cols-8 grid-flow-cols w-full text-center bg-primary text-sm text-white">
 					<div name="vdev-chevron" class="p-1 mt-1 col-span-1 flex flex-row justify-center text-center">
-						<ChevronUpIcon
-							class="-mt-2 h-10 w-10 text-white transition-all duration-200 transform" :class="{ 'rotate-90': !open, 'rotate-180': open, }"
-						/>
+						<ChevronUpIcon class="-mt-2 h-10 w-10 text-white transition-all duration-200 transform"
+							:class="{ 'rotate-90': !open, 'rotate-180': open, }" />
 					</div>
-					<div name="vdev-name" class="p-1 mt-1 col-span-1 text-base text-left" :class="truncateText" :title="props.vDev.name">{{ props.vDev.name }}</div>
-					<div name="vdev-status" class="p-1 mt-1 col-span-1 font-semibold text-base" :class="[formatStatus(props.vDev.status), truncateText]" :title="props.vDev.status">{{ props.vDev.status }}</div>
-					<div name="vdev-type" class="p-1 mt-1 col-span-1 text-base" :class="truncateText" :title="upperCaseWord(props.vDev.type) + ' Device'">{{ upperCaseWord(props.vDev.type) }} Device</div>
-					<div name="vdev-read-err" class="p-1 mt-1 col-span-1 text-base" :class="truncateText" :title="props.vDev.stats!.read_errors + ' Read Errors'">{{ props.vDev.stats!.read_errors }} Read Errors</div>
-					<div name="vdev-write-err" class="p-1 mt-1 col-span-1 text-base" :class="truncateText" :title="props.vDev.stats!.write_errors + ' Write Errors'">{{ props.vDev.stats!.write_errors }} Write Errors</div>
-					<div name="vdev-checksum-err" class="p-1 mt-1 col-span-1 text-base" :class="truncateText" :title="props.vDev.stats!.checksum_errors + ' Checksum Errors'">{{ props.vDev.stats!.checksum_errors }} Checksum Errors</div>
-					<div name="vdev-menu" class="col-span-1 relative p-1 pl-3 pr-4 text-right font-medium sm:pr-6 lg:pr-8 justify-self-end justify-items-end">
+					<div name="vdev-name" class="p-1 mt-1 col-span-1 text-base text-left" :class="truncateText"
+						:title="props.vDev.name">{{ props.vDev.name }}</div>
+					<div name="vdev-status" class="p-1 mt-1 col-span-1 font-semibold text-base"
+						:class="[formatStatus(props.vDev.status), truncateText]" :title="props.vDev.status">{{
+						props.vDev.status }}</div>
+					<div name="vdev-type" class="p-1 mt-1 col-span-1 text-base" :class="truncateText"
+						:title="upperCaseWord(props.vDev.type) + ' Device'">{{ upperCaseWord(props.vDev.type) }} Device
+					</div>
+					<div name="vdev-read-err" class="p-1 mt-1 col-span-1 text-base" :class="truncateText"
+						:title="props.vDev.stats!.read_errors + ' Read Errors'">{{ props.vDev.stats!.read_errors }} Read
+						Errors</div>
+					<div name="vdev-write-err" class="p-1 mt-1 col-span-1 text-base" :class="truncateText"
+						:title="props.vDev.stats!.write_errors + ' Write Errors'">{{ props.vDev.stats!.write_errors }}
+						Write Errors</div>
+					<div name="vdev-checksum-err" class="p-1 mt-1 col-span-1 text-base" :class="truncateText"
+						:title="props.vDev.stats!.checksum_errors + ' Checksum Errors'">{{
+						props.vDev.stats!.checksum_errors }} Checksum Errors</div>
+					<div name="vdev-menu"
+						class="col-span-1 relative p-1 pl-3 pr-4 text-right font-medium sm:pr-6 lg:pr-8 justify-self-end justify-items-end">
 						<Menu as="div" class="relative inline-block text-right">
 							<div>
-								<MenuButton @click.stop class="flex items-center rounded-full bg-primary p-2 hover:text-white focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 focus:ring-offset-gray-100">
+								<MenuButton @click.stop :disabled="!canDestructive" :aria-disabled="!canDestructive"
+									:title="!canDestructive ? 'Requires administrative privileges' : ''" :class="[
+										'flex items-center rounded-full p-2 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 focus:ring-offset-gray-100',
+										canDestructive ? 'bg-primary hover:text-white cursor-pointer'
+											: 'bg-primary/60 text-muted cursor-not-allowed'
+									]">
 									<span class="sr-only">Open options</span>
 									<EllipsisVerticalIcon class="w-5" aria-hidden="true" />
 								</MenuButton>
 							</div>
 
-							<transition enter-active-class="transition ease-out duration-100" enter-from-class="transform opacity-0 scale-95" enter-to-class="transform opacity-100 scale-100" leave-active-class="transition ease-in duration-75" leave-from-class="transform opacity-100 scale-100" leave-to-class="transform opacity-0 scale-95">
-								<MenuItems @click.stop class="absolute right-0 z-10 w-max origin-top-right rounded-md bg-primary shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
-									<div class="py-1">												
+							<transition enter-active-class="transition ease-out duration-100"
+								enter-from-class="transform opacity-0 scale-95"
+								enter-to-class="transform opacity-100 scale-100"
+								leave-active-class="transition ease-in duration-75"
+								leave-from-class="transform opacity-100 scale-100"
+								leave-to-class="transform opacity-0 scale-95">
+								<MenuItems @click.stop
+									class="absolute right-0 z-10 w-max origin-top-right rounded-md bg-primary shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+									<div class="py-1">
 										<!-- <MenuItem as="div" v-slot="{ active }">
 											<a href="#" @click.stop="clearVDevErrors(props.pool.name, props.vDev.name)" :class="[active ? 'bg-primary text-white' : 'text-white', 'block px-4 py-2 text-sm']">Clear Virtual Device Errors</a>
 										</MenuItem> -->
-										<MenuItem v-if="pool.vdevs.length !== 1 && vDev !== pool.vdevs[0] && !vDev.type.includes('raid')" as="div" v-slot="{ active }">
-											<a href="#" @click="removeVDev(props.pool, props.pool.vdevs[vDevIdx])" :class="[active ? 'bg-danger text-white' : 'text-white', 'block px-4 py-2 text-sm']">Remove Virtual Device</a>
+										<MenuItem
+											v-if="pool.vdevs.length !== 1 && vDev !== pool.vdevs[0] && !vDev.type.includes('raid')"
+											as="div" v-slot="{ active }">
+										<a href="#" @click="removeVDev(props.pool, props.pool.vdevs[vDevIdx])"
+											:class="[active ? 'bg-danger text-white' : 'text-white', 'block px-4 py-2 text-sm']">Remove
+											Virtual Device</a>
 										</MenuItem>
 										<MenuItem as="div" v-slot="{ active }">
-											<a href="#" @click="showAttachDisk(props.pool, props.vDev)" :class="[active ? 'bg-primary text-white' : 'text-white', 'block px-4 py-2 text-sm']">Attach Disk</a>
+										<a href="#" @click="showAttachDisk(props.pool, props.vDev)"
+											:class="[active ? 'bg-primary text-white' : 'text-white', 'block px-4 py-2 text-sm']">Attach
+											Disk</a>
 										</MenuItem>
 									</div>
 								</MenuItems>
@@ -61,18 +90,22 @@
 						</thead>
 					</table>
 					<div v-for="disk, diskIdx in props.vDev.disks" :key="diskIdx" class="">
-						<DiskElement :pool="poolData[props.poolIdx]" :poolIdx="props.poolIdx" :vDev="props.vDev" :vDevIdx="props.vDevIdx" :disk="disk" :diskIdx="diskIdx" ref="diskElement"/>
+						<DiskElement :pool="poolData[props.poolIdx]" :poolIdx="props.poolIdx" :vDev="props.vDev"
+							:vDevIdx="props.vDevIdx" :disk="disk" :diskIdx="diskIdx" ref="diskElement" />
 					</div>
 				</DisclosurePanel>
 			</Disclosure>
 		</div>
-    </div>
+	</div>
 	<div v-if="showAttachDiskModal">
-		<component :is="showAttachDiskComponent" :showFlag="showAttachDiskModal" @close="updateShowAttachDisk" :idKey="'show-attach-disk-modal'" :pool="selectedPool!" :vDev="selectedVDev!"/>
+		<component :is="showAttachDiskComponent" :showFlag="showAttachDiskModal" @close="updateShowAttachDisk"
+			:idKey="'show-attach-disk-modal'" :pool="selectedPool!" :vDev="selectedVDev!" />
 	</div>
 
 	<div v-if="showRemoveVDevConfirm">
-		<component :is="showRemoveVDevComponent" :showFlag="showRemoveVDevConfirm" @close="updateShowRemoveVDev" :idKey="'confirm-remove-vdev'" :item="'vdev'" :operation="'remove'" :pool="selectedPool!" :vdev="selectedVDev!" :confirmOperation="confirmThisRemove" :hasChildren="false"/>
+		<component :is="showRemoveVDevComponent" :showFlag="showRemoveVDevConfirm" @close="updateShowRemoveVDev"
+			:idKey="'confirm-remove-vdev'" :item="'vdev'" :operation="'remove'" :pool="selectedPool!"
+			:vdev="selectedVDev!" :confirmOperation="confirmThisRemove" :hasChildren="false" />
 	</div>
 
 </template>
@@ -98,7 +131,7 @@ interface VDevElementProps {
 
 const props = defineProps<VDevElementProps>();
 const truncateText = inject<Ref<string>>('style-truncate-text')!;
-
+const canDestructive = inject<Ref<boolean>>('can-destructive')!;
 
 const selectedPool = ref<ZPool>();
 const selectedVDev = ref<VDev>();
@@ -135,7 +168,7 @@ async function refreshAllData() {
 	disksLoaded.value = true;
 	poolsLoaded.value = true;
 	fileSystemsLoaded.value = true;
-	console.log('VDevElement trimActivities', trimActivities.value);
+	// console.log('VDevElement trimActivities', trimActivities.value);
 }
 
 /////////////////// Clear Errors ////////////////////
@@ -166,7 +199,7 @@ async function removeVDev(pool: ZPool, vDev : VDev) {
 	await loadShowRemoveVDevComponent();
 	showRemoveVDevConfirm.value = true;
 
-	console.log('preparing to remove:', selectedVDev.value, 'from pool:', selectedPool.value);
+	// console.log('preparing to remove:', selectedVDev.value, 'from pool:', selectedPool.value);
 }
 
 const confirmThisRemove : ConfirmationCallback = () => {
@@ -242,7 +275,7 @@ const updateShowAttachDisk = (newVal) => {
 async function showAttachDisk(pool: ZPool, vdev: VDev) {
 	selectedPool.value = pool;
 	selectedVDev.value = vdev;
-	console.log('selectedPool:', selectedPool, 'selectedVDev:', selectedVDev)
+	// console.log('selectedPool:', selectedPool, 'selectedVDev:', selectedVDev)
 	await loadShowAttachDiskComponent();
 	showAttachDiskModal.value = true;
 }

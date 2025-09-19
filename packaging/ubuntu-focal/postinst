@@ -7,13 +7,13 @@ systemctl daemon-reexec
 systemctl daemon-reload
 
 echo "[INFO] Enabling services..."
-# ✅ Fixed service name: added missing dash in "houston-zfs-storage-alert"
+# Fixed service name: added missing dash in "houston-zfs-storage-alert"
 systemctl enable houston-dbus.service || true
 systemctl enable --now houston-zfs-storage-alert.timer || true
 systemctl enable houston-zfs-storage-alert.service || true
 
 echo "[INFO] Starting services..."
-# ✅ Restarting services safely, allowing them to fail without aborting script
+# Restarting services safely, allowing them to fail without aborting script
 systemctl restart zed || true
 systemctl restart houston-dbus.service || true
 

@@ -36,22 +36,22 @@
 										:class="[active ? 'bg-default text-default' : 'text-muted', 'block px-4 py-2 text-sm']">Pool
 										Details</a>
 									</MenuItem>
-									<MenuItem as="div" v-slot="{ active }">
+									<MenuItem as="div" v-slot="{ active }" v-if="canDestructive">
 									<a href="#" @click="clearPoolErrors(props.pool.name)"
 										:class="[active ? 'bg-default text-default' : 'text-muted', 'block px-4 py-2 text-sm']">Clear
 										Pool Errors</a>
 									</MenuItem>
-									<MenuItem as="div" v-slot="{ active }">
+									<MenuItem as="div" v-slot="{ active }" v-if="canDestructive">
 									<a v-if="upgradeablePool" href="#" @click="upgradeThisPool(props.pool)!"
 										:class="[active ? 'bg-orange-700 text-default' : 'text-muted', 'block px-4 py-2 text-sm']">Upgrade
 										Pool</a>
 									</MenuItem>
-									<MenuItem as="div" v-slot="{ active }">
+									<MenuItem as="div" v-slot="{ active }" v-if="canDestructive">
 									<a v-if="!scanActivity!.isActive" href="#" @click="resilverThisPool(props.pool)"
 										:class="[active ? 'bg-default text-default' : 'text-muted', 'block px-4 py-2 text-sm']">Resilver
 										Pool</a>
 									</MenuItem>
-									<MenuItem as="div" v-slot="{ active }">
+									<MenuItem as="div" v-slot="{ active }" v-if="canDestructive">
 									<a v-if="!scanActivity!.isActive" href="#" @click="scrubThisPool(props.pool)"
 										:class="[active ? 'bg-default text-default' : 'text-muted', 'block px-4 py-2 text-sm']">Scrub
 										Pool</a>
@@ -64,13 +64,13 @@
 										:class="[active ? 'bg-default text-default' : 'text-muted', 'block px-4 py-2 text-sm']">Pause
 										Scrub</a>
 									</MenuItem>
-									<MenuItem as="div" v-slot="{ active }">
+									<MenuItem as="div" v-slot="{ active }" v-if="canDestructive">
 									<a v-if="scanActivity!.isActive && scanOperation == 'SCRUB'" href="#"
 										@click="stopScrub(props.pool)"
 										:class="[active ? 'bg-default text-default' : 'text-muted', 'block px-4 py-2 text-sm']">Cancel
 										Scrub</a>
 									</MenuItem>
-									<MenuItem as="div" v-slot="{ active }">
+									<MenuItem as="div" v-slot="{ active }" v-if="canDestructive">
 									<a v-if="!trimActivity!.isActive && !trimActivity!.isPaused && pool.diskType != 'HDD' && getIsTrimmable()"
 										href="#" @click="trimThisPool(props.pool)"
 										:class="[active ? 'bg-default text-default' : 'text-muted', 'block px-4 py-2 text-sm']">TRIM
@@ -84,23 +84,23 @@
 										:class="[active ? 'bg-default text-default' : 'text-muted', 'block px-4 py-2 text-sm']">Pause
 										TRIM (Pool)</a>
 									</MenuItem>
-									<MenuItem as="div" v-slot="{ active }">
+									<MenuItem as="div" v-slot="{ active }" v-if="canDestructive">
 									<a v-if="trimActivity!.isActive || trimActivity!.isPaused && pool.diskType != 'HDD' && getIsTrimmable()"
 										href="#" @click="stopTrim(props.pool)"
 										:class="[active ? 'bg-default text-default' : 'text-muted', 'block px-4 py-2 text-sm']">Cancel
 										TRIM (Pool)</a>
 									</MenuItem>
-									<MenuItem as="div" v-slot="{ active }">
+									<MenuItem as="div" v-slot="{ active }" v-if="canDestructive">
 									<a href="#" @click="showAddVDev(props.pool)"
 										:class="[active ? 'bg-default text-default' : 'text-muted', 'block px-4 py-2 text-sm']">Add
 										Virtual Device</a>
 									</MenuItem>
-									<MenuItem as="div" v-slot="{ active }">
+									<MenuItem as="div" v-slot="{ active }" v-if="canDestructive">
 									<a href="#" @click="exportThisPool(props.pool)"
 										:class="[active ? 'bg-default text-default' : 'text-muted', 'block px-4 py-2 text-sm']">Export
 										Pool</a>
 									</MenuItem>
-									<MenuItem as="div" v-slot="{ active }">
+									<MenuItem as="div" v-slot="{ active }" v-if="canDestructive">
 									<a href="#" @click="destroyPoolAndUpdate(props.pool)!"
 										:class="[active ? 'bg-danger text-default' : 'text-muted', 'block px-4 py-2 text-sm']">Destroy
 										Pool</a>
@@ -282,6 +282,7 @@ interface DashPoolCardProps {
 }
 
 const truncateText = inject<Ref<string>>('style-truncate-text')!;
+const canDestructive = inject<Ref<boolean>>('can-destructive')!;
 
 const props = defineProps<DashPoolCardProps>();
 const selectedPool = ref<ZPool>();
@@ -358,7 +359,7 @@ const loadShowPoolComponent = async () => {
 
 async function showDetails(pool) {
 	selectedPool.value = pool;
-	console.log('loading:', selectedPool.value);
+	// console.log('loading:', selectedPool.value);
 	await loadShowPoolComponent();
 	showPoolDetails.value = true;
 }
@@ -443,46 +444,7 @@ const updateShowDestroyPool = (newVal) => {
 	showDeletePoolConfirm.value = newVal;
 }
 
-// watch(confirmDelete, async (newValue, oldValue) => {
-// 	const poolName = selectedPool.value!.name;
-// 	if (confirmDelete.value == true) {	
-// 		operationRunning.value = true;
-// 		console.log('now deleting:', selectedPool.value);
 
-// 		try {
-// 			const output: any = await destroyPool(selectedPool.value!, firstOptionToggle.value);
-// 			console.log("error dashpoolcard",output)
-
-// 			if (output == null || output.error) {
-// 				const errorMessage = output?.error || 'Unknown error';
-// 				operationRunning.value = false;
-// 				confirmDelete.value = false;
-// 				pushNotification(new Notification('Destroy Pool Failed', `${selectedPool.value!.name} was not destroyed: ${errorMessage}`, 'error', 5000));
-
-
-// 			} else {
-// 				if (secondOptionToggle.value == true) {
-// 					selectedPool.value!.vdevs.forEach(vDev => {
-// 						vDev.disks.forEach(async disk => {
-// 							selectedDisk.value = disk;
-// 							await labelClear(selectedDisk.value!);
-// 						});
-// 					});
-// 				}
-
-// 				await refreshAllData();
-// 				confirmDelete.value = false;
-// 				operationRunning.value = false;
-// 				pushNotification(new Notification('Pool Destroyed', `${poolName} destroyed.`, 'success', 5000));
-
-// 				showDeletePoolConfirm.value = false;
-// 			}
-
-// 		} catch (error) {
-// 			console.error(error);
-// 		}
-// 	}
-// });
 watch(confirmDelete, async (newValue, oldValue) => {
     const poolName = selectedPool.value!.name;
     if (confirmDelete.value == true) {    
@@ -493,17 +455,6 @@ watch(confirmDelete, async (newValue, oldValue) => {
             const output: any = await destroyPool(selectedPool.value!, firstOptionToggle.value);
             console.log("Destroy Pool Output:", output);
 
-            // if (output == null || output.error) {
-            //     const errorMessage = output?.error || 'Unknown error';
-            //     operationRunning.value = false;
-            //     confirmDelete.value = false;
-
-            //     if (errorMessage.includes("is busy")) {
-            //         pushNotification(new Notification('Destroy Pool Failed', `Pool ${poolName} is busy. Close any active processes using it and try again.`, 'warning', 5000));
-            //     } else {
-            //         pushNotification(new Notification('Destroy Pool Failed', `${poolName} was not destroyed: ${errorMessage}`, 'error', 5000));
-            //     }
-            // } 
 			if (output == null || output.error) {
 				await refreshAllData();
 				const stillExists = poolData.value.find(p => p.name === poolName);
@@ -795,7 +746,7 @@ watch(confirmPauseScrub, async (newVal, oldVal) => {
 		console.log('now pausing scrub:', selectedPool.value);
 		pausing.value = true;
 		try {
-			const output: any = await scrubPool(selectedPool.value, 'pause');
+			const output: any = await scrubPool(selectedPool.value!, 'pause');
 
 			if (output == null || output.error) {
 				const errorMessage = output?.error || 'Unknown error';
@@ -834,7 +785,7 @@ watch(confirmStopScrub, async (newVal, oldVal) => {
 		stopping.value = true;
 
 		try {
-			const output: any = await scrubPool(selectedPool.value, 'stop');
+			const output: any = await scrubPool(selectedPool.value!, 'stop');
 
 			if (output == null || output.error) {
 				const errorMessage = output?.error || 'Unknown error';

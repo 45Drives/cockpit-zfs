@@ -44,23 +44,23 @@ class DBusService(dbus.service.Object):
         print(f"[Forwarding message] {message}")
         try:
             parsed_message = json.loads(message)  
-            updated_message = store_notification(parsed_message)  # ✅ Save/update in DB
+            updated_message = store_notification(parsed_message)  # Save/update in DB
 
             if updated_message:
                 
-                print(f"✅ [FORWARD] Sending to UI: {updated_message}")  
-                self.Message(json.dumps(updated_message))  # ✅ Forward message with correct ID
+                print(f"[FORWARD] Sending to UI: {updated_message}")  
+                self.Message(json.dumps(updated_message))  # Forward message with correct ID
                 subject = parsed_message.get("subject") or f"ZFS Event: {parsed_message.get('event')}"
                 body = parsed_message.get("email_message") or json.dumps(updated_message, indent=2)
                 severity = updated_message.get("severity", "info")
-                print(f"✅ [FORWARD] SENDING TO  EMAIL: {updated_message}")  
+                # print(f"[FORWARD] SENDING TO  EMAIL: {updated_message}")  
 
                 sendEmailNotification(subject, body, severity)
             else:
-                print("❌ Duplicate event detected, not forwarding to UI.")
+                print("Duplicate event detected, not forwarding to UI.")
 
         except json.JSONDecodeError:
-            print("❌ Error: Invalid JSON format received")
+            print("Error: Invalid JSON format received")
     @dbus.service.method("org._45drives.Houston", in_signature="ii", out_signature="s")
     def GetMissedNotifications(self,limit,offset):
         """D-Bus method to retrieve missed notifications in JSON format."""

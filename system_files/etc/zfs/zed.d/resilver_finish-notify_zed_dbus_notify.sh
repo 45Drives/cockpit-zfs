@@ -81,7 +81,7 @@ FORWARD_MESSAGE=$(jq -n \
   --arg email_message "$EMAIL_MESSAGE" \
   '{timestamp: $timestamp, event: $event, pool: $pool, state: $state, pool_guid: $pool_guid, errors: $errors, repaired: $repaired, duration: $duration,subject: $subject, email_message: $email_message}')
 
-# ✅ Logging event details for debugging
+# Logging event details for debugging
 {
   echo "==== DEBUG START ===="
   echo "DEBUG: Timestamp = $EVENT_TIMESTAMP"
@@ -98,11 +98,11 @@ FORWARD_MESSAGE=$(jq -n \
   echo "==== DEBUG END ===="
 } >> "$DEBUG_LOG"
 
-# ✅ Send event notification to Houston UI
+# Send event notification to Houston UI
 python3 "$DBUS_CLIENT" "$FORWARD_MESSAGE" >> "$DEBUG_LOG" 2>&1
 FORWARD_STATUS=$?
 
-# ✅ Log final result
+# Log final result
 if [ "$FORWARD_STATUS" -eq 0 ]; then
   echo "[SUCCESS] Resilver event successfully forwarded to Houston UI" >> "$DEBUG_LOG"
 else

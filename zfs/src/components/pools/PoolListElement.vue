@@ -81,27 +81,27 @@
 								<MenuItems @click.stop
 									class="absolute right-0 z-10 w-max origin-top-right rounded-md bg-default shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
 									<div class="py-1">
-										<MenuItem as="div" v-slot="{ active }">
+										<MenuItem as="div" v-slot="{ active }" >
 										<a href="#" @click="showPoolModal(poolData[props.poolIdx])!"
 											:class="[active ? 'bg-accent text-default' : 'text-muted', 'block px-4 py-2 text-sm']">
 											Pool Details</a>
 										</MenuItem>
-										<MenuItem as="div" v-slot="{ active }">
+										<MenuItem as="div" v-slot="{ active }" v-if="canDestructive">
 										<a href="#" @click="clearPoolErrors(poolData[props.poolIdx].name)"
 											:class="[active ? 'bg-accent text-default' : 'text-muted', 'block px-4 py-2 text-sm']">
 											Clear Pool Errors</a>
 										</MenuItem>
-										<MenuItem as="div" v-slot="{ active }">
+										<MenuItem as="div" v-slot="{ active }" v-if="canDestructive">
 										<a v-if="upgradeablePool" href="#" @click="upgradeThisPool(props.pool)!"
 											:class="[active ? 'bg-orange-700 text-default' : 'text-muted', 'block px-4 py-2 text-sm']">
 											Upgrade Pool</a>
 										</MenuItem>
-										<MenuItem as="div" v-slot="{ active }">
+										<MenuItem as="div" v-slot="{ active }" v-if="canDestructive">
 										<a v-if="!scanActivity!.isActive" href="#" @click="resilverThisPool(props.pool)"
 											:class="[active ? 'bg-default text-default' : 'text-muted', 'block px-4 py-2 text-sm']">
 											Resilver Pool</a>
 										</MenuItem>
-										<MenuItem as="div" v-slot="{ active }">
+										<MenuItem as="div" v-slot="{ active }" v-if="canDestructive">
 										<a v-if="!scanActivity!.isActive" href="#" @click="scrubThisPool(props.pool)"
 											:class="[active ? 'bg-default text-default' : 'text-muted', 'block px-4 py-2 text-sm']">
 											Scrub Pool</a>
@@ -114,13 +114,13 @@
 											:class="[active ? 'bg-default text-default' : 'text-muted', 'block px-4 py-2 text-sm']">
 											Pause Scrub</a>
 										</MenuItem>
-										<MenuItem as="div" v-slot="{ active }">
+										<MenuItem as="div" v-slot="{ active }" v-if="canDestructive">
 										<a v-if="scanActivity!.isActive && scanOperation == 'SCRUB'" href="#"
 											@click="stopScrub(props.pool)"
 											:class="[active ? 'bg-default text-default' : 'text-muted', 'block px-4 py-2 text-sm']">
 											Cancel Scrub</a>
 										</MenuItem>
-										<MenuItem as="div" v-slot="{ active }">
+										<MenuItem as="div" v-slot="{ active }" v-if="canDestructive">
 										<a v-if="!trimActivity!.isActive && !trimActivity!.isPaused && poolData[props.poolIdx].diskType != 'HDD' && getIsTrimmable()"
 											href="#" @click="trimThisPool(poolData[props.poolIdx])"
 											:class="[active ? 'bg-accent text-default' : 'text-muted', 'block px-4 py-2 text-sm']">
@@ -134,25 +134,25 @@
 											:class="[active ? 'bg-accent text-default' : 'text-muted', 'block px-4 py-2 text-sm']">
 											Pause TRIM (Pool)</a>
 										</MenuItem>
-										<MenuItem as="div" v-slot="{ active }">
+										<MenuItem as="div" v-slot="{ active }" v-if="canDestructive">
 										<a v-if="trimActivity!.isActive || trimActivity!.isPaused && poolData[props.poolIdx].diskType != 'HDD' && getIsTrimmable()"
 											href="#" @click="stopTrim(poolData[props.poolIdx])"
 											:class="[active ? 'bg-accent text-default' : 'text-muted', 'block px-4 py-2 text-sm']">
 											Cancel TRIM (Pool)</a>
 										</MenuItem>
-										<MenuItem as="div" v-slot="{ active }">
+										<MenuItem as="div" v-slot="{ active }" v-if="canDestructive">
 										<a href="#" @click="showAddVDev(poolData[props.poolIdx])"
 											:class="[active ? 'bg-accent text-default' : 'text-muted', 'block px-4 py-2 text-sm']">
 											Add Virtual Device</a>
 										</MenuItem>
-										<MenuItem as="div" v-slot="{ active }">
-										<a href="#" @click="exportThisPool(poolData[props.poolIdx])"
-											:class="[active ? 'bg-accent text-default' : 'text-muted', 'block px-4 py-2 text-sm']">
+										<MenuItem as="div" v-slot="{ active }" v-if="canDestructive">
+											<a href="#" @click="exportThisPool(poolData[props.poolIdx])"
+												:class="[active ? 'bg-accent text-default' : 'text-muted', 'block px-4 py-2 text-sm']">
 											Export Pool</a>
 										</MenuItem>
-										<MenuItem as="div" v-slot="{ active }">
-										<a href="#" @click="destroyPoolAndUpdate(poolData[props.poolIdx])"
-											:class="[active ? 'bg-danger text-default' : 'text-muted', 'block px-4 py-2 text-sm']">
+										<MenuItem as="div" v-slot="{ active }" v-if="canDestructive">
+											<a href="#" @click="destroyPoolAndUpdate(poolData[props.poolIdx])"
+												:class="[active ? 'bg-danger text-default' : 'text-muted', 'block px-4 py-2 text-sm']">
 											Destroy Pool</a>
 										</MenuItem>
 									</div>
@@ -264,7 +264,7 @@ interface PoolListElementProps {
 
 const props = defineProps<PoolListElementProps>();
 const truncateText = inject<Ref<string>>('style-truncate-text')!;
-
+const canDestructive = inject<Ref<boolean>>('can-destructive')!;
 
 const selectedPool = ref<ZPool>();
 const selectedDisk = ref<VDevDisk>();
@@ -317,7 +317,7 @@ const loadShowPoolDetailsComponent = async () => {
 
 async function showPoolModal(pool) {
 	selectedPool.value = pool;
-	console.log('loading:', selectedPool.value);
+	// console.log('loading:', selectedPool.value);
 	await loadShowPoolDetailsComponent();
 	showPoolDetails.value = true;
 }
@@ -368,7 +368,7 @@ async function refreshAllData() {
 	disksLoaded.value = true;
 	poolsLoaded.value = true;
 	fileSystemsLoaded.value = true;
-	console.log('PoolListElement trimActivities', trimActivities.value);
+	// console.log('PoolListElement trimActivities', trimActivities.value);
 }
 
 ////////////////// Destroy Pool /////////////////////
@@ -701,7 +701,7 @@ watch(confirmPauseScrub, async (newVal, oldVal) => {
 		console.log('now pausing scrub:', selectedPool.value);
 		pausing.value = true;
 		try {
-			const output: any = await scrubPool(selectedPool.value, 'pause');
+			const output: any = await scrubPool(selectedPool.value!, 'pause');
 
 			if (output == null || output.error) {
 				const errorMessage = output?.error || 'Unknown error';
@@ -740,7 +740,7 @@ watch(confirmStopScrub, async (newVal, oldVal) => {
 		stopping.value = true;
 
 		try {
-			const output: any = await scrubPool(selectedPool.value, 'stop');
+			const output: any = await scrubPool(selectedPool.value!, 'stop');
 
 			if (output == null || output.error) {
 				const errorMessage = output?.error || 'Unknown error';
@@ -1018,7 +1018,7 @@ const loadShowAddVDevComponent = async () => {
 
 async function showAddVDev(pool) {
 	selectedPool.value = pool;
-	console.log(selectedPool);
+	// console.log(selectedPool);
 	await loadShowAddVDevComponent();
 	showAddVDevModal.value = true;
 }
@@ -1029,7 +1029,7 @@ const scanStatusBox = ref();
 const scanActivities = inject<Ref<Map<string, Activity>>>('scan-activities')!;
 	
 async function getScanStatus() {
-	console.log('scanStatusBox', scanStatusBox.value);
+	// console.log('scanStatusBox', scanStatusBox.value);
 
 	await scanStatusBox.value.pollScanStatus();
 }
@@ -1041,7 +1041,7 @@ const trimActivities = inject<Ref<Map<string, Activity>>>('trim-activities')!;
 
 async function getTrimStatus() {
     // console.log('vDevElement', vDevElement.value);
-	console.log('trimActivity:', trimActivity.value);
+	// console.log('trimActivity:', trimActivity.value);
     // Check if vDevElement is defined and is an array
     if (vDevElement.value && Array.isArray(vDevElement.value) && vDevElement.value.length > 0) {
      	await vDevElement.value[0].getDiskStatus();

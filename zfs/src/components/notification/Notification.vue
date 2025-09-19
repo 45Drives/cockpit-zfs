@@ -445,7 +445,7 @@ watch(menuOpen, (isOpen) => {
   if (isOpen) {
 	document.body.classList.add("no-scroll"); // 🚀 Disable scrolling
   } else {
-	document.body.classList.remove("no-scroll"); // ✅ Enable scrolling
+	document.body.classList.remove("no-scroll"); // Enable scrolling
   }
 });
 // Ensure scrolling is enabled if the component unmounts
@@ -463,7 +463,7 @@ const toggleDropdown = () => {
   showDropdown.value = !showDropdown.value;
 };
 const openEmailSettings = () => {
-	console.log("Opening Email Settings...");
+	// console.log("Opening Email Settings...");
 	emailSetUpModal.value = true;
 	showDropdown.value = false; // Close dropdown when opening modal
 };

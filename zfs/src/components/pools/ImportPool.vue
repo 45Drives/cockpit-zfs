@@ -465,7 +465,7 @@ function updateImportedPoolData(pool) {
 const nameCheck = () => {
 	let result = true;
 	nameFeedback.value = '';
-    console.log('importedPool.newName:', importedPool.value.newPoolName!);
+    // console.log('importedPool.newName:', importedPool.value.newPoolName!);
     if (importedPool.value.renamePool) {
         if (importedPool.value.newPoolName! == '') {
 		    result = false;
@@ -536,7 +536,7 @@ async function importPoolBtn() {
             importedPool.value.isDestroyed = true;
         }
         
-        console.log('importing pool:', importedPool.value);
+        // console.log('importing pool:', importedPool.value);
         
         try {
             importing.value = true;

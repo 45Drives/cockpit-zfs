@@ -69,11 +69,11 @@ export async function createSnapshot(newSnap : NewSnapshot) {
 
         cmdString.push(newSnap.filesystem + '@' + newSnap.name);
 
-        console.log("****create cmdString: *****\n" , cmdString);
+        // console.log("****create cmdString: *****\n" , cmdString);
 			
         const state = useSpawn(cmdString);
         const output = await state.promise();
-        console.log(output)
+        // console.log(output)
         return output.stdout;
     } catch (state) {
         const errorMessage = errorString(state);
@@ -96,11 +96,11 @@ export async function destroySnapshot(snapshotName, destroyChildrenSameName, des
 
         cmdString.push(snapshotName)
 
-        console.log("****destroy cmdString: *****\n" , cmdString);
+        // console.log("****destroy cmdString: *****\n" , cmdString);
 			
         const state = useSpawn(cmdString);
         const output = await state.promise();
-        console.log(output)
+        // console.log(output)
         return output.stdout;
     } catch (state) {
         const errorMessage = errorString(state);
@@ -123,11 +123,11 @@ export async function rollbackSnapshot(snapshot, destroyNewerSnaps, destroyAllNe
 
         cmdString.push(snapshot.name)
 
-        console.log("****rollback cmdString: *****\n" , cmdString);
+        // console.log("****rollback cmdString: *****\n" , cmdString);
 			
         const state = useSpawn(cmdString);
         const output = await state.promise();
-        console.log(output)
+        // console.log(output)
         return output.stdout;
     } catch (state) {
         const errorMessage = errorString(state);
@@ -147,11 +147,11 @@ export async function renameSnapshot(snapshotName, newName, renameChildren?) {
         cmdString.push(snapshotName);
         cmdString.push(newName);
 
-        console.log("****rename cmdString: *****\n" , cmdString);
+        // console.log("****rename cmdString: *****\n" , cmdString);
 			
         const state = useSpawn(cmdString);
         const output = await state.promise();
-        console.log(output)
+        // console.log(output)
         return output.stdout;
     } catch (state) {
         const errorMessage = errorString(state);
@@ -171,11 +171,11 @@ export async function cloneSnapshot(snapName, newParentFS, cloneName, createPare
         cmdString.push(`${snapName}`);
         cmdString.push(`${newParentFS}/${cloneName}`);
 
-        console.log("****clone cmdString: *****\n" , cmdString);
+        // console.log("****clone cmdString: *****\n" , cmdString);
 			
         const state = useSpawn(cmdString);
         const output = await state.promise();
-        console.log(output)
+        // console.log(output)
         return output.stdout;
     } catch (state) {
         const errorMessage = errorString(state);
@@ -186,12 +186,12 @@ export async function cloneSnapshot(snapName, newParentFS, cloneName, createPare
 
 export async function sendSnapshot(sendingData : SendingDataset) {
 	try {
-        console.log('sendingData (snapshots.ts - sendSnapshot):', sendingData);
+        // console.log('sendingData (snapshots.ts - sendSnapshot):', sendingData);
 
 		const state = useSpawn(['/usr/bin/env', 'python3', '-c', send_dataset_script, sendingData.sendName, sendingData.recvName, sendingData.sendIncName!, sendingData.sendOpts.forceOverwrite!, sendingData.sendOpts.compressed, sendingData.sendOpts.raw, sendingData.recvHost, sendingData.recvPort, sendingData.recvHostUser, sendingData.mBufferConfig!.size, sendingData.mBufferConfig!.unit], { superuser: 'try' });
 
 		const output = await state.promise();
-		console.log('sendSnapshot completed');
+		// console.log('sendSnapshot completed');
 		return output.stdout;
 	} catch (state) {
 		const errorMessage = errorString(state);
@@ -203,12 +203,12 @@ export async function sendSnapshot(sendingData : SendingDataset) {
 
 export async function doesDatasetExist(sendingData : SendingDataset) {
     try {
-        console.log('sendingData (snapshots.ts - checkDataset - doesDatasetExist):', sendingData);
+        // console.log('sendingData (snapshots.ts - checkDataset - doesDatasetExist):', sendingData);
 
 		const state = useSpawn(['/usr/bin/env', 'python3', '-c', check_dataset_script, sendingData.recvName, sendingData.recvHost, sendingData.recvPort, sendingData.recvHostUser], { superuser: 'try'});
 
 		const output = await state.promise();
-		console.log(output);
+		// console.log(output);
 		
 		if (output.stdout!.includes('True')) {
 			return true;
@@ -224,12 +224,12 @@ export async function doesDatasetExist(sendingData : SendingDataset) {
 
 export async function doesDatasetHaveSnaps(sendingData : SendingDataset) {
     try {
-        console.log('sendingData (snapshots.ts - checkDataset - doesDatasetHaveSnaps):', sendingData);
+        // console.log('sendingData (snapshots.ts - checkDataset - doesDatasetHaveSnaps):', sendingData);
 
 		const state = useSpawn(['/usr/bin/env', 'python3', '-c', check_remote_snaps_script, sendingData.recvName, sendingData.recvHost, sendingData.recvPort, sendingData.recvHostUser], { superuser: 'try' });
 
 		const output = await state.promise();
-		console.log(output);
+		// console.log(output);
 		
 		if (output.stdout!.includes('True')) {
 			return true;
@@ -245,12 +245,12 @@ export async function doesDatasetHaveSnaps(sendingData : SendingDataset) {
 
 export async function getRecentSnaps(sendingData : SendingDataset) {
     try {
-        console.log('sendingData (snapshots.ts - getRecentSnaps):', sendingData);
+        // console.log('sendingData (snapshots.ts - getRecentSnaps):', sendingData);
 
 		const state = useSpawn(['/usr/bin/env', 'python3', '-c', get_recent_snaps_script, sendingData.recvName, sendingData.recvHost, sendingData.recvPort, sendingData.recvHostUser], { superuser: 'try' });
 
 		const output = await state.promise();
-		console.log(output);
+		// console.log(output);
 		return output.stdout;
 
     } catch (state) {
@@ -268,13 +268,13 @@ export async function formatRecentSnaps(sendingData : SendingDataset, snapSnips 
             const parsedJSON = (JSON.parse(rawJSON));
             parsedJSON.forEach(snap => {
                 if (snap) {
-                    console.log('snap:', snap);
+                    // console.log('snap:', snap);
                     const snapSnip : SnapSnippet = {
                         name: snap.name,
                         guid: snap.guid,
                         creation: convertTimestampToLocal(convertTimestampFormat(snap.creation)),
                     }
-                    console.log('snapSnip after:', snapSnip);
+                    // console.log('snapSnip after:', snapSnip);
                     snapSnips.push(snapSnip);
                 } else {
                     console.log('no recent snaps');
@@ -284,7 +284,7 @@ export async function formatRecentSnaps(sendingData : SendingDataset, snapSnips 
         } else {
             console.error("No data received from getRecentSnaps");
         }
-        console.log('formatted snapSnips:', snapSnips);
+        // console.log('formatted snapSnips:', snapSnips);
 	} catch(error) {
 		console.error("An error occurred getting snapSnips:", error);
         // const errorMessage = errorString(error);

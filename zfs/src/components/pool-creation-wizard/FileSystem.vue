@@ -810,7 +810,7 @@ function getInheritedProperties() {
 			return dataset.id === newFileSystemConfig.value.parentFS;
 		});
 
-		console.log('selectedDataset for inheritance:', selectedDataset);
+		// console.log('selectedDataset for inheritance:', selectedDataset);
 		
 		if (newFileSystemConfig.value.properties.deduplication == 'inherited') {
 			newFileSystemConfig.value.properties.deduplication = selectedDataset?.properties.deduplication!;
@@ -835,7 +835,7 @@ function getInheritedProperties() {
 		}
 		// console.log("newFileSystemConfig", newFileSystemConfig);
 	} else {
-		console.log('inheriting values...');
+		// console.log('inheriting values...');
 
 		fileSystemConfig.value.parentFS = poolConfig.value.name;
 
@@ -860,7 +860,7 @@ function getInheritedProperties() {
 		if (fileSystemConfig.value.properties.extendedAttributes == 'inherited') {
 			fileSystemConfig.value.properties.extendedAttributes = 'sa';
 		}
-		console.log("fileSystemConfig", fileSystemConfig);
+		// console.log("fileSystemConfig", fileSystemConfig);
 	}
 }
 
@@ -1006,25 +1006,25 @@ function fillDatasetData() {
 		newDataset.value.quota = convertSizeToBytes((fileSystemConfig.value.properties.quota.raw.toString() + fileSystemConfig.value.properties.quota.unit)).toString();
 		newDataset.value.readonly = isBoolOnOff(fileSystemConfig.value.properties.isReadOnly!);
 	}
-	console.log("newDataSetData sent:", newDataset);
+	// console.log("newDataSetData sent:", newDataset);
 }
 
 const confirmCreateFS = inject<Ref<boolean>>('confirm-create-filesystem')!;
 
 async function fsCreateBtn(fileSystem : ZFSFileSystemInfo) {
-	console.log('fsCreateBtn fired');
+	// console.log('fsCreateBtn fired');
 	if (props.isStandalone) {
 		if (parentCheck(fileSystem)) {
-			console.log('parentCheck passed');
+			// console.log('parentCheck passed');
 			if (nameCheck(fileSystem)) {
-				console.log('nameCheck passed');
+				// console.log('nameCheck passed');
 				if (fileSystem.encrypted) {
 					if (encryptPasswordCheck(fileSystem)) {
 						if (checkQuota(fileSystem)) {
 							getInheritedProperties();
 							fillDatasetData();
 							saving.value = true;
-							console.log('create Dataset fired');
+							// console.log('create Dataset fired');
 							confirmCreateFS.value = false;
 							try {
 								const output: any = await createEncryptedDataset(newDataset.value, passphrase.value);
@@ -1035,7 +1035,7 @@ async function fsCreateBtn(fileSystem : ZFSFileSystemInfo) {
 									pushNotification(new Notification('Error Creating Dataset', `There was an error creating this dataset: ${errorMessage}`, 'error', 5000));
 
 								} else {
-									console.log('encryption check passed');
+									// console.log('encryption check passed');
 									fileSystemsLoaded.value = false;
 									datasets.value = [];
 									await loadDatasets(datasets);
@@ -1064,27 +1064,10 @@ async function fsCreateBtn(fileSystem : ZFSFileSystemInfo) {
 						confirmCreateFS.value = false;
 						try {
 							const { name, parent, ...options } = newDataset.value;
-							console.log('dataset name:', name);
-							console.log('dataset parent:', parent);
-							console.log('dataset options:', options);
-
-							// const output: any = await zfsManager.addDataset(parent, name, options);
+							// console.log('dataset name:', name);
+							// console.log('dataset parent:', parent);
+							// console.log('dataset options:', options);
 							
-							// if (output == null || output.error) {
-							// 	const errorMessage = output?.error || 'Unknown error';
-							// 	saving.value = false;
-							// 	pushNotification(new Notification('Error Creating Dataset', `There was an error creating this dataset ${errorMessage}`, 'error', 5000));
-							// } else {
-							// 	console.log('encryption check passed');
-							// 	fileSystemsLoaded.value = false;
-							// 	datasets.value = [];
-							// 	await loadDatasets(datasets);
-							// 	showFSWizard.value = false;
-							// 	saving.value = false;
-							// 	fileSystemsLoaded.value = true;
-							// 	pushNotification(new Notification('File System Created!', `Created new dataset.`, 'success', 5000));
-							// 	confirmCreateFS.value = true;
-							// }
 							try {
 								const output: any = await zfsManager.addDataset(parent, name, options);
 
@@ -1127,22 +1110,22 @@ async function fsCreateBtn(fileSystem : ZFSFileSystemInfo) {
 
 	
 async function newFileSystemInPoolWizard() {
-	console.log('newFileSystemInPool method fired');
+	// console.log('newFileSystemInPool method fired');
 	const fileSystem = ref(fileSystemConfig.value);
-	console.log('fileSystem:', fileSystem);
+	// console.log('fileSystem:', fileSystem);
 	if (!props.isStandalone) {
 		if (parentCheck(fileSystem.value)) {
-			console.log('parentCheck passed');
+			// console.log('parentCheck passed');
 			if (nameCheck(fileSystem.value)) {
-				console.log('nameCheck passed');
+				// console.log('nameCheck passed');
 				if (fileSystem.value.encrypted) {
 					if (encryptPasswordCheck(fileSystem.value)) {
 						if (checkQuota(fileSystem.value)) {
-							console.log('checkQuota passed');
+							// console.log('checkQuota passed');
 							getInheritedProperties();
 							fillDatasetData();
 							saving.value = true;
-							console.log('create Dataset fired');
+							// console.log('create Dataset fired');
 							confirmCreateFS.value = false;
 							try {
 								const output: any = await createEncryptedDataset(newDataset.value, passphrase.value);
@@ -1152,7 +1135,7 @@ async function newFileSystemInPoolWizard() {
 									saving.value = false;
 									pushNotification(new Notification('Error Creating Dataset', `There was an error creating this dataset ${errorMessage}`, 'error', 5000));
 								} else {
-									console.log('encryption check passed');
+									// console.log('encryption check passed');
 									fileSystemsLoaded.value = false;
 									datasets.value = [];
 									await loadDatasets(datasets);
@@ -1175,7 +1158,7 @@ async function newFileSystemInPoolWizard() {
 					}
 				} else {
 					if (checkQuota(fileSystem.value)) {
-						console.log('checkQuota passed');
+						// console.log('checkQuota passed');
 						getInheritedProperties();
 						fillDatasetData();
 						saving.value = true;
@@ -1189,7 +1172,7 @@ async function newFileSystemInPoolWizard() {
 								saving.value = false;
 								pushNotification(new Notification('Error Creating Dataset', `There was an error creating this dataset: ${errorMessage}`, 'error', 5000));
 							} else {
-								console.log('encryption check passed');
+								// console.log('encryption check passed');
 								fileSystemsLoaded.value = false;
 								datasets.value = [];
 								await loadDatasets(datasets);
@@ -1227,13 +1210,13 @@ onMounted(() => {
 	if (!props.isStandalone) {
 		setParentFS();
 	}
-	console.log('FileSystem component mounted');
+	// console.log('FileSystem component mounted');
 });
 
 onUpdated(() => {
 	if (!props.isStandalone) {
 		setParentFS();
 	}
-	console.log('FileSystem component updated');
+	// console.log('FileSystem component updated');
 });
 </script>

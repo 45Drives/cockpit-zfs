@@ -1,3 +1,10 @@
+cockpit-zfs (1.2.8-1jammy) jammy; urgency=medium
+
+  * Adds support for non-privledged users -> hides/disables any destructive actions
+    (module is read-only with exception for creating datasets)
+
+ -- Jordan Keough <jkeough@45drives.com>  Fri, 29 Aug 2025 12:18:28 -0300
+
 cockpit-zfs (1.2.7-1jammy) jammy; urgency=medium
 
   * fixes bug where pool creation failure would not notify and stay in endless loading

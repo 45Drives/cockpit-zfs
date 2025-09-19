@@ -1,114 +1,145 @@
+#!/usr/bin/env python3
 import libzfs
 import json
 import sys
+from typing import Optional
 
 def basic_typed_children(children):
     for i in range(len(children)):
         children[i]['properties']['creation']['parsed'] = str(children[i]['properties']['creation']['parsed'])
-        
         if len(children[i]['children']) >= 1:
             children[i]['children'] = basic_typed_children(children[i]['children'])
-
     return children
+
+def _prop(snap, name) -> Optional[dict]:
+    """
+    Safely extract a ZFS property from a snapshot into an asdict()-like shape (avoiding asdict() due to crashing with large amounts of datasets):
+    { "value": ..., "rawvalue": ..., "parsed": ... }
+    Returns None if unavailable.
+    """
+    try:
+        p = snap.properties.get(name)
+        if p is None:
+            return None
+        out = {}
+        if hasattr(p, "value"):
+            out["value"] = str(p.value)
+        if hasattr(p, "raw"):
+            out["rawvalue"] = str(p.raw)
+        if hasattr(p, "parsed"):
+            out["parsed"] = str(p.parsed)
+        return out
+    except Exception:
+        return None
+
+def _safe_snapshot_dict(snap):
+    """
+    Build a safe dict for a snapshot WITHOUT calling asdict() (which would
+    trigger holds lookups). Shaped to match the fields your UI expects.
+    """
+    name = snap.name  # "pool/dataset@snap"
+    dataset = name.split("@", 1)[0] if "@" in name else name
+    snap_name = name.split("@", 1)[1] if "@" in name else ""
+    pool = dataset.split("/", 1)[0] if dataset else ""
+
+    guid = _prop(snap, "guid") or {"value": ""}  # UI uses properties.guid.value
+    creation = _prop(snap, "creation") or {"rawvalue": "0", "parsed": "", "value": ""}
+    referenced = _prop(snap, "referenced") or {}
+    used = _prop(snap, "used") or {}
+
+    return {
+        "name": name,
+        "id": guid.get("value", "") or name,          # fallback to name if guid missing
+        "snapshot_name": snap_name,                   # UI uses snapshot.snapshot_name
+        "dataset": dataset,
+        "pool": pool,
+        "mountpoint": "",                             # snapshots typically not mounted
+        "type": "snapshot",
+        "properties": {
+            "guid": guid,
+            "creation": creation,
+            "referenced": referenced,
+            "used": used,
+            # UI reads snapshot.properties.clones.parsed; keep a safe default
+            "clones": {"parsed": []},
+        },
+        "holds": {},
+    }
 
 def get_all_snapshots():
     with libzfs.ZFS() as zfs:
         z_datasets = {}
-
         for d in zfs.datasets:
             snaps = []
-
             for snap in d.snapshots:
-                z_snap = snap.asdict()
-                z_snap['properties']['creation']['parsed'] = str(z_snap['properties']['creation']['parsed'])
-                snaps.append(z_snap)
-
+                try:
+                    snaps.append(_safe_snapshot_dict(snap))
+                except libzfs.ZFSException:
+                    # Snapshot vanished or is otherwise inaccessible; skip it
+                    continue
+                except Exception:
+                    # Be defensive against any unexpected property access errors
+                    continue
             z_datasets[d.name] = snaps
-
-    return json.dumps(z_datasets, indent=4)  # Return the JSON string
+    return json.dumps(z_datasets, indent=4)
 
 def get_snapshots_by_dataset(dataset_name):
     with libzfs.ZFS() as zfs:
         z_datasets = {}
+        try:
+            d = zfs.get_dataset(dataset_name)
+        except libzfs.ZFSException:
+            return json.dumps({}, indent=4)
 
-        for d in zfs.datasets:
-            if d.name == dataset_name:  # Use 'd.name' for checking the dataset name
-                snaps = []
+        snaps = []
+        for snap in d.snapshots:
+            try:
+                snaps.append(_safe_snapshot_dict(snap))
+            except libzfs.ZFSException:
+                continue
+            except Exception:
+                continue
+        z_datasets[d.name] = snaps
+    return json.dumps(z_datasets, indent=4)
 
-                for snap in d.snapshots:
-                    z_snap = snap.asdict()
-                    z_snap['properties']['creation']['parsed'] = str(z_snap['properties']['creation']['parsed'])
-                    snaps.append(z_snap)
-
-                z_datasets[d.name] = snaps
-                break  # Stop after finding the desired dataset
-
-    return json.dumps(z_datasets, indent=4)  # Return the JSON string
-
-# Placeholder for the function to get snapshots by pool (implement as needed)
 def get_snapshots_by_pool(pool_name):
     with libzfs.ZFS() as zfs:
         z_datasets = {}
-
         for d in zfs.datasets:
-            if d.pool.name == pool_name:  # Check if the dataset belongs to the specified pool
+            # Be defensive: d.pool may be missing in some edge cases
+            if getattr(d.pool, "name", None) == pool_name:
                 snaps = []
-
                 for snap in d.snapshots:
-                    z_snap = snap.asdict()
-                    z_snap['properties']['creation']['parsed'] = str(z_snap['properties']['creation']['parsed'])
-                    snaps.append(z_snap)
-
-                z_datasets[d.name] = snaps  # Store snapshots for the dataset
-
-    return json.dumps(z_datasets, indent=4)  # Return the JSON string
-
+                    try:
+                        snaps.append(_safe_snapshot_dict(snap))
+                    except libzfs.ZFSException:
+                        continue
+                    except Exception:
+                        continue
+                z_datasets[d.name] = snaps
+    return json.dumps(z_datasets, indent=4)
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: python3 your_script.py [all|dataset_name|pool_name]")
+        print("Usage: python3 get-snapshots.py [all | dataset:<name> | pool:<name>]")
         return
 
     command = sys.argv[1]
-    snapshots = None  # Initialize snapshots variable
+    snapshots = None
 
     if command == 'all':
         snapshots = get_all_snapshots()
     elif command.startswith('dataset:'):
-        dataset_name = command.split(':')[1]
+        dataset_name = command.split(':', 1)[1]
         snapshots = get_snapshots_by_dataset(dataset_name)
     elif command.startswith('pool:'):
-        pool_name = command.split(':')[1]
+        pool_name = command.split(':', 1)[1]
         snapshots = get_snapshots_by_pool(pool_name)
     else:
         print("Invalid command. Use 'all', 'dataset:<name>', or 'pool:<name>'.")
         return
 
-
-if __name__ == '__main__':
-    main()
-
-def main():
-    if len(sys.argv) < 2:
-        print("Usage: python3 your_script.py [all|dataset_name|pool_name]")
-        return
-
-    command = sys.argv[1]
-    snapshots = None  # Initialize snapshots variable
-
-    if command == 'all':
-        snapshots = get_all_snapshots()
-    elif command.startswith('dataset:'):
-        dataset_name = command.split(':')[1]
-        snapshots = get_snapshots_by_dataset(dataset_name)
-    elif command.startswith('pool:'):
-        pool_name = command.split(':')[1]
-        snapshots = get_snapshots_by_pool(pool_name)
-    else:
-        print("Invalid command. Use 'all', 'dataset:<name>', or 'pool:<name>'.")
-        return
-
-    if snapshots:  # Print the snapshots if they were retrieved
+    if snapshots:
         print(snapshots)
 
 if __name__ == '__main__':

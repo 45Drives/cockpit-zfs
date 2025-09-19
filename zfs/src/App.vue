@@ -11,7 +11,7 @@
 <script setup lang="ts">
 import { reactive, ref, computed, onMounted } from 'vue';
 // import "@45drives/houston-common-ui/style.css";
-import '../../houston-common/houston-common-ui/dist/style.css';
+import "@45drives/houston-common-ui/style.css";
 import '@45drives/houston-common-css/src/index.css';
 import { HoustonAppContainer } from "@45drives/houston-common-ui";
 import Navigation from "./components/common/Navigation.vue";

@@ -23,13 +23,13 @@
                     <div v-if="props.item == 'filesystem'" class="w-full">
                         <div class="font-medium text-sm grid grid-flow-row justify-items-center justify-center">
                             <p class="justify-self-center text-danger font-medium mt-3">WARNING!!!</p>
-                            <p class="justify-self-center text-default">This {{ props.item }} <span class="text-danger">has children.</span></p>
-                            <p class="justify-self-center grid grid-flow-row justify-center justify-items-center text-default w-full">If you wish to destroy, use either <br/><span class="text-danger">Destroy all children</span> or <br/><span class="text-danger">Destroy all dependents.</span></p>            
+                            <p class="justify-self-center text-default">This {{ props.item }} <span class="text-danger">has children and/or snapshots.</span></p>
+                            <p class="justify-self-center grid grid-flow-row justify-center justify-items-center text-default w-full">If you wish to destroy, use either <br/><span class="text-danger">Destroy all children/snapshots</span> or <br/><span class="text-danger">Destroy ALL dependents.</span></p>            
                         </div>
 
                         <div class="grid grid-rows-2">
                             <div class="flex flex-row justify-between">
-                                <label :for="getIdKey('destroy-children')" class="mt-2 mr-2 block text-sm font-medium text-default">Destroy all children</label>
+                                <label :for="getIdKey('destroy-children')" class="mt-2 mr-2 block text-sm font-medium text-default">Destroy all children/snapshots</label>
                                 <Switch v-model="destroyChildrenToggle" :id="getIdKey('destroy-children')" :class="[destroyChildrenToggle ? 'bg-primary' : 'bg-accent', 'mt-1 relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-slate-600 focus:ring-offset-2']">
                                     <span class="sr-only">Use setting</span>
                                     <span :class="[destroyChildrenToggle ? 'translate-x-5' : 'translate-x-0', 'pointer-events-none relative inline-block h-5 w-5 transform rounded-full bg-default shadow ring-0 transition duration-200 ease-in-out']">
@@ -48,7 +48,7 @@
                             </div>
                         
                             <div class="flex flex-row justify-between">
-                                <label :for="getIdKey('destroy-dependents')" class="mt-2 mr-2 block text-sm font-medium text-default">Destroy all dependents (children + clones)</label>
+                                <label :for="getIdKey('destroy-dependents')" class="mt-2 mr-2 block text-sm font-medium text-default">Destroy all dependents (children + clones + snapshots)</label>
                                 <Switch v-model="destroyAllDependentsToggle" :id="getIdKey('destroy-dependents')" :class="[destroyAllDependentsToggle ? 'bg-primary' : 'bg-accent', 'mt-1 relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-slate-600 focus:ring-offset-2']">
                                     <span class="sr-only">Use setting</span>
                                     <span :class="[destroyAllDependentsToggle ? 'translate-x-5' : 'translate-x-0', 'pointer-events-none relative inline-block h-5 w-5 transform rounded-full bg-default shadow ring-0 transition duration-200 ease-in-out']">

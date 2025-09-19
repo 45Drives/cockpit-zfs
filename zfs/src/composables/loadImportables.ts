@@ -2,6 +2,7 @@ import { ref } from 'vue';
 import { getImportablePools, getImportableDestroyedPools } from "./pools";
 import { VDev } from '@45drives/houston-common-lib';
 import { ImportablePoolData } from '../types';
+import { safeParse } from '../utils/json';
 
 // const vDevs = ref<ImportablePoolvDevData[]>([]);
 const vDevs = ref<VDev[]>([]);
@@ -33,7 +34,8 @@ export function parseImportVDevData(vDev, poolName, vDevType) {
 export async function loadImportablePools(importablePools, allDisks, existingPools) {
     try {
         const rawJSON = await getImportablePools();
-        const parsedJSON = JSON.parse(rawJSON!);
+        // const parsedJSON = JSON.parse(rawJSON!);
+        const parsedJSON = safeParse<any[]>(rawJSON, []);
         // console.log('Importable Pools JSON:', parsedJSON);
 
         //loops through pool JSON
@@ -77,7 +79,8 @@ export async function loadImportablePools(importablePools, allDisks, existingPoo
 export async function loadImportableDestroyedPools(importablePools, allDisks, existingPools) {
     try {
 		const rawJSON = await getImportableDestroyedPools();
-		const parsedJSON = JSON.parse(rawJSON!);
+		// const parsedJSON = JSON.parse(rawJSON!);
+        const parsedJSON = safeParse<any[]>(rawJSON, []);
 		// console.log('Destroyed Pools JSON:', parsedJSON);
 		
 		for (let i = 0; i < parsedJSON.length; i++) {

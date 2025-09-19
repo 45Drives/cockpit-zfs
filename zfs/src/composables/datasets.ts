@@ -52,7 +52,7 @@ export async function createEncryptedDataset(fileSystemData : Dataset&DatasetCre
 		const state = useSpawn(['/usr/bin/env', 'python3', '-c', create_encrypted_dataset_script, args.cmd, args.atime, args.case, args.compress, args.dedup, args.dnode, args.xattr, args.record, args.quota, args.readonly, args.encryption, args.keyformat, args.keylocation, args.path, args.passphrase], { superuser: 'try'});
 
 		const output = await state.promise();
-		console.log(output)
+		// console.log(output)
 		return output.stdout;
 		
 	} catch (state) {
@@ -66,7 +66,7 @@ export async function changePassphrase(fileSystemName : string, newPassphrase : 
 	try {
 		const state = useSpawn(['/usr/bin/env', 'python3', '-c', change_passphrase_script, fileSystemName, newPassphrase], { superuser: 'try'});
 		const output = await state.promise();
-		console.log(output);
+		// console.log(output);
 
 		return output.stdout;
 	} catch (state) {
@@ -80,7 +80,7 @@ export async function isPassphraseValid(fileSystemName : string, passphrase : st
 	try {
 		const state = useSpawn(['/usr/bin/env', 'python3', '-c', validate_passphrase_script, fileSystemName, passphrase], { superuser: 'try'});
 		const output = await state.promise();
-		console.log(`fileSystemName: ${fileSystemName}, pass: ${passphrase}, function call output: ${output.stdout}`);
+		// console.log(`fileSystemName: ${fileSystemName}, pass: ${passphrase}, function call output: ${output.stdout}`);
 
 		if (output.stdout!.includes('true')) {
 			return true;
@@ -154,12 +154,12 @@ export async function configureDataset(fileSystemData : FileSystemEditConfig) {
 
 			cmdString.push(fileSystemData.name);
 	
-			console.log("configure cmdString:" , cmdString);
+			// console.log("configure cmdString:" , cmdString);
 			
 			const state = useSpawn(cmdString);
 			const output = await state.promise();
 
-			console.log(output)
+			// console.log(output)
 			return output.stdout;
 
 		} else {
@@ -190,11 +190,11 @@ export async function destroyDataset(fileSystemData : ZFSFileSystemInfo, forceDe
 		}
 
 		cmdString.push(fileSystemData.name)
-		console.log("destroy cmdString:" , cmdString);
+		// console.log("destroy cmdString:" , cmdString);
 		const state = useSpawn(cmdString);
-		console.log("state: ", state)
+		// console.log("state: ", state)
 		const output = await state.promise();
-		console.log(output)
+		// console.log(output)
 		return output.stdout;
 	} catch (state) {
 		const errorMessage = errorString(state);
@@ -213,10 +213,10 @@ export async function unmountFileSystem(fileSystemData: ZFSFileSystemInfo, force
 
 		cmdString.push(fileSystemData.name);
 
-		console.log("***\ncmdString:", cmdString, "\n***");
+		// console.log("***\ncmdString:", cmdString, "\n***");
 		const state = useSpawn(cmdString);
 		const output = await state.promise();
-		console.log(output)
+		// console.log(output)
 		return output.stdout;
 	} catch (state) {
 		const errorMessage = errorString(state);
@@ -235,10 +235,10 @@ export async function mountFileSystem(fileSystemData: ZFSFileSystemInfo, forceMo
 
 		cmdString.push(fileSystemData.name)
 
-		console.log("***\ncmdString:", cmdString, "\n***");
+		// console.log("***\ncmdString:", cmdString, "\n***");
 		const state = useSpawn(cmdString);
 		const output = await state.promise();
-		console.log(output)
+		// console.log(output)
 		return output.stdout;
 	} catch (state) {
 		const errorMessage = errorString(state);
@@ -252,10 +252,10 @@ export async function lockFileSystem(fileSystemData: ZFSFileSystemInfo) {
 		let cmdString = ['zfs', 'unload-key'];
 
 		cmdString.push(fileSystemData.name);
-		console.log("***\ncmdString:", cmdString, "\n***");
+		// console.log("***\ncmdString:", cmdString, "\n***");
 		const state = useSpawn(cmdString);
 		const output = await state.promise();
-		console.log(output)
+		// console.log(output)
 		return output.stdout;
 	} catch (state) {
 		const errorMessage = errorString(state);
@@ -268,7 +268,7 @@ export async function unlockFileSystem(fileSystemData: ZFSFileSystemInfo, passph
 	try {
 		const state = useSpawn(['/usr/bin/env', 'python3', '-c', unlock_dataset_script, fileSystemData.name, passphrase], { superuser: 'try'});
 		const output = await state.promise();
-		console.log(output);
+		// console.log(output);
 		return output.stdout;
 	} catch (state) {
 		const errorMessage = errorString(state);
@@ -292,10 +292,10 @@ export async function renameFileSystem(oldPath, newPath, forceUnmount?, createPa
 		cmdString.push(oldPath);
 		cmdString.push(newPath);
 
-		console.log("***\ncmdString:", cmdString, "\n***");
+		// console.log("***\ncmdString:", cmdString, "\n***");
 		const state = useSpawn(cmdString);
 		const output = await state.promise();
-		console.log(output)
+		// console.log(output)
 		return output.stdout;
 	} catch (state) {
 		const errorMessage = errorString(state);

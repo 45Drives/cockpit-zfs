@@ -307,7 +307,6 @@ import {pushNotification, Notification } from '@45drives/houston-common-ui';
 import InfoTile from '../common/InfoTile.vue';
 import OldModal from '../common/OldModal.vue';
 import { AuthEmailConfig, SmtpEmailConfig, WarningConfig } from '../../types';
-import { RefSymbol } from '@vue/reactivity';
 
 const activeTab = ref('email-settings')
 const authDetailsExist = ref(false)
@@ -398,21 +397,20 @@ const emailValidationError = computed(() => {
     : authEmailConfig.value.email;
 
   if (!emailRegex.test(senderEmail)) {
-    return "⚠️ Please enter a valid sender email.";
+    return "Please enter a valid sender email.";
   }
 
   if (emailChips.value.length === 0) {
-    return "⚠️ Please enter at least one recipient email address.";
+    return "Please enter at least one recipient email address.";
   }
 
   const invalidRecipients = emailChips.value.filter(email => !emailRegex.test(email));
   if (invalidRecipients.length > 0) {
-    return `⚠️ Invalid recipient email(s): ${invalidRecipients.join(", ")}`;
+    return `Invalid recipient email(s): ${invalidRecipients.join(", ")}`;
   }
 
   return "";
 });
-
 
 
 const privacyPolicyUrl = ref('https://email-auth.45d.io/privacy');
@@ -425,7 +423,7 @@ const isFormValid = () => {
 
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-  // 📨 Check for valid email recipients
+  // Check for valid email recipients
   const receiversValid = emailChips.value.length > 0 &&
     emailChips.value.every(email => emailRegex.test(email));
 
@@ -453,28 +451,28 @@ async function saveWarningConfig() {
     savingWarningLevels.value = true
   //console.log('Warning levels saved:', warningConfig);
   try {
-        //console.log("🔄 Updating events warning levels for emails via D-Bus...");
+        //console.log("Updating events warning levels for emails via D-Bus...");
 
         const cockpit = (window as any).cockpit;
         const dbus = cockpit.dbus("org._45drives.Houston");
 
-        // ✅ Ensure the correct D-Bus method call structure
+        // Ensure the correct D-Bus method call structure
         const response = await dbus.call(
-            "/org/_45drives/Houston",   // ✅ Object path
-            "org._45drives.Houston",    // ✅ Interface
-            "UpdateWarningLevels",         // ✅ Method name
-            [JSON.stringify(warningConfig)]    // ✅ Argument (as an array)
+            "/org/_45drives/Houston",   // Object path
+            "org._45drives.Houston",    // Interface
+            "UpdateWarningLevels",         // Method name
+            [JSON.stringify(warningConfig)]    // Argument (as an array)
         );
         //console.log("warningconfig   " , warningConfig)
-        //console.log(`✅ D-Bus Response: ${response}`);
-        alert("✅ warninglevels config updated successfully!");
+        //console.log(`D-Bus Response: ${response}`);
+        alert("warninglevels config updated successfully!");
         closeModal()
 
-    } catch (error) {
-        console.error("❌ Error updating SMTP settings via D-Bus:", error);
-        alert("❌ Failed to update SMTP settings: " + error.message);
+    } catch (error: any) {
+        console.error("Error updating SMTP settings via D-Bus:", error);
+        alert("Failed to update SMTP settings: " + error.message);
     } finally {
-    savingWarningLevels.value = false // ✅ Stop loading
+    savingWarningLevels.value = false // Stop loading
   }
 
   // Add your saving logic here
@@ -487,30 +485,30 @@ const emit = defineEmits(['close']);
 
 onMounted(() => {
     fetchMsmtpDetails();
-    fetchWarningLevels()  // ✅ Fetch SMTP details on mount
+    fetchWarningLevels()  // Fetch SMTP details on mount
     emailSetUpModal.value = true;
 });
 
 const fetchMsmtpDetails = async () => {
     try {
-        //console.log("🔄 Fetching stored SMTP details...");
+        //console.log("Fetching stored SMTP details...");
 
         const cockpit = (window as any).cockpit;
         const dbus = cockpit.dbus("org._45drives.Houston");
 
-        // ✅ Call the method WITHOUT arguments
+        // Call the method WITHOUT arguments
         const response = await dbus.call(
             "/org/_45drives/Houston",
             "org._45drives.Houston",
             "FetchMsmtpDetails",
-            []  // ✅ Empty array since no arguments are needed
+            []  // Empty array since no arguments are needed
         );
 
         const smtpData = JSON.parse(response);
 
         if (smtpData.error) {
-            console.error("❌ Error fetching SMTP details:", smtpData.error);
-            alert("❌ Failed to fetch SMTP details.");
+            console.error("Error fetching SMTP details:", smtpData.error);
+            alert("Failed to fetch SMTP details.");
             return;
         }
         
@@ -532,7 +530,7 @@ const fetchMsmtpDetails = async () => {
             authEmailConfig.value.authMethod = smtpData.auth || "oauth2";
             authDetailsExist.value = true;
             authEmailConfig.value.oauthRefreshToken = smtpData.oauthRefreshToken
-           console.log("smtpData Recived" , smtpData)
+        //    console.log("smtpData Recived" , smtpData)
 
 
             }
@@ -555,31 +553,31 @@ const fetchMsmtpDetails = async () => {
                 sendWarning.value = true
             }
 
-        // ✅ Populate Vue state with fetched values
-        //console.log("✅ SMTP details fetched successfully:", smtpData);
-        //console.log("✅ authEmailConfig.value.email fetched successfully:", authEmailConfig.value.email);
+        // Populate Vue state with fetched values
+        //console.log("SMTP details fetched successfully:", smtpData);
+        //console.log("authEmailConfig.value.email fetched successfully:", authEmailConfig.value.email);
 
     } catch (error) {
        // console.log("response ")
 
-        console.error("❌ Error fetching SMTP details:", error);
-        alert("❌ Failed to fetch SMTP details.");
+        console.error("Error fetching SMTP details:", error);
+        alert("Failed to fetch SMTP details.");
     }
 };
 
 const fetchWarningLevels = async () => {
     try {
-        console.log("🔄 Fetching stored SMTP details...");
+        // console.log("Fetching stored SMTP details...");
 
         const cockpit = (window as any).cockpit;
         const dbus = cockpit.dbus("org._45drives.Houston");
 
-        // ✅ Call the method WITHOUT arguments
+        // Call the method WITHOUT arguments
         const response = await dbus.call(
             "/org/_45drives/Houston",
             "org._45drives.Houston",
             "fetchWarningLevels",
-            []  // ✅ Empty array since no arguments are needed
+            []  // Empty array since no arguments are needed
         );
 
         const data = JSON.parse(response);
@@ -588,8 +586,8 @@ const fetchWarningLevels = async () => {
         
        // console.log("smtpData.auth", data)
         warningConfig.scrubFinish = data.scrubFinish || "info";
-        warningConfig.vdevCleared = data.vdevCleared || "info";
-        warningConfig.resilverFinish = data.resilverFinish || "info";
+        // warningConfig.vdevCleared = data.vdevCleared || "info";
+        // warningConfig.resilverFinish = data.resilverFinish || "info";
         warningConfig.clearPoolErrors = data.clearPoolErrors || "info";
         warningConfig.snapshotCreation = data.snapshotCreation || "info";
         warningConfig.snapshotFailure = data.snapshotFailure || "warning";
@@ -605,24 +603,24 @@ const fetchWarningLevels = async () => {
     } catch (error) {
        // console.log("response ")
 
-        //console.error("❌ Error fetching warningLevels details:", error);
-        alert("❌ Failed to fetch warningLevels details.");
+        //console.error("Error fetching warningLevels details:", error);
+        alert("Failed to fetch warningLevels details.");
     }
 };
 
 const updateSMTPConfig = async () => {
   if (!isFormValid() || !isEmailValid.value) {
     if (!isEmailValid.value) {
-        alert(emailValidationError.value || "⚠️ Email validation failed.");
+        alert(emailValidationError.value || "Email validation failed.");
         return;
     } else {
-      alert("⚠️ Please fill in all fields before sending a test email.");
+      alert("Please fill in all fields before sending a test email.");
     }
     return; // ⬅️ Don't continue if the form isn't valid
   }
   savingSMTP.value = true
   try {
-    //console.log("🔄 Updating SMTP Config via D-Bus...");
+    //console.log("Updating SMTP Config via D-Bus...");
 
     const cockpit = (window as any).cockpit;
     const dbus = cockpit.dbus("org._45drives.Houston");
@@ -667,12 +665,12 @@ const updateSMTPConfig = async () => {
       [JSON.stringify(config)]
     );
 
-    console.log(`✅ D-Bus Response: ${response}`);
-    alert("✅ Email Configuration updated successfully!");
+    // console.log(`D-Bus Response: ${response}`);
+    alert("Email Configuration updated successfully!");
     closeModal();
   } catch (error: any) {
-    console.error("❌ Error updating SMTP settings via D-Bus:", error);
-    alert("❌ Failed to update SMTP settings: " + (error.message || error));
+    console.error("Error updating SMTP settings via D-Bus:", error);
+    alert("Failed to update SMTP settings: " + (error.message || error));
   }finally {
     savingSMTP.value = false
   }
@@ -685,15 +683,15 @@ const testEmail = async () => {
     const method = smtpMethod.value;
 
     if (!isEmailValid.value) {
-        alert(emailValidationError.value || "⚠️ Email validation failed.");
+        alert(emailValidationError.value || "Email validation failed.");
         return;
     }
 
     if (!isFormValid()) {
     if (method === "smtp") {
-        alert("⚠️ Please fill in all required SMTP fields before sending a test email.");
+        alert("Please fill in all required SMTP fields before sending a test email.");
     } else {
-        alert("⚠️ Please sign in with your Gmail account before sending a test email.");
+        alert("Please sign in with your Gmail account before sending a test email.");
     }
     return;
     }
@@ -727,7 +725,7 @@ const testEmail = async () => {
             };
         }
 
-        console.log("Testing with config:", config);
+        // console.log("Testing with config:", config);
 
         const response = await dbus.call(
             "/org/_45drives/Houston",
@@ -736,22 +734,22 @@ const testEmail = async () => {
             [JSON.stringify(config)]
         );
 
-        //console.log(`✅ D-Bus Response: ${response}`);
+        //console.log(`D-Bus Response: ${response}`);
         let parsed;
             try {
                 parsed = JSON.parse(response);
             } catch (e) {
-                alert(`❌ Failed to parse D-Bus response: ${response}`);
+                alert(`Failed to parse D-Bus response: ${response}`);
                 return;
             }
 
             if (parsed.success) {
-                alert(`✅ ${parsed.message}`);
+                alert(`${parsed.message}`);
             } else {
-                alert(`❌ ${parsed.message}`);
+                alert(`${parsed.message}`);
             }
     } catch (error: any) {
-        console.error("❌ Error sending test email via D-Bus:", error);
+        console.error("Error sending test email via D-Bus:", error);
         alert(` Failed to send test email: ${error.message || error}`);
     }
     finally {
@@ -804,7 +802,7 @@ async function oAuthBtn() {
                     const cockpit = (window as any).cockpit;
                     const dbus = cockpit.dbus("org._45drives.Houston");
 
-                    // ✅ Call DBus to update SMTP config
+                    // Call DBus to update SMTP config
                     const configPayload = JSON.stringify(authEmailConfig.value);
                     const response = await dbus.call(
                         "/org/_45drives/Houston",
@@ -860,8 +858,8 @@ const resetMsmtpData = async () => {
             tokenExpiry.value = "",
             emailChips.value = []
         }
-        //console.log(`✅ D-Bus Response: ${response}`);
-        alert(response.includes("✅") ? "✅ Email configuration was reset successfully!" : `⚠️ Something went wrong: ${response}`);
+        //console.log(`D-Bus Response: ${response}`);
+        alert(response.includes("✅") ? "Email configuration was reset successfully!" : `Something went wrong: ${response}`);
     };
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -886,7 +884,7 @@ const removeEmail = (index) => {
 }
 
 watch(emailChips, (newList) => {
-  //console.log("📌 emailChips changed:", newList);
+  //console.log("emailChips changed:", newList);
   if (smtpMethod.value === "smtp") {
     smtpEmailConfig.value.recieversEmail = [...newList];
   } else {

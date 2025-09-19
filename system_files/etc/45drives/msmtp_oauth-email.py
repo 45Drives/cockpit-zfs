@@ -16,7 +16,7 @@ def load_token_data():
 def save_token_data(token_data):
     with open(TOKEN_PATH, 'w') as f:
         json.dump(token_data, f, indent=4)
-    print(f"✅ Token file updated at {TOKEN_PATH}")
+    print(f"Token file updated at {TOKEN_PATH}")
 
 
 def refresh_token_via_server(token_data):
@@ -33,9 +33,9 @@ def refresh_token_via_server(token_data):
         token_data["access_token"] = new_data["accessToken"]
         token_data["expiry"] = new_data["expiry"]
         save_token_data(token_data)
-        print("✅ Token refreshed via server.")
+        print("Token refreshed via server.")
     else:
-        raise Exception(f"❌ Failed to refresh token: {response.text}")
+        raise Exception(f"Failed to refresh token: {response.text}")
 
 def validate_and_refresh_token():
     token_data = load_token_data()

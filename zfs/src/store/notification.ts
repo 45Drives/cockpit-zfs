@@ -1,7 +1,5 @@
 import { reactive } from "vue";
 import { Notification } from "../types";
-// Define the Notification type
-
 
 // Define the reactive notification store
 export const notificationStore = reactive<{
@@ -35,21 +33,19 @@ export const notificationStore = reactive<{
         snapShot?: string;
         replicationDestination?: string
       };
-      console.log("message id recieved in adddnotification: ", parsedMessage.id)
-   //   console.log("message recieved in adddnotification: ", message)
-
+      // console.log("message id recieved in adddnotification: ", parsedMessage.id)
   
-      // ✅ Find existing notification by ID
+      // Find existing notification by ID
       const existingNotification = notificationStore.notifications.find(
         (notif) => notif.id === parsedMessage.id
       );
   
       if (existingNotification) {
-        // ✅ If ID exists, update only the state field
+        // If ID exists, update only the state field
         existingNotification.state = parsedMessage.state;
-        console.log(`✅ Updated state of notification ID ${parsedMessage.id}`);
+        // console.log(`Updated state of notification ID ${parsedMessage.id}`);
       } else {
-        // ✅ If ID does not exist, add new notification
+        // If ID does not exist, add new notification
         notificationStore.notifications.unshift({
           id: parsedMessage.id,
           timestamp: parsedMessage.timestamp,
@@ -67,20 +63,20 @@ export const notificationStore = reactive<{
         });
         this.notificationsCount +=1
   
-        console.log(`✅ Added new notification severity ${parsedMessage.severity}`);
+        // console.log(`Added new notification severity ${parsedMessage.severity}`);
       }
   
-      // ✅ Trigger sidebar notification
+      // Trigger sidebar notification
       sideBarNotification();
     } catch (error) {
-      console.error("❌ Invalid JSON format received:", message);
+      console.error("Invalid JSON format received:", message);
     }
   },
 
 
   // Remove notification by ID
   removeNotification(id: number) {
-    console.log("remove Notivficatio id :", id )
+    // console.log("remove Notivficatio id :", id )
     notificationStore.notifications = notificationStore.notifications.filter(
       (n) => n.id !== id
     );
@@ -98,25 +94,25 @@ export const notificationStore = reactive<{
 
   async fetchMissedNotifications(limit = 50, offset = 0) {
     try {
-        console.log("🔄 Fetching missed notifications via D-Bus...");
+        // console.log("Fetching missed notifications via D-Bus...");
 
         const dbus = cockpit.dbus("org._45drives.Houston");
 
-        // ✅ Call GetMissedNotifications with correct object path & interface
+        // Call GetMissedNotifications with correct object path & interface
         const response = await dbus.call(
           "/org/_45drives/Houston",       
           "org._45drives.Houston",       
           "GetMissedNotifications",      
           [limit, offset]                
         );
-        if (!response) throw new Error("❌ No response received from Houston D-Bus.");
+        if (!response) throw new Error("No response received from Houston D-Bus.");
 
         //console.log("📥 Raw response from D-Bus:", response);
 
-        // ✅ Parse response JSON
+        // Parse response JSON
         const missedNotifications = JSON.parse(response);
 
-        // ✅ Add notifications to store
+        // Add notifications to store
         missedNotifications.forEach((notification) => {
           const exists = notificationStore.notifications.some(
             (n) => n.id === notification.id
@@ -128,35 +124,35 @@ export const notificationStore = reactive<{
         });
         
 
-        // ✅ Update UI with new notifications
+        // Update UI with new notifications
         sideBarNotification();
 
     return missedNotifications.length; 
 
-        //console.log("✅ Missed notifications fetched successfully.");
+        //console.log("Missed notifications fetched successfully.");
     } catch (error) {
-        console.error("❌ Error fetching missed notifications via D-Bus:", error);
+        console.error("Error fetching missed notifications via D-Bus:", error);
     }
 },
 
 
   async markNotificationAsRead(notificationId: number) {
     try {
-        console.log(`🔄 Marking notification ${notificationId} as read via D-Bus...`);
+        // console.log(`Marking notification ${notificationId} as read via D-Bus...`);
 
         const dbus = cockpit.dbus("org._45drives.Houston");
 
-        // ✅ Call the D-Bus method instead of FastAPI
+        // Call the D-Bus method instead of FastAPI
         const response = await dbus.call(
-            "/org/_45drives/Houston",  // ✅ Object path
-            "org._45drives.Houston",   // ✅ Interface
-            "MarkNotificationAsRead",  // ✅ Method name
-            [notificationId]           // ✅ Argument (notification ID)
+            "/org/_45drives/Houston",  // Object path
+            "org._45drives.Houston",   // Interface
+            "MarkNotificationAsRead",  // Method name
+            [notificationId]           // Argument (notification ID)
         );
 
-        console.log(`✅ D-Bus Response: ${response}`);
+        // console.log(`D-Bus Response: ${response}`);
 
-        // ✅ Remove from UI after marking as read
+        // Remove from UI after marking as read
         notificationStore.notifications = notificationStore.notifications.filter(
             (n) => n.id !== notificationId
         );
@@ -165,31 +161,31 @@ export const notificationStore = reactive<{
         sideBarNotification();
 
     } catch (error) {
-        console.error("❌ Error marking notification as read via D-Bus:", error);
+        console.error("Error marking notification as read via D-Bus:", error);
     }
 },
 
   async clearAllNotifications() {
     try {
-        console.log("🔄 Marking all notifications as read via D-Bus...");
+        // console.log("Marking all notifications as read via D-Bus...");
 
         const dbus = cockpit.dbus("org._45drives.Houston");
 
-        // ✅ Call the new D-Bus method
+        // Call the new D-Bus method
         const response = await dbus.call(
-            "/org/_45drives/Houston",  // ✅ Object path
-            "org._45drives.Houston",   // ✅ Interface
-            "MarkAllNotificationsAsRead"  // ✅ Method name
+            "/org/_45drives/Houston",  // Object path
+            "org._45drives.Houston",   // Interface
+            "MarkAllNotificationsAsRead"  // Method name
         );
 
-        console.log(`✅ D-Bus Response: ${response}`);
+        // console.log(`D-Bus Response: ${response}`);
 
-        // ✅ Clear UI notifications
+        // Clear UI notifications
         notificationStore.notifications = [];
 
         sideBarNotification();
     } catch (error) {
-        console.error("❌ Error clearing notifications via D-Bus:", error);
+        console.error("Error clearing notifications via D-Bus:", error);
     }
   },
 
@@ -200,9 +196,9 @@ export const notificationStore = reactive<{
       "org._45drives.Houston",
       "GetNotificationCount"
     );
-    const count = result[0]; // ✅ Extract the count
+    const count = result[0]; // Extract the count
     this.notificationsCount = count;
-    console.log("🔢 Total missed notifications:", count);
+    // console.log("Total missed notifications:", count);
 
     return parseInt(result); // result is returned as a string
   }
@@ -225,7 +221,7 @@ async function sideBarNotification(): Promise<void> {
     );
 
     const severityType = count > 0 ? highestSeverity : null;
-    console.log("severityType:", severityType);
+    // console.log("severityType:", severityType);
 
     (cockpit.transport as any).control("notify", {
       page_status: {
@@ -234,6 +230,6 @@ async function sideBarNotification(): Promise<void> {
       }
     });
   } catch (error) {
-    console.error("❌ Failed to fetch highest severity:", error);
+    console.error("Failed to fetch highest severity:", error);
   }
 }

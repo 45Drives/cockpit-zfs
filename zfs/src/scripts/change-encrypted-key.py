@@ -52,7 +52,7 @@ def main():
     fileSystemName = args.fileSystemName
     newPassphrase = args.newPassphrase
 
-    print(f"Executing command: zfs change-key {fileSystemName}")
+    # print(f"Executing command: zfs change-key {fileSystemName}")
 
     # Call function to change key
     change_key(fileSystemName, newPassphrase)

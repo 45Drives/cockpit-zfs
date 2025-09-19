@@ -169,7 +169,7 @@ const loadTestSSHComponent = async () => {
 async function showTestSSHModal() {
     await loadTestSSHComponent();
 	showTestSSH.value = true;
-	console.log('test ssh modal triggered');
+	// console.log('test ssh modal triggered');
 }
 
 const updateShowTestSSH = (newVal) => {
@@ -224,7 +224,7 @@ function doesRecvDatasetExist() {
 
 function isRecvDatasetEncrypted() {
     try {
-        console.log('isDatasetEncrypted:', datasets.value.find(dataset => dataset.name === sendingData.value.recvName)!.encrypted);
+        // console.log('isDatasetEncrypted:', datasets.value.find(dataset => dataset.name === sendingData.value.recvName)!.encrypted);
         return datasets.value.find(dataset => dataset.name === sendingData.value.recvName)!.encrypted;
     } catch (error) {
         console.error('Error checking dataset:', error);
@@ -300,7 +300,7 @@ async function setSendData() {
             if (doesRecvDatasetExist()) {
                 if (!isRecvDatasetEncrypted()) {
                     lastCommonSnap.value = await checkForLastCommonSnap();
-                    console.log('local lastCommonSnap:', lastCommonSnap.value);
+                    // console.log('local lastCommonSnap:', lastCommonSnap.value);
                     if (lastCommonSnap.value !== null && lastCommonSnap.value !== false) {
                         sendIncremental.value = true;
                         sendingData.value.sendOpts.incremental = sendIncremental!.value;
@@ -337,10 +337,10 @@ async function setSendData() {
             datasetCheckResult.value = await doesRemoteDatasetExist();
             if (datasetCheckResult.value) {
                 const doesRecvHaveSnaps = await doesRemoteDatasetHaveSnaps();
-                console.log('doesRecvHaveSnaps:', doesRecvHaveSnaps);
+                // console.log('doesRecvHaveSnaps:', doesRecvHaveSnaps);
                 if (doesRecvHaveSnaps) {
                     lastCommonSnap.value = await checkForLastCommonSnap();
-                    console.log('remote lastCommonSnap:', lastCommonSnap.value);
+                    // console.log('remote lastCommonSnap:', lastCommonSnap.value);
                     if (lastCommonSnap.value !== null && lastCommonSnap.value !== false) {
                         sendIncremental.value = true;
                         sendingData.value.sendOpts.incremental = sendIncremental!.value;
@@ -380,28 +380,28 @@ async function checkForLastCommonSnap() {
                 return b.creationTimestamp.localeCompare(a.creationTimestamp);
             });
         });
-        console.log('sortedSnapshots:', sortedSnapshots.value);
+        // console.log('sortedSnapshots:', sortedSnapshots.value);
         const sourceDataset = computed(() => {
             return sendName.value.split("@").shift();
         });
 
-        console.log('sourceDataset:', sourceDataset.value);
+        // console.log('sourceDataset:', sourceDataset.value);
         const sourceDatasetSnaps = computed(() => {
             return sortedSnapshots.value.filter(snapshot => snapshot.dataset == sourceDataset.value);
         });
 
-        console.log('sourceDatasetSnaps:', sourceDatasetSnaps.value);
+        // console.log('sourceDatasetSnaps:', sourceDatasetSnaps.value);
         const sourceSnap = computed(() => {
             return sourceDatasetSnaps.value.find(snap => snap.name == sendName.value);
         });
 
-        console.log('sourceSnap:', sourceSnap.value);
+        // console.log('sourceSnap:', sourceSnap.value);
         if (isSendLocal.value) {
             const destinationDatasetSnaps = computed(() => {
                 return sortedSnapshots.value.filter(snapshot => snapshot.dataset == destinationName.value);
             });
 
-            console.log('destinationDatasetSnaps:', destinationDatasetSnaps.value);
+            // console.log('destinationDatasetSnaps:', destinationDatasetSnaps.value);
             // Check if destinationDatasetSnaps is empty
             if (destinationDatasetSnaps.value.length === 0) {
                 // Handle the case where no destinationDatasetSnaps exist
@@ -431,20 +431,20 @@ async function checkForLastCommonSnap() {
 
 function compareLocalTimestamp(destinationDatasetSnaps : Snapshot[], sourceDatasetSnaps : Snapshot[], sourceSendSnap : Snapshot) {
     mostRecentLocalDestSnap.value = destinationDatasetSnaps[0];
-    console.log('local mostRecentLocalDestSnap:', mostRecentLocalDestSnap.value);
+    // console.log('local mostRecentLocalDestSnap:', mostRecentLocalDestSnap.value);
 
     if (mostRecentLocalDestSnap.value.creationTimestamp) {
-        console.log('local sourceSendSnap.creationTimestamp:', sourceSendSnap.creationTimestamp);
+        // console.log('local sourceSendSnap.creationTimestamp:', sourceSendSnap.creationTimestamp);
         if (sourceSendSnap.creationTimestamp) {
             if (Number(mostRecentLocalDestSnap.value.creationTimestamp) < Number(sourceSendSnap.creationTimestamp)) {
                 const sourceSnapMatch = computed(() => {
                     return sourceDatasetSnaps.find(snap => snap.guid == mostRecentLocalDestSnap.value!.guid);
                 });
-                console.log('local sourceSnapMatch:', sourceSnapMatch.value);
+                // console.log('local sourceSnapMatch:', sourceSnapMatch.value);
                 return sourceSnapMatch.value;
                 
             } else if (mostRecentLocalDestSnap.value.guid == sourceSendSnap.guid) {
-                console.log('sendSnap is the same as mostRecentDestSnap');
+                // console.log('sendSnap is the same as mostRecentDestSnap');
                 return null;
             } else {
                 console.log('invalid local lastCommonSnap match');
@@ -459,27 +459,27 @@ function compareLocalTimestamp(destinationDatasetSnaps : Snapshot[], sourceDatas
 }
 
 async function compareRemoteTimestamp(snapSnips : SnapSnippet[], sourceDatasetSnaps : Snapshot[], sourceSendSnap : Snapshot) {
-    console.log('snapSnips', snapSnips);
-    // console.log('snapSnips length', snapSnips.length);
+    // console.log('snapSnips', snapSnips);
+    console.log('snapSnips length', snapSnips.length);
     if (snapSnips[0]) {
         mostRecentRemoteDestSnap.value = snapSnips[0];
-        console.log('remote mostRecentRemoteDestSnap:', mostRecentRemoteDestSnap.value);
+        // console.log('remote mostRecentRemoteDestSnap:', mostRecentRemoteDestSnap.value);
 
-        console.log('mostRecentRemoteDestSnap.value.creation', Number(getRawTimestampFromString(mostRecentRemoteDestSnap.value.creation)));
-        console.log('sourceSendSnap.creationTimestamp', Number(getRawTimestampFromString(convertTimestampToLocal(convertRawTimestampToString(sourceSendSnap.creationTimestamp)))));
+        // console.log('mostRecentRemoteDestSnap.value.creation', Number(getRawTimestampFromString(mostRecentRemoteDestSnap.value.creation)));
+        // console.log('sourceSendSnap.creationTimestamp', Number(getRawTimestampFromString(convertTimestampToLocal(convertRawTimestampToString(sourceSendSnap.creationTimestamp)))));
 
         if (mostRecentRemoteDestSnap.value.guid == sourceSendSnap.guid) {
-            console.log('sendSnap is the same as mostRecentDestSnap');
+            // console.log('sendSnap is the same as mostRecentDestSnap');
             return null;
         } else {
-            console.log('comparing snap timestamps:', Number(getRawTimestampFromString(mostRecentRemoteDestSnap.value.creation)) < Number(getRawTimestampFromString(convertTimestampToLocal(convertRawTimestampToString(sourceSendSnap.creationTimestamp)))));
+            // console.log('comparing snap timestamps:', Number(getRawTimestampFromString(mostRecentRemoteDestSnap.value.creation)) < Number(getRawTimestampFromString(convertTimestampToLocal(convertRawTimestampToString(sourceSendSnap.creationTimestamp)))));
             if (Number(getRawTimestampFromString(mostRecentRemoteDestSnap.value.creation)) < Number(getRawTimestampFromString(convertTimestampToLocal(convertRawTimestampToString(sourceSendSnap.creationTimestamp))))) {
                 const sourceSnapMatch = computed(() => {
                     const source = sourceDatasetSnaps.find(snap => snap.guid == mostRecentRemoteDestSnap.value!.guid);
-                    console.log('source', source);
+                    // console.log('source', source);
                     return source; 
                 });
-                console.log('remote sourceSnapMatch:', sourceSnapMatch.value);
+                // console.log('remote sourceSnapMatch:', sourceSnapMatch.value);
                 
                 if (sourceSnapMatch.value == undefined) {
                     return null;
@@ -501,7 +501,7 @@ async function compareRemoteTimestamp(snapSnips : SnapSnippet[], sourceDatasetSn
 async function sendBtn() {
     try {
         await setSendData();
-        console.log('Sending data:', sendingData.value);
+        // console.log('Sending data:', sendingData.value);
 
         // Check for invalid configurations
         if (invalidConfig.value || invalidFlags.value || invalidDest.value) {
@@ -600,15 +600,15 @@ async function readSendProgress(sendProgressData : SendProgress[], fileReader: I
                     sendProgressData.push(content)
                     totalSendSize.value = getTotalSendSize(content.totalSize)!;
                     sendProgressAmount.value = getSendProgress(content.sent)!;
-                    console.log(`content.totalSize: ${content.totalSize}, content.sent: ${content.sent}`);
-                    console.log(`totalSendSize: ${totalSendSize.value}, sendProgAmount: ${sendProgressAmount.value}`);
+                    // console.log(`content.totalSize: ${content.totalSize}, content.sent: ${content.sent}`);
+                    // console.log(`totalSendSize: ${totalSendSize.value}, sendProgAmount: ${sendProgressAmount.value}`);
                 }    
             }
         }
 
         fileReader.watch((content) => {
             fillProgressArray(content, sendProgressData);
-            console.log('fileReaderContent:', content);
+            // console.log('fileReaderContent:', content);
         }, {});
 
     } catch (error) {
@@ -627,8 +627,8 @@ async function sendAndReadProgress(sendingData : SendingDataset, sendProgress : 
             readSendProgress(sendProgress, fileReader),
         ]);
 
-        console.log('Progress data:', sendProgress);
-        console.log('Sent snapshot result:', snapshotResult);
+        // console.log('Progress data:', sendProgress);
+        // console.log('Sent snapshot result:', snapshotResult);
 
         fileReader.close();
         // return snapshotResult;
