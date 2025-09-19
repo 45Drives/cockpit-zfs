@@ -1,3 +1,11 @@
+cockpit-zfs (1.2.9-1focal) focal; urgency=medium
+
+  * Fixes Bugs: Drive slots 1-10+ would show with disk in 1-1 instead, fixes snapshot
+    list rendering breaking with excessive amount of snaps, layout issues in filesystems
+    tab, among other minor issues.
+
+ -- Jordan Keough <jkeough@45drives.com>  Fri, 19 Sep 2025 11:16:35 -0300
+
 cockpit-zfs (1.2.8-1focal) focal; urgency=medium
 
   * Adds support for non-privledged users -> hides/disables any destructive actions
