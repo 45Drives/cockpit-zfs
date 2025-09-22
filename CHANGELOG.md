@@ -1,3 +1,3 @@
-## zfs module 1.2.9-1
+## zfs module 1.2.9-2
 
-* Fixes Bugs: Drive slots 1-10+ would show with disk in 1-1 instead, fixes snapshot list rendering breaking with excessive amount of snaps, layout issues in filesystems tab, among other minor issues.
+* Fixes numerous issues relating to Disk population/data display and non-priv user access

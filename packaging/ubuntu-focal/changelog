@@ -1,3 +1,10 @@
+cockpit-zfs (1.2.9-2focal) focal; urgency=medium
+
+  * Fixes numerous issues relating to Disk population/data display and non-priv user
+    access
+
+ -- Jordan Keough <jkeough@45drives.com>  Mon, 22 Sep 2025 06:03:03 -0300
+
 cockpit-zfs (1.2.9-1focal) focal; urgency=medium
 
   * Fixes Bugs: Drive slots 1-10+ would show with disk in 1-1 instead, fixes snapshot
