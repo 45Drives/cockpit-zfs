@@ -1,3 +1,10 @@
+cockpit-zfs (1.2.10-1focal) focal; urgency=medium
+
+  * Fixes malformed cockpit object in getUserCaps which caused root permissions to
+    not be recognized
+
+ -- Jordan Keough <jkeough@45drives.com>  Thu, 25 Sep 2025 08:33:47 -0300
+
 cockpit-zfs (1.2.9-2focal) focal; urgency=medium
 
   * Fixes numerous issues relating to Disk population/data display and non-priv user

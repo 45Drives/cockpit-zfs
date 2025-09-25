@@ -1,3 +1,3 @@
-## zfs module 1.2.9-2
+## zfs module 1.2.10-1
 
-* Fixes numerous issues relating to Disk population/data display and non-priv user access
+* Fixes malformed cockpit object in getUserCaps which caused root permissions to not be recognized
