@@ -48,11 +48,7 @@ make DESTDIR=%{buildroot} install
 %attr(0755,root,root) /etc/45drives/zfs-storage-check.sh
 %attr(0755,root,root) /opt/45drives/houston/notification_utils.py
 
-
-# Ensure SQLite jq msmtp are  installed
-#dnf install -y sqlite || true  
-#dnf install -y jq || true  
-#dnf install -y msmtp || true  
+%post
 
 
 # Ensure systemd reloads and starts the service after installation
@@ -84,24 +80,9 @@ fi
 
 
 %changelog
-* Mon Oct 06 2025 Rachit Hans <rhans@45drives.com> 1.2.10-11
-- removing unsed dependeny - google-auth google-auth-oauthlib
-* Thu Sep 25 2025 Jordan Keough <jkeough@45drives.com> 1.2.10-1
-- Fixes malformed cockpit object in getUserCaps which caused root permissions to
-  not be recognized
-* Mon Sep 22 2025 Jordan Keough <jkeough@45drives.com> 1.2.9-2
-- Fixes numerous issues relating to Disk population/data display and non-priv user
-  access
-* Fri Sep 19 2025 Jordan Keough <jkeough@45drives.com> 1.2.9-1
-- Fixes Bugs: Drive slots 1-10+ would show with disk in 1-1 instead, fixes snapshot
-  list rendering breaking with excessive amount of snaps, layout issues in filesystems
-  tab, among other minor issues.
 * Fri Aug 29 2025 Jordan Keough <jkeough@45drives.com> 1.2.8-1
 - Adds support for non-privledged users -> hides/disables any destructive actions
   (module is read-only with exception for creating datasets)
-* Thu Aug 14 2025 Jordan Keough <jkeough@45drives.com> 1.2.7-1
-- fixes bug where pool creation failure would not notify and stay in endless loading
-  state
 * Mon Aug 04 2025 Jordan Keough <jkeough@45drives.com> 1.2.6-1
 - Fixes destroyPool error
 * Tue Jun 24 2025 Jordan Keough <jkeough@45drives.com> 1.2.5-1
