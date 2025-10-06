@@ -1,3 +1,3 @@
-## zfs module 1.2.10-1
+## zfs module 1.2.10-11
 
-* Fixes malformed cockpit object in getUserCaps which caused root permissions to not be recognized
+* removing unsed dependeny - google-auth google-auth-oauthlib

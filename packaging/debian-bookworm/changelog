@@ -1,3 +1,9 @@
+cockpit-zfs (1.2.10-11bookworm) bookworm; urgency=medium
+
+  * removing unsed dependeny - google-auth google-auth-oauthlib
+
+ -- Rachit Hans <rhans@45drives.com>  Mon, 06 Oct 2025 14:35:24 -0300
+
 cockpit-zfs (1.2.10-1bookworm) bookworm; urgency=medium
 
   * Fixes malformed cockpit object in getUserCaps which caused root permissions to

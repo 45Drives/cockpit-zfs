@@ -48,9 +48,6 @@ make DESTDIR=%{buildroot} install
 %attr(0755,root,root) /etc/45drives/zfs-storage-check.sh
 %attr(0755,root,root) /opt/45drives/houston/notification_utils.py
 
-%post
-#pip3 install --upgrade pip
-#pip3 install --upgrade google-auth google-auth-oauthlib
 
 # Ensure SQLite jq msmtp are  installed
 #dnf install -y sqlite || true  
@@ -87,6 +84,8 @@ fi
 
 
 %changelog
+* Mon Oct 06 2025 Rachit Hans <rhans@45drives.com> 1.2.10-11
+- removing unsed dependeny - google-auth google-auth-oauthlib
 * Thu Sep 25 2025 Jordan Keough <jkeough@45drives.com> 1.2.10-1
 - Fixes malformed cockpit object in getUserCaps which caused root permissions to
   not be recognized
