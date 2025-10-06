@@ -2,7 +2,7 @@ name: Build Packages
 on:
   push:
     branches: 
-      - build
+      - remove-unused-dependency
     tags:
       - 'v*.*.*'
 jobs:
