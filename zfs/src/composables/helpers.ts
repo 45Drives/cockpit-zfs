@@ -1,5 +1,5 @@
 import { Command, legacy, server, unwrap, ZPoolBase, ZpoolCreateOptions } from '@45drives/houston-common-lib';
-import { ref, Ref } from 'vue';
+import { ref, Ref, unref, type MaybeRef } from 'vue';
 // @ts-ignore
 import test_ssh_script from"../scripts/test-ssh.py?raw";
 import {VDevDisk, ZPool} from "@45drives/houston-common-lib";
@@ -656,28 +656,30 @@ export function getDiskIDName(disks: VDevDisk[], diskIdentifier: string, selecte
 // }
 
 // One canonical matcher. Works with reactive arrays (pass disks.value) or plain arrays.
-export function matchDiskByVdevOrPath(disks: Array<any>, vdevPathOrAnyPath: string) {
+export function matchDiskByVdevOrPath(
+	disksLike: MaybeRef<VDevDisk[]>,
+	vdevPathOrAnyPath: string
+) {
 	if (!vdevPathOrAnyPath) return undefined;
 
-	// 1) Fast path: by-vdev → match by bay-id to disk.name
+	const disks = unref(disksLike) ?? [];
+	if (!Array.isArray(disks)) {
+		console.warn("Expected array or ref-to-array, got:", disksLike);
+		return undefined;
+	}
+
 	const byVdev = vdevPathOrAnyPath.match(/\/dev\/disk\/by-vdev\/([0-9A-Za-z\-]+)(?:-part\d+)?$/);
 	if (byVdev) {
-		const bay = byVdev[1]; // e.g., "1-10"
+		const bay = byVdev[1];
 		const hit = disks.find(d => d?.name === bay);
 		if (hit) return hit;
 	}
 
-	// 2) Normalize both sides
 	const clean = (p?: string) => {
 		if (!p) return "";
-		// Strip ANSI partitions styles:
-		//  /dev/nvme0n1p2 → /dev/nvme0n1
 		p = p.replace(/(\/nvme\d+n\d+)p\d+$/, "$1");
-		//  /dev/mmcblk0p1 → /dev/mmcblk0
 		p = p.replace(/(\/mmcblk\d+)p\d+$/, "$1");
-		//  /dev/sda2 → /dev/sda
 		p = p.replace(/(\/sd[a-z]+)\d+$/, "$1");
-		//  by-vdev ...-partN → base
 		p = p.replace(/-part\d+$/, "");
 		return p;
 	};
@@ -688,24 +690,20 @@ export function matchDiskByVdevOrPath(disks: Array<any>, vdevPathOrAnyPath: stri
 	const want = vdevPathOrAnyPath;
 	const wantBase = clean(want);
 
-	// 3) Try strict then relaxed matches across known fields
 	const candidates = ["sd_path", "phy_path", "vdev_path", "id_path", "label_path", "part_label_path", "part_uuid", "uuid"];
 
-	// strict match: exact or exact-after-clean
 	let d = disks.find(dd => candidates.some(k => {
-		const v = dd?.[k];
+		const v = (dd as any)?.[k] as string | undefined;
 		return v === want || clean(v) === wantBase;
 	}));
 	if (d) return d;
 
-	// relaxed: allow startsWith for cases like /dev/sda1 vs /dev/sda
 	d = disks.find(dd => candidates.some(k => {
-		const v = dd?.[k];
-		return sameOrStartsWith(v ?? "", want) || sameOrStartsWith(clean(v ?? ""), wantBase);
+		const v = ((dd as any)?.[k] as string | undefined) ?? "";
+		return sameOrStartsWith(v, want) || sameOrStartsWith(clean(v), wantBase);
 	}));
 	return d;
 }
-
 
 
 export function truncateName(name : string, threshold : number) {
