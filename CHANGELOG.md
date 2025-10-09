@@ -1,3 +1,3 @@
-## zfs module 1.2.10-1
+## zfs module 1.2.11-1
 
-* Fixes malformed cockpit object in getUserCaps which caused root permissions to not be recognized
+* Removes unused python3-oauth dependencies and fixes a ref destructuring bug in helpers>matchDiskByVdevOrPath func resulting in the error 'Disks.find is not a function'

@@ -79,6 +79,10 @@ fi
 
 
 %changelog
+* Thu Oct 09 2025 Jordan Keough <jkeough@45drives.com> 1.2.11-1
+- Removes unused python3-oauth dependencies and fixes a ref destructuring bug in
+  helpers>matchDiskByVdevOrPath func resulting in the error 'Disks.find is not a
+  function'
 * Thu Sep 25 2025 Jordan Keough <jkeough@45drives.com> 1.2.10-1
 - Fixes malformed cockpit object in getUserCaps which caused root permissions to
   not be recognized
