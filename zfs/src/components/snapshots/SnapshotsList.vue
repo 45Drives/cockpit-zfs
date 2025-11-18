@@ -74,12 +74,12 @@
 											<!-- <MenuItem as="div" v-slot="{ active }" >
 												<a href="#" @click="cloneThisSnapshot(snapshot)" :class="[active ? 'bg-default text-default' : 'text-muted', 'block px-4 py-2 text-sm']">Clone Snapshot</a>
 											</MenuItem> -->
-											<MenuItem as="div" v-slot="{ active }" >
+											<MenuItem as="div" v-slot="{ active }">
 											<a href="#" @click="renameThisSnapshot(snapshot)"
 												:class="[active ? 'bg-default text-default' : 'text-muted', 'block px-4 py-2 text-sm']">Rename
 												Snapshot</a>
 											</MenuItem>
-											<MenuItem as="div" v-slot="{ active }" >
+											<MenuItem as="div" v-slot="{ active }">
 											<a href="#" @click="rollbackThisSnapshot(snapshot)"
 												:class="[active ? 'bg-default text-default' : 'text-muted', 'block px-4 py-2 text-sm']">Roll
 												Back Snapshot</a>
@@ -87,7 +87,7 @@
 											<!-- <MenuItem as="div" v-slot="{ active }" >
 												<a href="#" @click="sendThisDataset(snapshot)" :class="[active ? 'bg-default text-default' : 'text-muted', 'block px-4 py-2 text-sm']">Send Snapshot</a>
 											</MenuItem> -->
-											<MenuItem as="div" v-slot="{ active }" >
+											<MenuItem as="div" v-slot="{ active }">
 											<a href="#" @click="destroyThisSnapshot(snapshot)"
 												:class="[active ? 'bg-danger text-default' : 'text-muted', 'block px-4 py-2 text-sm']">Destroy
 												Snapshot</a>
@@ -126,13 +126,23 @@
 							:class="truncateText" title="Clones">Clones</th>
 						<th v-if="bulkSnapDestroyMode.get(props.filesystem!.name)" class="py-2 col-span-1 text-center"
 							:class="truncateText" title="Select">Select</th>
-						<th v-if="bulkSnapDestroyMode.get(props.filesystem!.name)" class="py-2 col-span-1 text-center">
+						<th v-if="bulkSnapDestroyMode.get(props.filesystem!.name)"
+							class="py-2 col-span-1 text-center flex flex-col">
 							<label class="flex flex-row items-center w-full h-full rounded-lg"
 								:class="checkboxSelectedAllClass">
 								<input type="checkbox" v-model="isSelectAllChecked" @change="toggleSelectAll"
 									class="w-4 h-4 mr-2 text-success border-default rounded focus:ring-green-500 dark:focus:ring-green-600 focus:ring-2" />
 								Select All
 							</label>
+							<button v-if="bulkSnapDestroyMode.get(props.filesystem!.name) && canDestructive"
+								:disabled="selectedForDestroy.length == 0 || operationRunning"
+								@click="destroySelectedSnapshots()" name="destroy-multiple-snaps-btn"
+								class="btn btn-danger h-min w-full text-xs">
+								<span v-if="!operationRunning">Destroy Selected</span>
+								<span v-else>
+									Destroying {{ bulkDestroyProcessed }} / {{ bulkDestroyTotal }} snapshots...
+								</span>
+							</button>
 						</th>
 						<th v-else class="relative py-2 sm:pr-6 lg:pr-8 rounded-tr-md col-span-1">
 							<span class="sr-only"></span>
@@ -201,27 +211,27 @@
 									<MenuItems
 										class="absolute right-0 z-10 mt-2 w-max origin-top-left rounded-md bg-accent shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
 										<div class="py-1">
-											<MenuItem as="div" v-slot="{ active }" >
+											<MenuItem as="div" v-slot="{ active }">
 											<a href="#" @click="cloneThisSnapshot(snapshot)"
 												:class="[active ? 'bg-default text-default' : 'text-muted', 'block px-4 py-2 text-sm']">Clone
 												Snapshot</a>
 											</MenuItem>
-											<MenuItem as="div" v-slot="{ active }" >
+											<MenuItem as="div" v-slot="{ active }">
 											<a href="#" @click="renameThisSnapshot(snapshot)"
 												:class="[active ? 'bg-default text-default' : 'text-muted', 'block px-4 py-2 text-sm']">Rename
 												Snapshot</a>
 											</MenuItem>
-											<MenuItem as="div" v-slot="{ active }" >
+											<MenuItem as="div" v-slot="{ active }">
 											<a href="#" @click="rollbackThisSnapshot(snapshot)"
 												:class="[active ? 'bg-default text-default' : 'text-muted', 'block px-4 py-2 text-sm']">Roll
 												Back Snapshot</a>
 											</MenuItem>
-											<MenuItem as="div" v-slot="{ active }" >
+											<MenuItem as="div" v-slot="{ active }">
 											<a href="#" @click="sendThisDataset(snapshot)"
 												:class="[active ? 'bg-default text-default' : 'text-muted', 'block px-4 py-2 text-sm']">Send
 												Snapshot</a>
 											</MenuItem>
-											<MenuItem as="div" v-slot="{ active }" >
+											<MenuItem as="div" v-slot="{ active }">
 											<a href="#" @click="destroyThisSnapshot(snapshot)"
 												:class="[active ? 'bg-danger text-default' : 'text-muted', 'block px-4 py-2 text-sm']">Destroy
 												Snapshot</a>
@@ -234,10 +244,14 @@
 					</tr>
 				</tbody>
 			</table>
-			<button v-if="bulkSnapDestroyMode.get(props.filesystem!.name) && canDestructive" :disabled="selectedForDestroy.length == 0"
-				@click="destroySelectedSnapshots()" name="destroy-multiple-snaps-btn"
-				class="mt-1 btn btn-danger h-fit w-full">Destroy Selected
-				Snapshots</button>
+			<button v-if="bulkSnapDestroyMode.get(props.filesystem!.name) && canDestructive"
+				:disabled="selectedForDestroy.length == 0 || operationRunning" @click="destroySelectedSnapshots()"
+				name="destroy-multiple-snaps-btn" class="mt-1 btn btn-danger h-fit w-full">
+				<span v-if="!operationRunning">Destroy Selected Snapshots</span>
+				<span v-else>
+					Destroying {{ bulkDestroyProcessed }} / {{ bulkDestroyTotal }} snapshots...
+				</span>
+			</button>
 			<div v-if="snapshotsInFilesystem.length === 0 && snapshotNotFound" class="text-center bg-well">
 				<p>No snapshots found.</p>
 			</div>
@@ -313,6 +327,9 @@ const snapshots = inject<Ref<Snapshot[]>>('snapshots')!;
 const snapshotsInFilesystem = ref<Snapshot[]>([]);
 const selectedSnapshot = ref<Snapshot>();
 const snapshotNotFound = ref(false);
+const bulkDestroyCurrent = ref<string | null>(null);
+const bulkDestroyProcessed = ref(0);
+const bulkDestroyTotal = ref(0);
 
 
 onMounted(async () => {
@@ -449,48 +466,71 @@ const updateShowDestroyBulkSnapshot = (newVal) => {
 }
 
 watch(confirmBulkDestroy, async (newVal, oldVal) => {
-	const destroyedSnaps: string[] = []
+	const destroyedSnaps: string[] = [];
 	const failedToDestroySnaps: string[] = [];
+
 	if (confirmBulkDestroy.value == true) {
 		operationRunning.value = true;
-		console.log('now destroying in bulk:', selectedForDestroy.value);
+
+		bulkDestroyTotal.value = selectedForDestroy.value.length;
+		bulkDestroyProcessed.value = 0;
+		bulkDestroyCurrent.value = null;
 
 		try {
 			let errorMessage;
 
 			for (const snapshot of selectedForDestroy.value) {
-                console.log('currently destroying:', snapshot);
-                const output: any = await destroySnapshot(snapshot, false, false);
-				
-                if (output == null || output.error) {
-					errorMessage = output?.error || 'Unknown error';;
-                    failedToDestroySnaps.push(snapshot);
-                } else {
-                    destroyedSnaps.push(snapshot);
-                }
-            }
+				bulkDestroyCurrent.value = snapshot;        // <- currently working on this one
 
-			console.log('destroyed:', selectedForDestroy.value);
+				const output: any = await destroySnapshot(snapshot, false, false);
+
+				if (output == null || output.error) {
+					errorMessage = output?.error || 'Unknown error';
+					failedToDestroySnaps.push(snapshot);
+				} else {
+					destroyedSnaps.push(snapshot);
+				}
+
+				bulkDestroyProcessed.value += 1;            // <- increment progress
+			}
+
 			await exitBulkDestroyMode();
-			
+
 			confirmBulkDestroy.value = false;
 			operationRunning.value = false;
 
+			bulkDestroyCurrent.value = null;
+			bulkDestroyProcessed.value = 0;
+			bulkDestroyTotal.value = 0;
+
 			if (failedToDestroySnaps.length !== 0) {
-				pushNotification(new Notification('Destroy Snapshots Failed', `The folllowing snapshots were not destroyed: \n${failedToDestroySnaps.join(', ')}: ${errorMessage}`, 'error', 5000));
-
+				pushNotification(
+					new Notification(
+						'Destroy Snapshots Failed',
+						`The folllowing snapshots were not destroyed: \n${failedToDestroySnaps.join(', ')}: ${errorMessage}`,
+						'error',
+						5000
+					)
+				);
 			}
+
 			if (destroyedSnaps.length !== 0) {
-				pushNotification(new Notification('Snapshot Destroyed', `The folllowing snapshots were destroyed: \n${destroyedSnaps.join(', ')}`, 'success', 5000));
-
+				pushNotification(
+					new Notification(
+						'Snapshot Destroyed',
+						`The folllowing snapshots were destroyed: \n${destroyedSnaps.join(', ')}`,
+						'success',
+						5000
+					)
+				);
 			}
+
 			showDestroyBulkSnapshotModal.value = false;
 			await refreshSnaps();
-			
 		} catch (error) {
 			console.log(error);
 			operationRunning.value = false;
-            confirmBulkDestroy.value = false;
+			confirmBulkDestroy.value = false;
 		}
 	}
 });
@@ -688,4 +728,7 @@ provide('modal-option-one-toggle', firstOptionToggle);
 provide('modal-option-two-toggle', secondOptionToggle);
 provide('modal-option-three-toggle', thirdOptionToggle);
 provide('modal-option-four-toggle', fourthOptionToggle);
+provide('bulk-destroy-current', bulkDestroyCurrent);
+provide('bulk-destroy-processed', bulkDestroyProcessed);
+provide('bulk-destroy-total', bulkDestroyTotal);
 </script>
