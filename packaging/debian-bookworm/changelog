@@ -1,3 +1,9 @@
+cockpit-zfs (1.2.12-1bookworm) bookworm; urgency=medium
+
+  * Adds snapshot deletion progress to UI when using bulk snapshot delete
+
+ -- Jordan Keough <jkeough@45drives.com>  Wed, 19 Nov 2025 09:02:42 -0400
+
 cockpit-zfs (1.2.11-1bookworm) bookworm; urgency=medium
 
   * Removes unused python3-oauth dependencies and fixes a ref destructuring bug in
