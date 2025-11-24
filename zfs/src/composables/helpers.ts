@@ -626,35 +626,6 @@ export function getDiskIDName(disks: VDevDisk[], diskIdentifier: string, selecte
 }
 
 
-// export function findDiskByPathAndClean(disks, path) {
-// 	// Regex to match partition suffixes like '-part1'
-// 	const partitionSuffixRegex = /-part[0-9]+$/;
-
-// 	// Only strip the partition if it's a partition (and not something like 'nvme0n1')
-// 	const basePath = path.match(partitionSuffixRegex) ? path.replace(partitionSuffixRegex, '') : path;
-
-// 	// console.log('Checking path:', path, 'Base path:', basePath);
-
-// 	return disks.find((disk) => {
-// 		// Clean paths for each disk property
-// 		const sdPath = disk.sd_path ? cleanDiskPath(disk.sd_path) : null;
-// 		const phyPath = disk.phy_path ? cleanDiskPath(disk.phy_path) : null;
-// 		const vdevPath = disk.vdev_path ? cleanDiskPath(disk.vdev_path) : null;
-
-// 		// Log paths being compared
-// 		// console.log(`Comparing with disk paths: sd_path: ${sdPath}, phy_path: ${phyPath}, vdev_path: ${vdevPath}`);
-
-// 		// Check if any cleaned path matches
-// 		return [sdPath, phyPath, vdevPath]
-// 			.some((diskPath) => diskPath === path || diskPath === basePath);
-// 	});
-// }
-
-// Helper function to clean disk paths by removing partition numbers but leaving the rest intact
-// function cleanDiskPath(path) {
-// 	return path.replace(/-part[0-9]+$/, ''); // Only remove partition suffix like '-part1'
-// }
-
 // One canonical matcher. Works with reactive arrays (pass disks.value) or plain arrays.
 export function matchDiskByVdevOrPath(
 	disksLike: MaybeRef<VDevDisk[]>,
