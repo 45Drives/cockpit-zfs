@@ -1,3 +1,9 @@
+cockpit-zfs (1.2.12-2jammy) jammy; urgency=medium
+
+  * Updates bulk snapshot deletion to show progress
+
+ -- Jordan Keough <jkeough@45drives.com>  Mon, 24 Nov 2025 05:13:48 -0400
+
 cockpit-zfs (1.2.12-1jammy) jammy; urgency=medium
 
   * Adds snapshot deletion progress to UI when using bulk snapshot delete
