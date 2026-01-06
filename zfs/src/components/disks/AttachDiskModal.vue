@@ -131,13 +131,13 @@ import { ref, inject, Ref, computed, onMounted } from 'vue';
 import { Switch } from '@headlessui/vue';
 import OldModal from '../common/OldModal.vue';
 import { ExclamationCircleIcon, ExclamationTriangleIcon } from '@heroicons/vue/24/outline';
-import { convertSizeToBytes, loadTrimActivities, getDiskIDName, truncateName, loadScanActivities } from '../../composables/helpers';
+import { convertSizeToBytes, getDiskIDName, truncateName } from '../../composables/helpers';
 import { attachDisk } from '../../composables/disks';
-import { loadDisksThenPools, loadDatasets, loadDiskStats, loadScanObjectGroup } from '../../composables/loadData';
 import { loadImportablePools } from '../../composables/loadImportables';
 import { ZPool, VDev, VDevDisk, ZFSFileSystemInfo, DiskIdentifier } from '@45drives/houston-common-lib';
 import { pushNotification, Notification } from '@45drives/houston-common-ui';
 import { PoolScanObjectGroup, PoolDiskStats, Activity } from '../../types';
+import { useRefreshAllData } from '../../composables/useRefreshAllData';
 
 interface AttachDiskModalProps {
 	idKey: string;
@@ -359,23 +359,18 @@ const diskBelongsToImportablePool = () => {
 	return result;
 }
 
-async function refreshAllData() {
-    disksLoaded.value = false;
-    poolsLoaded.value = false;
-    fileSystemsLoaded.value = false;
-    allDisks.value = [];
-    pools.value = [];
-    datasets.value = [];
-    await loadDisksThenPools(allDisks, pools);
-    await loadDatasets(datasets);
-    await loadScanObjectGroup(scanObjectGroup);
-    await loadScanActivities(pools, scanActivities);
-    await loadDiskStats(poolDiskStats);
-    await loadTrimActivities(pools, trimActivities);
-    disksLoaded.value = true;
-    poolsLoaded.value = true;
-    fileSystemsLoaded.value = true;
-}
+const { refreshAllData } = useRefreshAllData({
+    poolData: pools,
+    diskData: allDisks,
+    filesystemData: datasets,
+    disksLoaded,
+    poolsLoaded,
+    fileSystemsLoaded,
+    scanObjectGroup,
+    poolDiskStats,
+    scanActivities,
+    trimActivities
+});
 
 onMounted(() => {
 	loadImportablePools(importablePools.value, allDisks, pools);

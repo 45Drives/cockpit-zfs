@@ -166,12 +166,12 @@ import { EllipsisVerticalIcon } from '@heroicons/vue/24/outline';
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/vue';
 import { scrubPool, clearErrors } from "../../composables/pools";
 import { labelClear, detachDisk, offlineDisk, onlineDisk, trimDisk } from "../../composables/disks";
-import { loadDatasets, loadDisksThenPools, loadScanObjectGroup, loadDiskStats } from '../../composables/loadData';
-import { loadScanActivities, loadTrimActivities, formatStatus,  } from '../../composables/helpers'
+import { formatStatus } from '../../composables/helpers'
 import Status from "../common/Status.vue";
 import { ZPool, VDev, VDevDisk, ZFSFileSystemInfo } from "@45drives/houston-common-lib";
 import { pushNotification, Notification } from '@45drives/houston-common-ui';
 import { PoolScanObjectGroup, PoolDiskStats, Activity, ConfirmationCallback } from "../../types";
+import { useRefreshAllData } from "../../composables/useRefreshAllData";
 
 interface DiskListElementProps {
 	pool: ZPool;
@@ -230,24 +230,19 @@ const poolDiskStats = inject<Ref<PoolDiskStats>>('pool-disk-stats')!;
 const scanActivities = inject<Ref<Map<string, Activity>>>('scan-activities')!;
 const trimActivities = inject<Ref<Map<string, Activity>>>('trim-activities')!;
 
-async function refreshAllData() {
-	disksLoaded.value = false;
-	poolsLoaded.value = false;
-	fileSystemsLoaded.value = false;
-	diskData.value = [];
-	poolData.value = [];
-	filesystemData.value = [];
-	await loadDisksThenPools(diskData, poolData);
-	await loadDatasets(filesystemData);
-	await loadScanObjectGroup(scanObjectGroup);
-	await loadScanActivities(poolData, scanActivities);
-	await loadDiskStats(poolDiskStats);
-	await loadTrimActivities(poolData, trimActivities);
-	disksLoaded.value = true;
-	poolsLoaded.value = true;
-	fileSystemsLoaded.value = true;
-	// console.log('DiskElement trimActivities', trimActivities.value);
-}
+const { refreshAllData } = useRefreshAllData({
+	poolData,
+	diskData,
+	filesystemData,
+	disksLoaded,
+	poolsLoaded,
+	fileSystemsLoaded,
+	scanObjectGroup,
+	poolDiskStats,
+	scanActivities,
+	trimActivities
+});
+
 
 const starting = ref(false);
 

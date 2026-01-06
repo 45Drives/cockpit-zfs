@@ -569,20 +569,6 @@ const commentLengthCheck = (poolData) => {
 	return result;
 }
 
-async function refreshAllData() {
-    disksLoaded.value = false;
-    poolsLoaded.value = false;
-    disks.value = [];
-    pools.value = [];
-    await loadDisksThenPools(disks, pools);
-    await loadScanObjectGroup(scanObjectGroup);
-    await loadScanActivities(pools, scanActivities);
-    await loadDiskStats(poolDiskStats);
-    await loadTrimActivities(pools, trimActivities);
-    disksLoaded.value = true;
-    poolsLoaded.value = true;
-}
-
 const confirmSavePool = inject<Ref<boolean>>('confirm-save-pool')!;
 	
 async function poolConfigureBtn() {

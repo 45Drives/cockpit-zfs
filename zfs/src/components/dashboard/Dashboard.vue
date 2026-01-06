@@ -37,9 +37,10 @@
 			</div>
 
 			<!-- pools card layout -->
-			<div v-if="pools.length > 0 && poolsLoaded == true" class="grid grid-cols-3 auto-rows-max gap-2 mb-2">
-				<div v-for="(pool, index) in pools" :key="index" class="col-span-1 w-full min-w-full h-full min-h-full">
-					<DashPoolCard :pool="pools[index]!"/>
+			<div v-if="pools.length > 0 && poolsLoaded == true"
+				class="grid gap-2 mb-2 items-stretch [grid-template-columns:repeat(auto-fit,minmax(18rem,1fr))]">
+				<div v-for="(pool, index) in pools" :key="index" class="w-full h-full">
+					<DashPoolCard :pool="pool" class="h-full" />
 				</div>
 			</div>
 
@@ -54,18 +55,21 @@
 
 <script setup lang="ts">
 import {computed, Ref, inject} from 'vue';
-import { loadDisksThenPools, loadScanObjectGroup, loadDiskStats  } from '../../composables/loadData';
-import { convertBytesToSize, loadScanActivities, loadTrimActivities } from '../../composables/helpers';
+import { convertBytesToSize } from '../../composables/helpers';
 import { ArrowPathIcon } from '@heroicons/vue/24/outline';
 import DashPoolCard from "./DashPoolCard.vue";
 import DashboardLoadingSkeleton from './DashboardLoadingSkeleton.vue';
 import LoadingSpinner from '../common/LoadingSpinner.vue';
-import { ZPool, VDevDisk } from '@45drives/houston-common-lib';
+import { ZPool, VDevDisk, ZFSFileSystemInfo } from '@45drives/houston-common-lib';
 import { PoolScanObjectGroup, PoolDiskStats, Activity } from '../../types';
+import { useRefreshAllData } from "../../composables/useRefreshAllData";
 
 const pools = inject<Ref<ZPool[]>>("pools")!;
 const disks = inject<Ref<VDevDisk[]>>("disks")!;
 
+const datasets = inject<Ref<ZFSFileSystemInfo[]>>("datasets")!;
+const datasetsLoaded = inject<Ref<boolean>>("datasets-loaded")!;
+	
 const disksLoaded = inject<Ref<boolean>>('disks-loaded')!;
 const poolsLoaded = inject<Ref<boolean>>('pools-loaded')!;
 
@@ -74,20 +78,18 @@ const poolDiskStats = inject<Ref<PoolDiskStats>>('pool-disk-stats')!;
 const scanActivities = inject<Ref<Map<string, Activity>>>('scan-activities')!;
 const trimActivities = inject<Ref<Map<string, Activity>>>('trim-activities')!;
 
-async function refreshAllData() {
-	disksLoaded.value = false;
-	poolsLoaded.value = false;
-	disks.value = [];
-	pools.value = [];
-	await loadDisksThenPools(disks, pools);
-	await loadScanObjectGroup(scanObjectGroup);
-	await loadScanActivities(pools, scanActivities);
-	await loadDiskStats(poolDiskStats);
-	await loadTrimActivities(pools, trimActivities);
-	disksLoaded.value = true;
-	poolsLoaded.value = true;
-	// console.log('Dashboard trimActivities', trimActivities.value);
-}
+const { refreshAllData } = useRefreshAllData({
+	poolData: pools,
+	diskData: disks,
+	filesystemData: datasets,
+	disksLoaded,
+	poolsLoaded,
+	fileSystemsLoaded: datasetsLoaded,
+	scanObjectGroup,
+	poolDiskStats,
+	scanActivities,
+	trimActivities
+});
 
 //determine total effective space of pools
 const totalEffectivePoolSpace = computed(() => {

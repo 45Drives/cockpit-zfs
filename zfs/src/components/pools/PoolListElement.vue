@@ -249,13 +249,13 @@ import { EllipsisVerticalIcon, ChevronUpIcon, ExclamationCircleIcon } from '@her
 import { Menu, MenuButton, MenuItem, MenuItems, Disclosure, DisclosureButton, DisclosurePanel } from '@headlessui/vue';
 import { destroyPool, trimPool, scrubPool, resilverPool, clearErrors, exportPool, upgradePool } from "../../composables/pools";
 import { labelClear } from "../../composables/disks";
-import { loadDatasets, loadDisksThenPools, loadScanObjectGroup, loadDiskStats } from '../../composables/loadData';
-import { loadScanActivities, loadTrimActivities, formatStatus, isPoolUpgradable, getCapacityColor  } from '../../composables/helpers';
+import { formatStatus, isPoolUpgradable, getCapacityColor  } from '../../composables/helpers';
 import VDevElement from "./VDevElement.vue";
 import Status from "../common/Status.vue";
 import { ZPool, VDevDisk, ZFSFileSystemInfo } from "@45drives/houston-common-lib";
 import { pushNotification, Notification } from '@45drives/houston-common-ui';
 import { PoolScanObjectGroup, PoolDiskStats, ConfirmationCallback, Activity } from "../../types";
+import { useRefreshAllData } from "../../composables/useRefreshAllData";
 
 interface PoolListElementProps {
     poolIdx: number;
@@ -352,24 +352,57 @@ const scanOperation = computed(() => {
 	return scanObjectGroup.value[props.pool.name].function;
 });
 
-async function refreshAllData() {
-	disksLoaded.value = false;
-	poolsLoaded.value = false;
-	fileSystemsLoaded.value = false;
-	diskData.value = [];
-	poolData.value = [];
-	filesystemData.value = [];
-	await loadDisksThenPools(diskData, poolData);
-	await loadDatasets(filesystemData);
-	await loadScanObjectGroup(scanObjectGroup);
-	await loadScanActivities(poolData, scanActivities);
-	await loadDiskStats(poolDiskStats);
-	await loadTrimActivities(poolData, trimActivities);
-	disksLoaded.value = true;
-	poolsLoaded.value = true;
-	fileSystemsLoaded.value = true;
-	// console.log('PoolListElement trimActivities', trimActivities.value);
+
+///////////////////// Scanning //////////////////////
+/////////////////////////////////////////////////////
+const scanStatusBox = ref();
+const scanActivities = inject<Ref<Map<string, Activity>>>('scan-activities')!;
+
+async function getScanStatus() {
+	// console.log('scanStatusBox', scanStatusBox.value);
+
+	await scanStatusBox.value.pollScanStatus();
 }
+
+//////////// Checking Disk Stats (Trim) /////////////
+/////////////////////////////////////////////////////
+const vDevElement = ref();
+const trimActivities = inject<Ref<Map<string, Activity>>>('trim-activities')!;
+
+async function getTrimStatus() {
+	// console.log('vDevElement', vDevElement.value);
+	// console.log('trimActivity:', trimActivity.value);
+	// Check if vDevElement is defined and is an array
+	if (vDevElement.value && Array.isArray(vDevElement.value) && vDevElement.value.length > 0) {
+		await vDevElement.value[0].getDiskStatus();
+	} else {
+		console.error('vDevElement is not defined or does not contain an array with elements.');
+	}
+}
+
+/////////////////////////////////////////////////////
+
+const poolID = ref(props.pool.name);
+const scanActivity = computed(() => {
+	return scanActivities.value.get(poolID.value);
+});
+const trimActivity = computed(() => {
+	return trimActivities.value.get(poolID.value);
+});
+
+const { refreshAllData } = useRefreshAllData({
+	poolData,
+	diskData,
+	filesystemData,
+	disksLoaded,
+	poolsLoaded,
+	fileSystemsLoaded,
+	scanObjectGroup,
+	poolDiskStats,
+	scanActivities,
+	trimActivities
+});
+
 
 ////////////////// Destroy Pool /////////////////////
 /////////////////////////////////////////////////////
@@ -1022,44 +1055,6 @@ async function showAddVDev(pool) {
 	await loadShowAddVDevComponent();
 	showAddVDevModal.value = true;
 }
-
-///////////////////// Scanning //////////////////////
-/////////////////////////////////////////////////////
-const scanStatusBox = ref();
-const scanActivities = inject<Ref<Map<string, Activity>>>('scan-activities')!;
-	
-async function getScanStatus() {
-	// console.log('scanStatusBox', scanStatusBox.value);
-
-	await scanStatusBox.value.pollScanStatus();
-}
-
-//////////// Checking Disk Stats (Trim) /////////////
-/////////////////////////////////////////////////////
-const vDevElement = ref();
-const trimActivities = inject<Ref<Map<string, Activity>>>('trim-activities')!;
-
-async function getTrimStatus() {
-    // console.log('vDevElement', vDevElement.value);
-	// console.log('trimActivity:', trimActivity.value);
-    // Check if vDevElement is defined and is an array
-    if (vDevElement.value && Array.isArray(vDevElement.value) && vDevElement.value.length > 0) {
-     	await vDevElement.value[0].getDiskStatus();
-    } else {
-        console.error('vDevElement is not defined or does not contain an array with elements.');
-    }
-}
-
-/////////////////////////////////////////////////////
-
-const poolID = ref(props.pool.name);
-const scanActivity = computed(() => {
-	return scanActivities.value.get(poolID.value);
-});
-const trimActivity = computed(() => {
-	return trimActivities.value.get(poolID.value);
-});
-
 
 provide('show-pool-deets', showPoolDetails);
 provide('confirm-save-pool', confirmSavePool);

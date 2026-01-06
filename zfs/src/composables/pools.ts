@@ -21,7 +21,8 @@ export async function getPools() {
 	} catch (err: any) {
 		const errorMessage = errorString(err);
 		console.error(errorMessage);
-		return JSON.stringify({ error: errorMessage });
+		// Always return an array JSON string so callers never zero-out pools by accident
+		return "[]";
 	}
 }
 

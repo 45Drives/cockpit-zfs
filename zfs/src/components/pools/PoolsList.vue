@@ -88,13 +88,12 @@
 <script setup lang="ts">
 import { ref, inject, Ref, provide } from "vue";
 import { ArrowPathIcon } from '@heroicons/vue/24/outline';
-import { loadDatasets, loadDisksThenPools, loadScanObjectGroup, loadDiskStats } from '../../composables/loadData';
-import { loadScanActivities, loadTrimActivities } from '../../composables/helpers';
 import PoolListElement from './PoolListElement.vue';
 import LoadingSpinner from '../common/LoadingSpinner.vue';
 import { VDevDisk } from "@45drives/houston-common-lib/dist/lib/managers/zfs/types";
 import { ZFSFileSystemInfo, ZPool } from "@45drives/houston-common-lib/lib/managers/zfs/types";
 import { PoolScanObjectGroup, PoolDiskStats, Activity } from "../../types";
+import { useRefreshAllData } from "../../composables/useRefreshAllData";
 
 /////////////// Loading/Refreshing //////////////////
 /////////////////////////////////////////////////////
@@ -111,24 +110,19 @@ const trimActivities = inject<Ref<Map<string, Activity>>>('trim-activities')!;
 const truncateText = inject<Ref<string>>('style-truncate-text')!;
 const canDestructive = inject<Ref<boolean>>('can-destructive')!;
 
-async function refreshAllData() {
-	disksLoaded.value = false;
-	poolsLoaded.value = false;
-	fileSystemsLoaded.value = false;
-	diskData.value = [];
-	poolData.value = [];
-	filesystemData.value = [];
-	await loadDisksThenPools(diskData, poolData);
-	await loadDatasets(filesystemData);
-	await loadScanObjectGroup(scanObjectGroup);
-	await loadScanActivities(poolData, scanActivities);
-	await loadDiskStats(poolDiskStats);
-	await loadTrimActivities(poolData, trimActivities);
-	disksLoaded.value = true;
-	poolsLoaded.value = true;
-	fileSystemsLoaded.value = true;
-	// console.log('PoolList trimActivities', trimActivities.value);
-}
+const { refreshAllData } = useRefreshAllData({
+	poolData,
+	diskData,
+	filesystemData,
+	disksLoaded,
+	poolsLoaded,
+	fileSystemsLoaded,
+	scanObjectGroup,
+	poolDiskStats,
+	scanActivities,
+	trimActivities
+});
+
 
 /////////////// Create/Import Pool //////////////////
 /////////////////////////////////////////////////////
