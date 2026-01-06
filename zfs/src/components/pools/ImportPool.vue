@@ -367,16 +367,10 @@ import LoadingSpinner from '../common/LoadingSpinner.vue';
 import { ExclamationCircleIcon } from '@heroicons/vue/24/outline';
 import { loadImportablePools, loadImportableDestroyedPools } from '../../composables/loadImportables';
 import { importPool } from '../../composables/pools';
-import { loadDatasets, loadDisksThenPools, loadScanObjectGroup, loadDiskStats } from '../../composables/loadData';
-import { loadScanActivities, loadTrimActivities } from '../../composables/helpers';
 import { VDevDisk, ZPool, ZFSFileSystemInfo } from '@45drives/houston-common-lib';
 import { pushNotification, Notification } from '@45drives/houston-common-ui';
 import { ImportablePoolData, PoolScanObjectGroup, PoolDiskStats, Activity, ImportedPool } from '../../types';
-
-
-interface ImportPoolProps {
-    idKey: string;
-}
+import { useRefreshAllData } from '../../composables/useRefreshAllData';
 
 const showDeletedPools = ref(false);
 const showImportModal = inject<Ref<boolean>>('show-import-modal')!;
@@ -512,23 +506,19 @@ function importableNameExists() {
     });
 }
 
-async function refreshAllData() {
-    disksLoaded.value = false;
-    poolsLoaded.value = false;
-    fileSystemsLoaded.value = false;
-    disks.value = [];
-    pools.value = [];
-    datasets.value = [];
-    await loadDisksThenPools(disks, pools);
-    await loadDatasets(datasets);
-    await loadScanObjectGroup(scanObjectGroup);
-    await loadScanActivities(pools, scanActivities);
-    await loadDiskStats(poolDiskStats);
-    await loadTrimActivities(pools, trimActivities);
-    disksLoaded.value = true;
-    poolsLoaded.value = true;
-    fileSystemsLoaded.value = true;
-}
+const { refreshAllData } = useRefreshAllData({
+    poolData: pools,
+    diskData: disks,
+    filesystemData: datasets,
+    disksLoaded,
+    poolsLoaded,
+    fileSystemsLoaded,
+    scanObjectGroup,
+    poolDiskStats,
+    scanActivities,
+    trimActivities
+});
+
 
 async function importPoolBtn() {
     if (nameCheck()) {

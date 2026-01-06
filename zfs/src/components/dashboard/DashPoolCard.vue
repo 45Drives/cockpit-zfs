@@ -1,7 +1,7 @@
 <template>
-	<button v-on:dblclick="showDetails(props.pool)" class="min-w-96 w-full min-h-96 h-full">
+	<button v-on:dblclick="showDetails(props.pool)" class="w-full h-full min-w-0">
 		<Card :bgColor="'bg-default'" :titleSection="true" :contentSection="true" :footerSection="true"
-			class="mt-2 mb-4 min-w-96 w-full min-h-96 h-full overflow-visible bg-plugin-header rounded-md border border-default">
+  			class="mt-2 mb-4 w-full h-full min-w-0 bg-plugin-header rounded-md border border-default overflow-hidden">
 			<template v-slot:title>
 				<div class="flex flex-row justify-between items-center">
 					<div class="flex flex-row flex-grow">
@@ -267,15 +267,15 @@
 import { ref, inject, Ref, computed, provide, watch, onMounted} from "vue";
 import { EllipsisVerticalIcon, CheckCircleIcon, ExclamationCircleIcon } from '@heroicons/vue/24/outline';
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/vue';
-import { loadDatasets, loadDisksThenPools, loadScanObjectGroup, loadDiskStats } from '../../composables/loadData';
 import { destroyPool, trimPool, scrubPool, resilverPool, clearErrors, exportPool, upgradePool } from "../../composables/pools";
 import { labelClear } from "../../composables/disks";
-import { loadScanActivities, loadTrimActivities, formatStatus, isPoolUpgradable, getCapacityColor } from '../../composables/helpers'
+import { formatStatus, isPoolUpgradable, getCapacityColor } from '../../composables/helpers'
 import Card from '../common/Card.vue';
 import Status from '../common/Status.vue';
 import { ZPool, VDevDisk, ZFSFileSystemInfo } from "@45drives/houston-common-lib";
 import { pushNotification, Notification } from '@45drives/houston-common-ui';
 import { ConfirmationCallback, PoolScanObjectGroup, PoolDiskStats, Activity } from "../../types";
+import { useRefreshAllData } from "../../composables/useRefreshAllData";
 
 interface DashPoolCardProps {
 	pool: ZPool;
@@ -395,24 +395,65 @@ const scanOperation = computed(() => {
 	return scanObjectGroup.value[props.pool.name].function;
 });
 
-async function refreshAllData() {
-	disksLoaded.value = false;
-	poolsLoaded.value = false;
-	fileSystemsLoaded.value = false;
-	diskData.value = [];
-	poolData.value = [];
-	filesystemData.value = [];
-	await loadDisksThenPools(diskData, poolData);
-	await loadDatasets(filesystemData);
-	await loadScanObjectGroup(scanObjectGroup);
-	await loadScanActivities(poolData, scanActivities);
-	await loadDiskStats(poolDiskStats);
-	await loadTrimActivities(poolData, trimActivities);
-	disksLoaded.value = true;
-	poolsLoaded.value = true;
-	fileSystemsLoaded.value = true;
-	// console.log('DashPoolCard trimActivities', trimActivities.value);
+///////////////////// Scanning //////////////////////
+/////////////////////////////////////////////////////
+// const scanObjectGroup = inject<Ref<PoolScanObjectGroup>>('scan-object-group')!;
+const scanStatus = ref();
+// const scanActivity = inject<Ref<Activity>>('scan-activity')!;
+
+async function getScanStatus() {
+	await scanStatus.value.pollScanStatus();
+	// console.log(`Dashboard scan values for ${props.pool.name}: \n 
+	//     isActive:${scanActivity.value.isActive}\n
+	//     isPaused:${scanActivity.value.isPaused}\n
+	//     isFinished:${scanActivity.value.isFinished}\n
+	//     isCanceled:${scanActivity.value.isCanceled}\n
+	//     ------`);
 }
+
+//////////// Checking Disk Stats (Trim) /////////////
+/////////////////////////////////////////////////////
+// const poolDiskStats = inject<Ref<PoolDiskStats>>('pool-disk-stats')!;
+const trimStatus = ref();
+// const trimActivity = inject<Ref<Activity>>('trim-activity')!;
+
+async function getTrimStatus() {
+	await trimStatus.value.pollTrimStatus();
+	// console.log(`Dashboard trim values for ${props.pool.name}: \n 
+	//     isActive:${trimActivity.value.isActive}\n
+	//     isPaused:${trimActivity.value.isPaused}\n
+	//     isFinished:${trimActivity.value.isFinished}\n
+	//     isCanceled:${trimActivity.value.isCanceled}\n
+	//     ******`);
+}
+
+/////////////////////////////////////////////////////
+const scanActivities = inject<Ref<Map<string, Activity>>>('scan-activities')!;
+const trimActivities = inject<Ref<Map<string, Activity>>>('trim-activities')!;
+
+const poolID = ref(props.pool.name);
+const scanActivity = computed(() => {
+	return scanActivities.value.get(poolID.value);
+});
+const trimActivity = computed(() => {
+	return trimActivities.value.get(poolID.value);
+});
+
+const getIdKey = (name: string) => `${selectedPool.value}-${name}`;
+
+const { refreshAllData } = useRefreshAllData({
+	poolData,
+	diskData,
+	filesystemData,
+	disksLoaded,
+	poolsLoaded,
+	fileSystemsLoaded,
+	scanObjectGroup,
+	poolDiskStats,
+	scanActivities,
+	trimActivities
+});
+
 
 ////////////////// Destroy Pool /////////////////////
 /////////////////////////////////////////////////////
@@ -1069,51 +1110,6 @@ async function showAddVDev(pool) {
 	showAddVDevModal.value = true;
 }
 
-///////////////////// Scanning //////////////////////
-/////////////////////////////////////////////////////
-// const scanObjectGroup = inject<Ref<PoolScanObjectGroup>>('scan-object-group')!;
-const scanStatus = ref();
-// const scanActivity = inject<Ref<Activity>>('scan-activity')!;
-
-async function getScanStatus() {
-	await scanStatus.value.pollScanStatus();
-	// console.log(`Dashboard scan values for ${props.pool.name}: \n 
-    //     isActive:${scanActivity.value.isActive}\n
-    //     isPaused:${scanActivity.value.isPaused}\n
-    //     isFinished:${scanActivity.value.isFinished}\n
-    //     isCanceled:${scanActivity.value.isCanceled}\n
-    //     ------`);
-}
-
-//////////// Checking Disk Stats (Trim) /////////////
-/////////////////////////////////////////////////////
-// const poolDiskStats = inject<Ref<PoolDiskStats>>('pool-disk-stats')!;
-const trimStatus = ref();
-// const trimActivity = inject<Ref<Activity>>('trim-activity')!;
-
-async function getTrimStatus() {
-	await trimStatus.value.pollTrimStatus();
-	// console.log(`Dashboard trim values for ${props.pool.name}: \n 
-    //     isActive:${trimActivity.value.isActive}\n
-    //     isPaused:${trimActivity.value.isPaused}\n
-    //     isFinished:${trimActivity.value.isFinished}\n
-    //     isCanceled:${trimActivity.value.isCanceled}\n
-    //     ******`);
-}
-
-/////////////////////////////////////////////////////
-const scanActivities = inject<Ref<Map<string, Activity>>>('scan-activities')!;
-const trimActivities = inject<Ref<Map<string, Activity>>>('trim-activities')!;
-
-const poolID = ref(props.pool.name);
-const scanActivity = computed(() => {
-	return scanActivities.value.get(poolID.value);
-});
-const trimActivity = computed(() => {
-	return trimActivities.value.get(poolID.value);
-});
-
-const getIdKey = (name: string) => `${selectedPool.value}-${name}`;
 
 provide('show-pool-deets', showPoolDetails);
 provide('confirm-save-pool', confirmSavePool);

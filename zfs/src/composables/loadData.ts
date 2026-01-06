@@ -1,8 +1,8 @@
 import { ref, Ref } from 'vue';
-import { getPools, getImportablePools } from "./pools";
+import { getPools } from "./pools";
 import { getDisks } from "./disks";
 import { getDatasets } from "./datasets";
-import { matchDiskByVdevOrPath, convertBytesToSize, isBoolOnOff, onOffToBool, getQuotaRefreservUnit, getSizeUnitFromString, getParentPath, convertTimestampToLocal, formatCapacityString, isCapacityPatternInvalid, changeUnitToBinary } from "./helpers";
+import { matchDiskByVdevOrPath, convertBytesToSize, onOffToBool, getQuotaRefreservUnit, getSizeUnitFromString, getParentPath, convertTimestampToLocal, formatCapacityString, isCapacityPatternInvalid, changeUnitToBinary } from "./helpers";
 import { getSnapshots, getSnapshotsOfDataset, getSnapshotsOfPool } from './snapshots';
 import { getDiskStats, getScanGroup } from './scan';
 import { VDevDisk, ZFSFileSystemInfo, VDev } from "@45drives/houston-common-lib"
@@ -12,14 +12,42 @@ import { safeParse, unpackArray } from '../utils/json';
 const vDevs = ref<VDev[]>([]);
 const errors: string[] = [];
 
+function isPlainObject(v: any): v is Record<string, any> {
+	return v !== null && typeof v === "object" && !Array.isArray(v);
+}
+
+function normalizeDiskStats(input: any, prev: PoolDiskStats): PoolDiskStats {
+	const out: PoolDiskStats = { ...(isPlainObject(prev) ? prev : ({} as any)) };
+	if (!isPlainObject(input)) return out;
+
+	for (const [poolName, disks] of Object.entries(input)) {
+		out[poolName] = Array.isArray(disks) ? (disks as any) : [];
+	}
+	return out;
+}
+
+function normalizeScanGroup(input: any, prev: PoolScanObjectGroup): PoolScanObjectGroup {
+	const out: PoolScanObjectGroup = { ...(isPlainObject(prev) ? prev : ({} as any)) };
+	if (!isPlainObject(input)) return out;
+
+	for (const [poolName, scan] of Object.entries(input)) {
+		out[poolName] = isPlainObject(scan) ? (scan as any) : ({ state: null } as any);
+	}
+	return out;
+}
+
 export async function loadDiskStats(poolDiskStats: Ref<PoolDiskStats>) {
 	try {
-		const rawJSON = await getDiskStats();
-		const parsedJSON = safeParse(rawJSON, {});
-		// console.log('***Disk Stats JSON:', parsedJSON);
+		const raw = await getDiskStats();
+		const parsed = safeParse(raw, null);
 
-		poolDiskStats.value = parsedJSON;
-		// console.log("***\nPoolDiskStatsObject:", poolDiskStats.value);
+		const prev = poolDiskStats.value;
+		const next = normalizeDiskStats(parsed, prev);
+
+		// Sticky: don’t downgrade to empty if we already had data
+		if (Object.keys(next).length === 0 && Object.keys(prev ?? {}).length > 0) return;
+
+		poolDiskStats.value = next;
 	} catch (error) {
 		console.error("An error occurred getting disk stats:", error);
 	}
@@ -27,16 +55,20 @@ export async function loadDiskStats(poolDiskStats: Ref<PoolDiskStats>) {
 
 export async function loadScanObjectGroup(scanObject: Ref<PoolScanObjectGroup>) {
 	try {
-		const rawJSON = await getScanGroup();
-		const parsedJSON = safeParse(rawJSON, {});
-		// console.log('---Scan Object JSON:', parsedJSON);
+		const raw = await getScanGroup();
+		const parsed = safeParse(raw, null);
 
-		scanObject.value = parsedJSON;
-		// console.log('---\nScanObject:', scanObject.value);
+		const prev = scanObject.value;
+		const next = normalizeScanGroup(parsed, prev);
+
+		if (Object.keys(next).length === 0 && Object.keys(prev ?? {}).length > 0) return;
+
+		scanObject.value = next;
 	} catch (error) {
 		console.error("An error occurred getting scan object group:", error);
 	}
 }
+
 
 export async function loadDisksThenPools(disks, pools) {
 	//executes a python script to retrieve all disk data and outputs a JSON

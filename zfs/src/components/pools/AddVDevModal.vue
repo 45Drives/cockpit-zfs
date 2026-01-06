@@ -268,19 +268,18 @@ input[type="checkbox"] {
 </style>
 
 <script setup lang="ts">
-import { ref, inject, Ref, computed, watch, onMounted } from 'vue';
+import { ref, inject, Ref, computed, onMounted } from 'vue';
 import { Switch } from '@headlessui/vue';
-import OldModal from '../common/OldModal.vue';
 import { ExclamationCircleIcon, ExclamationTriangleIcon } from '@heroicons/vue/24/outline';
 import { upperCaseWord, convertSizeToBytes } from '../../composables/helpers';
 import { setRefreservation } from '../../composables/pools';
-import { loadDisksThenPools, loadDatasets, loadScanObjectGroup, loadDiskStats } from '../../composables/loadData';
-import { loadScanActivities, loadTrimActivities, getDiskIDName, truncateName, getFullDiskInfo } from '../../composables/helpers';
+import { getDiskIDName, truncateName, getFullDiskInfo } from '../../composables/helpers';
 import { loadImportablePools } from '../../composables/loadImportables';
-import { ZFSManager, ZPool, ZFSFileSystemInfo, ZPoolBase, VDev, DiskIdentifier, VDevDisk, ZPoolAddVDevOptions } from "@45drives/houston-common-lib"
-import { pushNotification, Notification, Modal, CardContainer, CenteredCardColumn } from '@45drives/houston-common-ui';
+import { ZFSManager, ZPool, ZFSFileSystemInfo, VDev, DiskIdentifier, VDevDisk } from "@45drives/houston-common-lib"
+import { pushNotification, Notification, Modal, CardContainer } from '@45drives/houston-common-ui';
 // import { pushNotification, Notification } from '@45drives/houston-common-ui';
 import { PoolScanObjectGroup, PoolDiskStats, Activity } from '../../types';
+import { useRefreshAllData } from '../../composables/useRefreshAllData';
 
 interface AddVDevModalProps {
     idKey: string;
@@ -433,23 +432,19 @@ function resetModalState() {
     diskBelongsFeedback.value = '';
 }
 
-async function refreshAllData() {
-    disksLoaded.value = false;
-    poolsLoaded.value = false;
-    fileSystemsLoaded.value = false;
-    allDisks.value = [];
-    pools.value = [];
-    datasets.value = [];
-    await loadDisksThenPools(allDisks, pools);
-    await loadDatasets(datasets);
-    await loadScanObjectGroup(scanObjectGroup);
-    await loadScanActivities(pools, scanActivities);
-    await loadDiskStats(poolDiskStats);
-    await loadTrimActivities(pools, trimActivities);
-    disksLoaded.value = true;
-    poolsLoaded.value = true;
-    fileSystemsLoaded.value = true;
-}
+const { refreshAllData } = useRefreshAllData({
+    poolData: pools,
+    diskData: allDisks,
+    filesystemData: datasets,
+    disksLoaded,
+    poolsLoaded,
+    fileSystemsLoaded,
+    scanObjectGroup,
+    poolDiskStats,
+    scanActivities,
+    trimActivities
+});
+
 
 /////////////////// Validation //////////////////////
 /////////////////////////////////////////////////////

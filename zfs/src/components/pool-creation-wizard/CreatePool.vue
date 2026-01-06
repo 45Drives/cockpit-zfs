@@ -80,12 +80,12 @@ import { Switch } from '@headlessui/vue';
 import OldModal from '../common/OldModal.vue';
 import WizardTabs from './WizardTabs.vue';
 import PoolConfig from './PoolConfig.vue';
-import { loadDisksThenPools, loadDatasets, loadScanObjectGroup, loadDiskStats } from '../../composables/loadData';
-import { convertSizeToBytes, isBoolCompression, isBoolOnOff, loadScanActivities, loadTrimActivities } from '../../composables/helpers';
+import { convertSizeToBytes, isBoolCompression, isBoolOnOff } from '../../composables/helpers';
 import { setRefreservation } from '../../composables/pools';
 import {ZFSManager, ZPool ,VDevDisk,ZFSFileSystemInfo,ZpoolCreateOptions,ZPoolBase} from '@45drives/houston-common-lib';
 import { pushNotification, Notification } from '@45drives/houston-common-ui';
 import { PoolScanObjectGroup, PoolDiskStats, Activity, StepsNavigationItem, StepNavigationCallback } from '../../types';
+import { useRefreshAllData } from '../../composables/useRefreshAllData';
 
 const zfsManager = new ZFSManager();
 const show = ref(true);
@@ -196,30 +196,28 @@ const newPoolData = ref<ZpoolCreateOptions & ZPoolBase>({
 	refreservationPercent: 0,
 });
 
-async function refreshAllData() {
-	disksLoaded.value = false;
-	poolsLoaded.value = false;
-	disks.value = [];
-	pools.value = [];
-	datasets.value = [];
-	await loadDisksThenPools(disks, pools);
-	await loadDatasets(datasets);
-	await loadScanObjectGroup(scanObjectGroup);
-	await loadScanActivities(pools, scanActivities);
-	await loadDiskStats(poolDiskStats);
-	await loadTrimActivities(pools, trimActivities);
-	disksLoaded.value = true;
-	poolsLoaded.value = true;
-}
 
 const disksLoaded = inject<Ref<boolean>>('disks-loaded')!;
 const poolsLoaded = inject<Ref<boolean>>('pools-loaded')!;
+const datasetsLoaded = inject<Ref<boolean>>("datasets-loaded")!;
 const scanObjectGroup = inject<Ref<PoolScanObjectGroup>>('scan-object-group')!;
 const poolDiskStats = inject<Ref<PoolDiskStats>>('pool-disk-stats')!;
 
 const scanActivities = inject<Ref<Map<string, Activity>>>('scan-activities')!;
 const trimActivities = inject<Ref<Map<string, Activity>>>('trim-activities')!;
 
+const { refreshAllData } = useRefreshAllData({
+	poolData: pools,
+	diskData: disks,
+	filesystemData: datasets,
+	disksLoaded,
+	poolsLoaded,
+	fileSystemsLoaded: datasetsLoaded,
+	scanObjectGroup,
+	poolDiskStats,
+	scanActivities,
+	trimActivities
+});
 
 function extractProcessErr(e: any): string {
 	// Our ProcessError usually carries stderr; fall back sensibly.

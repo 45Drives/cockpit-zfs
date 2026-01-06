@@ -114,12 +114,12 @@ import { ref, inject, Ref, watch, provide, onMounted } from "vue";
 import { EllipsisVerticalIcon, ChevronUpIcon } from '@heroicons/vue/24/outline';
 import { Menu, MenuButton, MenuItem, MenuItems, Disclosure, DisclosureButton, DisclosurePanel } from '@headlessui/vue';
 import { clearErrors, removeVDevFromPool, setRefreservation } from "../../composables/pools";
-import { loadDatasets, loadDisksThenPools, loadScanObjectGroup, loadDiskStats } from '../../composables/loadData';
-import { formatStatus, loadScanActivities, loadTrimActivities, upperCaseWord,  } from '../../composables/helpers';
+import { formatStatus, upperCaseWord,  } from '../../composables/helpers';
 import DiskElement from '../pools/DiskElement.vue';
 import { ZPool, VDev, VDevDisk, ZFSFileSystemInfo } from "@45drives/houston-common-lib";
 import { pushNotification, Notification } from '@45drives/houston-common-ui';
 import { Activity, PoolScanObjectGroup, PoolDiskStats, ConfirmationCallback } from "../../types";
+import { useRefreshAllData } from "../../composables/useRefreshAllData";
 
 
 interface VDevElementProps {
@@ -152,24 +152,19 @@ const trimActivities = inject<Ref<Map<string, Activity>>>('trim-activities')!;
 const scanObjectGroup = inject<Ref<PoolScanObjectGroup>>('scan-object-group')!;
 const poolDiskStats = inject<Ref<PoolDiskStats>>('pool-disk-stats')!;
 
-async function refreshAllData() {
-	disksLoaded.value = false;
-	poolsLoaded.value = false;
-	fileSystemsLoaded.value = false;
-	diskData.value = [];
-	poolData.value = [];
-	filesystemData.value = [];
-	await loadDisksThenPools(diskData, poolData);
-	await loadDatasets(filesystemData);
-	await loadScanObjectGroup(scanObjectGroup);
-	await loadScanActivities(poolData, scanActivities);
-	await loadDiskStats(poolDiskStats);
-	await loadTrimActivities(poolData, trimActivities);
-	disksLoaded.value = true;
-	poolsLoaded.value = true;
-	fileSystemsLoaded.value = true;
-	// console.log('VDevElement trimActivities', trimActivities.value);
-}
+const { refreshAllData } = useRefreshAllData({
+	poolData,
+	diskData,
+	filesystemData,
+	disksLoaded,
+	poolsLoaded,
+	fileSystemsLoaded,
+	scanObjectGroup,
+	poolDiskStats,
+	scanActivities,
+	trimActivities
+});
+
 
 /////////////////// Clear Errors ////////////////////
 /////////////////////////////////////////////////////

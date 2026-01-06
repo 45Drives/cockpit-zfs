@@ -4,18 +4,16 @@ import json
 def get_disks(group):
     disks = []
     for vdev in group:
-
-        if vdev['type'] == 'disk':
+        if vdev.get('type') == 'disk':
             disks.append({
-                'name': vdev['name'],
-                'stats':vdev['stats'],
-                'guid': vdev['guid'],
-                'status': vdev['status'],
+                'name': vdev.get('name'),
+                'stats': vdev.get('stats', {}),
+                'guid': vdev.get('guid'),
+                'status': vdev.get('status'),
             })
         else:
-            newDisks = get_disks(vdev['children'])
-            disks = disks + newDisks
-
+            children = vdev.get('children') or []
+            disks.extend(get_disks(children))
     return disks
 
 def main():
@@ -24,11 +22,16 @@ def main():
 
         for p in zfs.pools:
             pool = p.asdict()
+            name = pool.get('name')
             disks = []
-            for group in pool['groups']:
-                disks = disks + get_disks(pool['groups'][group])
-            z_pools[pool['name']] = disks
+
+            groups = pool.get('groups') or {}
+            for group_name, group in groups.items():
+                disks.extend(get_disks(group or []))
+
+            z_pools[name] = disks
 
     print(json.dumps(z_pools, indent=4))
+
 if __name__ == '__main__':
     main()
