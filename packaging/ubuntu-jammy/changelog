@@ -1,3 +1,10 @@
+cockpit-zfs (1.2.13-1jammy) jammy; urgency=medium
+
+  * Updates refreshing logic + error handling to avoid potential UI flickering when
+    unhandled errors occur
+
+ -- Jordan Keough <jkeough@45drives.com>  Tue, 06 Jan 2026 11:46:30 -0400
+
 cockpit-zfs (1.2.12-2jammy) jammy; urgency=medium
 
   * Updates bulk snapshot deletion to show progress
