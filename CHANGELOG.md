@@ -1,3 +1,3 @@
-## zfs module 1.2.13-1
+## zfs module 1.2.13-2
 
-* Updates refreshing logic + error handling to avoid potential UI flickering when unhandled errors occur
+* Adds missing debian tag in arch dict

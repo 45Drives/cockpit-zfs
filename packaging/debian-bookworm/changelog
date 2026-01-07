@@ -1,3 +1,9 @@
+cockpit-zfs (1.2.13-2bookworm) bookworm; urgency=medium
+
+  * Adds missing debian tag in arch dict
+
+ -- Jordan Keough <jkeough@45drives.com>  Wed, 07 Jan 2026 04:20:18 -0400
+
 cockpit-zfs (1.2.13-1bookworm) bookworm; urgency=medium
 
   * Updates refreshing logic + error handling to avoid potential UI flickering when
