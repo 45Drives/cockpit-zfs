@@ -10,7 +10,8 @@
     "license": "GPL-3.0+",
     "architecture": {
         "ubuntu": "all",
-        "rocky": "noarch"
+        "rocky": "noarch",
+        "debian": "all"
     },
     "description": "zfs manager for cockpit",
     "defaults": {
