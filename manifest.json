@@ -10,7 +10,8 @@
     "license": "GPL-3.0+",
     "architecture": {
         "ubuntu": "all",
-        "rocky": "noarch"
+        "rocky": "noarch",
+        "debian": "all"
     },
     "description": "zfs manager for cockpit",
     "defaults": {
@@ -36,6 +37,16 @@
             "python3-dateutil",
             "jq",
             "msmtp"
+        ],
+        "debian": [
+            "cockpit",
+            "python3",
+            "python3-libzfs",
+            "python3-pip",
+            "sqlite3",
+            "jq",
+            "msmtp",
+            "python3-dateutil"
         ]
     },
     "builds": [
