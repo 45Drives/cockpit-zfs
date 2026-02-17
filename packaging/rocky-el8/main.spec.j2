@@ -6,7 +6,7 @@ License: {{ license }}
 URL: {{ git_url }}
 Source0: %{name}-%{version}.tar.gz
 BuildArch: {{ architecture.rocky }}
-Requires: {{ dependencies.rocky_common | join(', ') }}
+Requires: {{ dependencies.rocky_common | join(', ') }}, cockpit-alerts
 
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root
 
