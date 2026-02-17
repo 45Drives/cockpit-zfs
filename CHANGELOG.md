@@ -1,3 +1,3 @@
-## zfs module 1.2.12-2
+## zfs module 1.2.13-1
 
-* Updates bulk snapshot deletion to show progress
+* added dependency of cockpit-alerts

@@ -1,3 +1,9 @@
+cockpit-zfs (1.2.13-1bookworm) bookworm; urgency=medium
+
+  * added dependency of cockpit-alerts
+
+ -- Rachit Hans <rhans@45drives.com>  Tue, 17 Feb 2026 10:10:55 -0400
+
 cockpit-zfs (1.2.12-2bookworm) bookworm; urgency=medium
 
   * Updates bulk snapshot deletion to show progress
