@@ -1,8 +1,8 @@
 <template>
-    <Modal @clickOutside="closeModal()" :show="showAddVDevModal" class=" !w-3/5 !mt-28 rounded-lg">
+    <Modal @clickOutside="closeModal()" :show="showAddVDevModal" class="!w-[56rem] max-w-[95vw] !mt-28 rounded-lg">
         <!-- <OldModal @close="closeModal" :isOpen="showAddVDevModal" :marginTop="props.marginTop" :width="'w-3/5'"
         :minWidth="'min-w-3/5'" :closeOnBackgroundClick="false"> -->
-        <CardContainer class="!w-3/5 !mt-28 mx-auto rounded-lg">
+        <CardContainer class="!w-[56rem] max-w-[95vw] !mt-28 mx-auto rounded-lg">
             <template v-slot:header>
                 Add Virtual Device
             </template>

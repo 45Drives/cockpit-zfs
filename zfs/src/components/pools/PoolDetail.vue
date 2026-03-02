@@ -1,5 +1,5 @@
 <template>
-	<OldModal @close="closeModal" :close-on-background-click="false" :isOpen="showPoolDetails" :marginTop="'mt-28'"
+	<OldModal @close="closeModal" :close-on-background-click="false" :isOpen="showPoolDetails && !showSnapshotModal" :marginTop="'mt-28'"
 		:width="'w-7/12'" :minWidth="'min-w-7/12'" :initialFocus="null">
 		<template v-slot:title>
 			<Navigation :navigationItems="navigation" :currentNavigationItem="currentNavigationItem"

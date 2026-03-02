@@ -69,7 +69,12 @@
 									leave-from-class="transform opacity-100 scale-100"
 									leave-to-class="transform opacity-0 scale-95">
 									<MenuItems @click.stop
-										class="absolute right-0 z-10 mt-2 w-max origin-top-left rounded-md bg-accent shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+										:class="[
+											'absolute right-0 z-10 w-max rounded-md bg-accent shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none',
+											shouldOpenMenuUp(snapshotIdx, snapshots.length)
+												? 'bottom-full mb-2 origin-bottom-right'
+												: 'mt-2 origin-top-right'
+										]">
 										<div class="py-1">
 											<!-- <MenuItem as="div" v-slot="{ active }" >
 												<a href="#" @click="cloneThisSnapshot(snapshot)" :class="[active ? 'bg-default text-default' : 'text-muted', 'block px-4 py-2 text-sm']">Clone Snapshot</a>
@@ -209,7 +214,12 @@
 									leave-from-class="transform opacity-100 scale-100"
 									leave-to-class="transform opacity-0 scale-95">
 									<MenuItems
-										class="absolute right-0 z-10 mt-2 w-max origin-top-left rounded-md bg-accent shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+										:class="[
+											'absolute right-0 z-10 w-max rounded-md bg-accent shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none',
+											shouldOpenMenuUp(snapshotIdx, snapshotsInFilesystem.length)
+												? 'bottom-full mb-2 origin-bottom-right'
+												: 'mt-2 origin-top-right'
+										]">
 										<div class="py-1">
 											<MenuItem as="div" v-slot="{ active }">
 											<a href="#" @click="cloneThisSnapshot(snapshot)"
@@ -330,6 +340,11 @@ const snapshotNotFound = ref(false);
 const bulkDestroyCurrent = ref<string | null>(null);
 const bulkDestroyProcessed = ref(0);
 const bulkDestroyTotal = ref(0);
+
+function shouldOpenMenuUp(index: number, total: number) {
+	// Open upward for the final rows so the menu is not clipped by the table scroll area.
+	return total > 0 && index >= total - 3;
+}
 
 
 onMounted(async () => {
