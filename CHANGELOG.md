@@ -1,3 +1,3 @@
-## zfs module 1.2.12-2
+## zfs module 1.2.14-2
 
-* Updates bulk snapshot deletion to show progress
+* fixed the build.yml file

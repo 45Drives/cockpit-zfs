@@ -1,3 +1,28 @@
+cockpit-zfs (1.2.14-2focal) focal; urgency=medium
+
+  * fixed the build.yml file
+
+ -- Rachit Hans <rhans@45drives.com>  Tue, 03 Mar 2026 06:57:55 -0400
+
+cockpit-zfs (1.2.14-1focal) focal; urgency=medium
+
+  * fixed modal bugs
+
+ -- Rachit Hans <rhans@45drives.com>  Tue, 03 Mar 2026 06:14:58 -0400
+
+cockpit-zfs (1.2.13-2focal) focal; urgency=medium
+
+  * Adds missing debian tag in arch dict
+
+ -- Jordan Keough <jkeough@45drives.com>  Wed, 07 Jan 2026 04:20:18 -0400
+
+cockpit-zfs (1.2.13-1focal) focal; urgency=medium
+
+  * Updates refreshing logic + error handling to avoid potential UI flickering when
+    unhandled errors occur
+
+ -- Jordan Keough <jkeough@45drives.com>  Tue, 06 Jan 2026 11:46:30 -0400
+
 cockpit-zfs (1.2.12-2focal) focal; urgency=medium
 
   * Updates bulk snapshot deletion to show progress
