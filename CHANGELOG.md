@@ -1,3 +1,3 @@
-## zfs module 1.2.14-1
+## zfs module 1.2.14-2
 
-* fixed modal bugs
+* fixed the build.yml file

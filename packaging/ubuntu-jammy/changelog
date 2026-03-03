@@ -1,3 +1,9 @@
+cockpit-zfs (1.2.14-2jammy) jammy; urgency=medium
+
+  * fixed the build.yml file
+
+ -- Rachit Hans <rhans@45drives.com>  Tue, 03 Mar 2026 06:57:55 -0400
+
 cockpit-zfs (1.2.14-1jammy) jammy; urgency=medium
 
   * fixed modal bugs
