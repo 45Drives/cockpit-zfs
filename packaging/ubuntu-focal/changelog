@@ -1,3 +1,9 @@
+cockpit-zfs (1.2.14-1focal) focal; urgency=medium
+
+  * fixed modal bugs
+
+ -- Rachit Hans <rhans@45drives.com>  Tue, 03 Mar 2026 06:14:58 -0400
+
 cockpit-zfs (1.2.13-2focal) focal; urgency=medium
 
   * Adds missing debian tag in arch dict

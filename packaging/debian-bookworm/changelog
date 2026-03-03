@@ -1,3 +1,9 @@
+cockpit-zfs (1.2.14-1bookworm) bookworm; urgency=medium
+
+  * fixed modal bugs
+
+ -- Rachit Hans <rhans@45drives.com>  Tue, 03 Mar 2026 06:14:58 -0400
+
 cockpit-zfs (1.2.13-2bookworm) bookworm; urgency=medium
 
   * Adds missing debian tag in arch dict
