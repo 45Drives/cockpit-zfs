@@ -1,3 +1,3 @@
-## zfs module 1.2.14-1
+## zfs module 1.2.14-2
 
-* Fixes some disk data retrieval bugs
+* forgot to add github permission write to build-pkg.yml
