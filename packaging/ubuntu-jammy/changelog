@@ -1,3 +1,9 @@
+cockpit-zfs (1.2.14-1jammy) jammy; urgency=medium
+
+  * Fixes some disk data retrieval bugs
+
+ -- Jordan Keough <jkeough@45drives.com>  Mon, 09 Mar 2026 05:58:20 -0300
+
 cockpit-zfs (1.2.13-2jammy) jammy; urgency=medium
 
   * Adds missing debian tag in arch dict

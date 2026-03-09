@@ -1,3 +1,3 @@
-## zfs module 1.2.13-2
+## zfs module 1.2.14-1
 
-* Adds missing debian tag in arch dict
+* Fixes some disk data retrieval bugs

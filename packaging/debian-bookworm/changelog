@@ -1,3 +1,9 @@
+cockpit-zfs (1.2.14-1bookworm) bookworm; urgency=medium
+
+  * Fixes some disk data retrieval bugs
+
+ -- Jordan Keough <jkeough@45drives.com>  Mon, 09 Mar 2026 05:58:20 -0300
+
 cockpit-zfs (1.2.13-2bookworm) bookworm; urgency=medium
 
   * Adds missing debian tag in arch dict
