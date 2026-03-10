@@ -6,7 +6,7 @@ License: {{ license }}
 URL: {{ git_url }}
 Source0: %{name}-%{version}.tar.gz
 BuildArch: {{ architecture.rocky }}
-Requires: {{ dependencies.rocky_common | join(', ') }}, cockpit-alerts
+Requires: {{ dependencies.rocky_common | join(', ') }}
 
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root
 
@@ -43,13 +43,6 @@ make DESTDIR=%{buildroot} install
 systemctl daemon-reexec
 systemctl daemon-reload
 
-# Enable and start houston-dbus.service if it exists
-if systemctl cat houston-dbus.service &>/dev/null; then
-    systemctl enable --now houston-dbus.service || true
-        systemctl restart --now houston-dbus.service || true
-
-fi
-
 # Start the storage alert timer if it exists
 if systemctl cat houston-zfs-storage-alert.timer &>/dev/null; then
     systemctl start houston-zfs-storage-alert.timer || true
@@ -67,6 +60,8 @@ fi
 
 
 %changelog
+* Tue Mar 10 2026 Jordan Keough <jkeough@45drives.com> 1.2.15-1
+- cockpit alerts added as deb
 * Tue Mar 10 2026 Jordan Keough <jkeough@45drives.com> 1.2.13-3
 - test
 * Tue Mar 10 2026 Jordan Keough <jkeough@45drives.com> 1.2.13-2

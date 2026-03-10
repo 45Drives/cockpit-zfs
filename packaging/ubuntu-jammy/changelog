@@ -1,3 +1,9 @@
+cockpit-zfs (1.2.15-1jammy) jammy; urgency=medium
+
+  * cockpit alerts added as deb
+
+ -- Jordan Keough <jkeough@45drives.com>  Tue, 10 Mar 2026 08:51:57 -0300
+
 cockpit-zfs (1.2.13-3jammy) jammy; urgency=medium
 
   * test

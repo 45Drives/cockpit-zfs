@@ -3,8 +3,8 @@
     "name": "cockpit-zfs",
     "title": "zfs module",
     "stable": false,
-    "version": "1.2.13",
-    "build_number": "3",
+    "version": "1.2.15",
+    "build_number": "1",
     "author": "Jordan Keough <jkeough@45drives.com>",
     "git_url": "https://github.com/45Drives/cockpit-zfs-45d",
     "license": "GPL-3.0+",
@@ -26,7 +26,8 @@
             "sqlite3",
             "jq",
             "msmtp",
-            "python3-dateutil"
+            "python3-dateutil",
+            "cockpit-alerts"
         ],
         "rocky_common": [
             "cockpit",
@@ -36,7 +37,8 @@
             "sqlite",
             "python3-dateutil",
             "jq",
-            "msmtp"
+            "msmtp",
+            "cockpit-alerts"
         ],
         "debian": [
             "cockpit",
@@ -46,7 +48,8 @@
             "sqlite3",
             "jq",
             "msmtp",
-            "python3-dateutil"
+            "python3-dateutil",
+            "cockpit-alerts"
         ]
     },
     "builds": [
@@ -82,8 +85,8 @@
     ],
     "changelog": {
         "urgency": "medium",
-        "version": "1.2.13",
-        "build_number": "3",
+        "version": "1.2.15",
+        "build_number": "1",
         "date": null,
         "packager": "Jordan Keough <jkeough@45drives.com>",
         "changes": []
