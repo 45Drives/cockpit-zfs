@@ -1,3 +1,3 @@
-## zfs module 1.2.13-1
+## zfs module 1.2.13-2
 
-* added dependency of cockpit-alerts
+* test
