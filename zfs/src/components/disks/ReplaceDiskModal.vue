@@ -222,7 +222,7 @@ function setDiskNamePath() {
             diskNewPath.value = newDisk.value!.vdev_path;
             diskNewName.value = selectedDisk.value;
             diskExistPath.value = oldDisk.value!.path;
-            diskExistName.value = oldDisk.value!.name;
+            diskExistName.value = oldDisk.value!.path;
             // console.log('diskNewPath:', diskNewPath.value, 'diskNewName:', diskNewName.value);
             // console.log('diskExistPath:', diskExistPath.value, 'diskExistName:', diskExistName.value);
             break;
@@ -230,7 +230,7 @@ function setDiskNamePath() {
             diskNewPath.value = newDisk.value!.phy_path;
              diskNewName.value = diskNewPath.value.replace(phyPathPrefix, '');
             diskExistPath.value = oldDisk.value!.path;
-             diskExistName.value = diskExistPath.value.replace(phyPathPrefix, '');
+             diskExistName.value = oldDisk.value!.path;
             // console.log('diskNewPath:', diskNewPath.value, 'diskNewName:', diskNewName.value);
             // console.log('diskExistPath:', diskExistPath.value, 'diskExistName:', diskExistName.value);
             break;
@@ -238,7 +238,7 @@ function setDiskNamePath() {
             diskNewPath.value = newDisk.value!.sd_path;
              diskNewName.value = diskNewPath.value.replace(sdPathPrefix, '');
             diskExistPath.value = oldDisk.value!.path;
-             diskExistName.value = diskExistPath.value.replace(sdPathPrefix, '');
+             diskExistName.value = oldDisk.value!.path;
             // console.log('diskNewPath:', diskNewPath.value, 'diskNewName:', diskNewName.value);
             // console.log('diskExistPath:', diskExistPath.value, 'diskExistName:', diskExistName.value);
             break;

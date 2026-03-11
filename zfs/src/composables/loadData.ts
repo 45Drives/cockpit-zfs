@@ -593,9 +593,13 @@ export function parseVDevData(vDev, poolName, disks, vDevType) {
 			diskName.value = diskVDev.value.name || vDevData.path!.replace(uuidPrefix, '');
 		}
 
+		// Use the pool's leaf path for operations (offline/replace/etc.) — this is the
+		// identifier ZFS recognizes, which may differ from the display name.
+		const poolLeafPath = vDev.path || vDevData.path;
+
 		const notAChildDisk: VDevDisk = {
 			name: diskName!.value,
-			path: diskPath.value,
+			path: poolLeafPath,
 			guid: vDev.guid,
 			type: diskVDev.value!.type,
 			health: diskVDev.value!.status,

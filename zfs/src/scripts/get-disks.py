@@ -77,6 +77,9 @@ def _dev_base(p: str) -> str:
       /dev/sda2         -> /dev/sda
       /dev/nvme0n1p3    -> /dev/nvme0n1
       /dev/mmcblk0p1    -> /dev/mmcblk0
+      /dev/disk/by-vdev/1-2-part2 -> /dev/disk/by-vdev/1-2
+      /dev/disk/by-path/...-part1 -> /dev/disk/by-path/...
+      /dev/disk/by-id/...-part1   -> /dev/disk/by-id/...
     Never strip the trailing '1' from nvme0n1!
     """
     s = str(p)
@@ -86,6 +89,8 @@ def _dev_base(p: str) -> str:
     s = re.sub(r'^(.*?/mmcblk\d+)p\d+$', r'\1', s)
     # SCSI/SATA (sdX<partition#>)
     s = re.sub(r'^(.*?/sd[a-z]+)\d+$', r'\1', s)
+    # Symlink paths with -partN suffix (by-vdev, by-path, by-id, etc.)
+    s = re.sub(r'-part\d+$', '', s)
     return s
 
 
@@ -182,7 +187,8 @@ def _resolve_to_base_disks(src: str) -> Set[str]:
 
 
 def _zpool_leaf_bases(pool: str) -> Set[str]:
-    """Return base devices that back a ZFS pool, via `zpool status -P` (best-effort for non-root)."""
+    """Return base devices that back a ZFS pool, via `zpool status -P` (best-effort for non-root).
+    Resolves symlinks (by-vdev, by-path, by-id) to real /dev/sdX paths."""
     out = set()
     try:
         zr = subprocess.run(["zpool", "status", "-P", pool],
@@ -195,11 +201,19 @@ def _zpool_leaf_bases(pool: str) -> Set[str]:
             if not ln or ln.startswith(("pool:", "state:", "errors:", "config:", "action:", "see:")):
                 continue
             tok = ln.split()[0]
+            dev = None
             # Accept absolute /dev paths, or bare sdX/sdXn/nvmeXnYpZ
             if tok.startswith("/dev/"):
-                out.add(_dev_base(tok))
+                dev = tok
             elif re.match(r"^(sd[a-z]+(\d+)?|nvme\d+n\d+(p\d+)?)$", tok):
-                out.add(_dev_base("/dev/" + tok))
+                dev = "/dev/" + tok
+            if dev:
+                # Resolve symlinks (by-vdev/by-path/by-id) to real /dev/sdX
+                try:
+                    resolved = os.path.realpath(dev)
+                    out.add(_dev_base(resolved))
+                except Exception:
+                    out.add(_dev_base(dev))
     except Exception:
         pass
     return out
@@ -505,8 +519,6 @@ def _parse_lsdev_text_table(text: str):
 
 def get_lsdev_disks():
     try:
-        boot_bases = _get_boot_bases()
-
         if hasattr(os, "geteuid") and os.geteuid() == 0:
             r = subprocess.run(["lsdev", "-jdHmtTsfcp"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
             if r.returncode != 0:
@@ -521,9 +533,6 @@ def get_lsdev_disks():
                         continue
                     dev = d.get("dev")
                     if not dev:
-                        continue
-                    if _dev_base(dev) in boot_bases:
-                        logger.info(f"Skipping boot-ancestor drive (lsdev JSON): {dev}")
                         continue
                     bay_id = d.get("bay-id", "")
                     base_name = os.path.basename(dev)
@@ -560,12 +569,6 @@ def get_lsdev_disks():
             return None
 
         disks = _parse_lsdev_text_table(r.stdout)
-
-        if boot_bases:
-            before = len(disks)
-            disks = [d for d in disks if _dev_base(d.get("sd_path","")) not in boot_bases]
-            if len(disks) != before:
-                logger.info(f"Skipped {before - len(disks)} boot-ancestor drive(s) (lsdev text)")
 
         # Enrich non-root details
         disks = _enrich_with_lsblk_and_udev(disks)
@@ -619,7 +622,6 @@ def _map_by_vdev():
 
 def get_lsblk_disks(nvme_only=False):
     try:
-        boot_bases = _get_boot_bases()
         byv_map = _map_by_vdev()
 
         r = subprocess.run(
@@ -643,9 +645,6 @@ def get_lsblk_disks(nvme_only=False):
                 continue
 
             base = _dev_base(name)
-            if base in boot_bases:
-                logger.info(f"Skipping boot-ancestor drive (lsblk): {name}")
-                continue
 
             vdev_path = byv_map.get(base)  # None if no alias
             slot_name = os.path.basename(vdev_path) if vdev_path else None

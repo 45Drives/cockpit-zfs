@@ -301,7 +301,7 @@ watch(confirmDetach, async (newValue, oldValue) => {
 		console.log("now detaching:", selectedDisk.value!.name, "from:", selectedPool.value!.name);
 
 		try {
-			const output: any = await detachDisk(selectedPool.value!.name, selectedDisk.value!.name!);
+			const output: any = await detachDisk(selectedPool.value!.name, selectedDisk.value!.path);
 
 			if (output == null || output.error) {
 				const errorMessage = output?.error || 'Unknown error';
@@ -364,7 +364,7 @@ watch(confirmOffline, async (newVal, oldVal) => {
 		console.log('now offlining:', selectedDisk.value);
 
 		try {
-			const output: any = await offlineDisk(selectedPool.value!.name, selectedDisk.value!.name!, firstOptionToggle.value, secondOptionToggle.value);
+			const output: any = await offlineDisk(selectedPool.value!.name, selectedDisk.value!.path, firstOptionToggle.value, secondOptionToggle.value);
 			
 			if (output == null || output.error) {
 				const errorMessage = output?.error || 'Unknown error';
@@ -423,7 +423,7 @@ watch(confirmOnline, async (newVal, oldVal) => {
 		console.log('now onlining:', selectedDisk.value);
 
 		try {
-			const output: any = await onlineDisk(selectedPool.value!.name, selectedDisk.value!.name!, firstOptionToggle.value);
+			const output: any = await onlineDisk(selectedPool.value!.name, selectedDisk.value!.path, firstOptionToggle.value);
 
 			if (output == null || output.error) {
 				const errorMessage = output?.error || 'Unknown error';
@@ -519,7 +519,7 @@ watch(confirmTrimDisk, async (newValue, oldValue) => {
 		operationRunning.value = true;
 		console.log('now trimming:', selectedPool.value);
 		try {
-			const output: any = await trimDisk(selectedPool.value!.name,  selectedDisk.value!.name!, (firstOptionToggle.value ? firstOptionToggle.value : false));
+			const output: any = await trimDisk(selectedPool.value!.name,  selectedDisk.value!.path, (firstOptionToggle.value ? firstOptionToggle.value : false));
 			if (output == null || output.error) {
 				const errorMessage = output?.error || 'Unknown error';
 				confirmTrimDisk.value = false
@@ -552,7 +552,7 @@ async function resumeTrim(pool, disk) {
 	selectedDisk.value = disk;
 	resumingDiskTrim.value = true;
 	try {
-		const output: any = await trimDisk(selectedPool.value!.name, selectedDisk.value!.name!);
+		const output: any = await trimDisk(selectedPool.value!.name, selectedDisk.value!.path);
 
 		if (output == null || output.error) {
 				const errorMessage = output?.error || 'Unknown error';
@@ -596,7 +596,7 @@ watch(confirmPauseTrim, async (newVal, oldVal) => {
 		console.log('now pausing trim:', selectedPool.value);
 		pausingDiskTrim.value = true;
 		try {
-			const output: any = await trimDisk(selectedPool.value!.name, selectedDisk.value!.name!, false, 'pause');
+			const output: any = await trimDisk(selectedPool.value!.name, selectedDisk.value!.path, false, 'pause');
 			if (output == null || output.error) {
 				const errorMessage = output?.error || 'Unknown error';
 				confirmPauseTrim.value = false;
@@ -636,7 +636,7 @@ watch(confirmStopTrim, async (newVal, oldVal) => {
 		console.log('now stopping trim:', selectedPool.value);
 		stoppingDiskTrim.value = true;
 		try {
-			const output: any = await trimDisk(selectedPool.value!.name, selectedDisk.value!.name!, false, 'stop');
+			const output: any = await trimDisk(selectedPool.value!.name, selectedDisk.value!.path, false, 'stop');
 			if (output == null || output.error) {
 				const errorMessage = output?.error || 'Unknown error';
 				confirmStopTrim.value = false;
