@@ -1,3 +1,3 @@
-## zfs module 1.2.14-3
+## zfs module 1.2.15-1
 
-* forgot to add github permission write to build-pkg.yml
+* cockpit alerts added as deb

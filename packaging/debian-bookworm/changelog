@@ -1,3 +1,9 @@
+cockpit-zfs (1.2.15-1bookworm) bookworm; urgency=medium
+
+  * cockpit alerts added as deb
+
+ -- Jordan Keough <jkeough@45drives.com>  Tue, 10 Mar 2026 08:51:57 -0300
+
 cockpit-zfs (1.2.14-3bookworm) bookworm; urgency=medium
 
   * forgot to add github permission write to build-pkg.yml

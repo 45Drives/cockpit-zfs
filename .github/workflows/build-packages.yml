@@ -2,7 +2,7 @@ name: Build Packages
 on:
   push:
     branches: 
-      - build
+      - dependsnNAlerts
     tags:
       - 'v*.*.*'
 jobs:
@@ -74,6 +74,8 @@ jobs:
       - build
       - sign
       - update_repositories
+    permissions:
+      contents: write
     runs-on: buildinator-5
     permissions:
       contents: write
