@@ -77,6 +77,9 @@ def _dev_base(p: str) -> str:
       /dev/sda2         -> /dev/sda
       /dev/nvme0n1p3    -> /dev/nvme0n1
       /dev/mmcblk0p1    -> /dev/mmcblk0
+      /dev/disk/by-vdev/1-2-part2 -> /dev/disk/by-vdev/1-2
+      /dev/disk/by-path/...-part1 -> /dev/disk/by-path/...
+      /dev/disk/by-id/...-part1   -> /dev/disk/by-id/...
     Never strip the trailing '1' from nvme0n1!
     """
     s = str(p)
@@ -86,6 +89,8 @@ def _dev_base(p: str) -> str:
     s = re.sub(r'^(.*?/mmcblk\d+)p\d+$', r'\1', s)
     # SCSI/SATA (sdX<partition#>)
     s = re.sub(r'^(.*?/sd[a-z]+)\d+$', r'\1', s)
+    # Symlink paths with -partN suffix (by-vdev, by-path, by-id, etc.)
+    s = re.sub(r'-part\d+$', '', s)
     return s
 
 
@@ -182,7 +187,8 @@ def _resolve_to_base_disks(src: str) -> Set[str]:
 
 
 def _zpool_leaf_bases(pool: str) -> Set[str]:
-    """Return base devices that back a ZFS pool, via `zpool status -P` (best-effort for non-root)."""
+    """Return base devices that back a ZFS pool, via `zpool status -P` (best-effort for non-root).
+    Resolves symlinks (by-vdev, by-path, by-id) to real /dev/sdX paths."""
     out = set()
     try:
         zr = subprocess.run(["zpool", "status", "-P", pool],
@@ -195,11 +201,19 @@ def _zpool_leaf_bases(pool: str) -> Set[str]:
             if not ln or ln.startswith(("pool:", "state:", "errors:", "config:", "action:", "see:")):
                 continue
             tok = ln.split()[0]
+            dev = None
             # Accept absolute /dev paths, or bare sdX/sdXn/nvmeXnYpZ
             if tok.startswith("/dev/"):
-                out.add(_dev_base(tok))
+                dev = tok
             elif re.match(r"^(sd[a-z]+(\d+)?|nvme\d+n\d+(p\d+)?)$", tok):
-                out.add(_dev_base("/dev/" + tok))
+                dev = "/dev/" + tok
+            if dev:
+                # Resolve symlinks (by-vdev/by-path/by-id) to real /dev/sdX
+                try:
+                    resolved = os.path.realpath(dev)
+                    out.add(_dev_base(resolved))
+                except Exception:
+                    out.add(_dev_base(dev))
     except Exception:
         pass
     return out
@@ -376,6 +390,51 @@ def _enrich_with_lsblk_and_udev(disks):
 
     return disks
 
+
+def _udev_alias_paths(base: str) -> dict:
+    """Extract alias device symlinks (by-id, by-label, etc.) from udevadm DEVLINKS for a base device."""
+    out = {}
+    try:
+        r = subprocess.run(
+            ["udevadm", "info", "--query=property", f"--name={base}"],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True
+        )
+        if r.returncode != 0:
+            return out
+        devlinks_str = ""
+        for line in r.stdout.splitlines():
+            if line.startswith("DEVLINKS="):
+                devlinks_str = line.split("=", 1)[1].strip()
+                break
+        for p in devlinks_str.split():
+            if p.startswith("/dev/disk/by-id/") and "id_path" not in out:
+                out["id_path"] = p
+            elif p.startswith("/dev/disk/by-label/") and "label_path" not in out:
+                out["label_path"] = p
+            elif p.startswith("/dev/disk/by-partlabel/") and "part_label_path" not in out:
+                out["part_label_path"] = p
+            elif p.startswith("/dev/disk/by-partuuid/") and "part_uuid" not in out:
+                out["part_uuid"] = p
+            elif p.startswith("/dev/disk/by-uuid/") and "uuid" not in out:
+                out["uuid"] = p
+    except Exception:
+        pass
+    return out
+
+
+def _enrich_alias_paths(disks):
+    """Add id_path, label_path, part_label_path, part_uuid, uuid to each disk record via udevadm."""
+    for d in disks:
+        base = _dev_base(d.get("sd_path", ""))
+        if not base:
+            continue
+        aliases = _udev_alias_paths(base)
+        for k, v in aliases.items():
+            if k not in d or not d[k]:
+                d[k] = v
+    return disks
+
+
 # ------------------------- lsdev paths -------------------------
 ANSI_RE = re.compile(r'\x1B\[[0-?]*[ -/]*[@-~]')
 
@@ -460,8 +519,6 @@ def _parse_lsdev_text_table(text: str):
 
 def get_lsdev_disks():
     try:
-        boot_bases = _get_boot_bases()
-
         if hasattr(os, "geteuid") and os.geteuid() == 0:
             r = subprocess.run(["lsdev", "-jdHmtTsfcp"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
             if r.returncode != 0:
@@ -477,10 +534,31 @@ def get_lsdev_disks():
                     dev = d.get("dev")
                     if not dev:
                         continue
-                    if _dev_base(dev) in boot_bases:
-                        logger.info(f"Skipping boot-ancestor drive (lsdev JSON): {dev}")
-                        continue
-                    ...
+                    bay_id = d.get("bay-id", "")
+                    base_name = os.path.basename(dev)
+                    dtype = (d.get("disk_type") or "HDD").strip()
+                    temp_raw = d.get("temp-c")
+                    temp_str = str(temp_raw) if temp_raw is not None else "Unknown"
+
+                    disk_data = {
+                        "vdev_path": f"/dev/disk/by-vdev/{bay_id}" if bay_id else "N/A",
+                        "phy_path": d.get("dev-by-path") or "unknown",
+                        "sd_path": dev,
+                        "name": bay_id or base_name,
+                        "model": d.get("model-name") or "Unknown",
+                        "serial": d.get("serial") or "Unknown",
+                        "capacity": d.get("capacity", "0"),
+                        "type": dtype,
+                        "usable": True,
+                        "temp": temp_str,
+                        "health": d.get("health") or "Unknown",
+                        "rotation_rate": d.get("rotation-rate") or (0 if dtype.upper() in ("SSD", "NVME") else 7200),
+                        "power_on_count": d.get("power-cycle-count"),
+                        "power_on_time": d.get("power-on-time"),
+                        "has_partitions": bool(d.get("partitions", 0)),
+                    }
+                    logger.debug(f"Discovered disk (lsdev-JSON): {disk_data['name']} {dev}")
+                    disks.append(disk_data)
             logger.info(f"Disks discovered via lsdev (JSON): {len(disks)}")
             return disks
 
@@ -491,12 +569,6 @@ def get_lsdev_disks():
             return None
 
         disks = _parse_lsdev_text_table(r.stdout)
-
-        if boot_bases:
-            before = len(disks)
-            disks = [d for d in disks if _dev_base(d.get("sd_path","")) not in boot_bases]
-            if len(disks) != before:
-                logger.info(f"Skipped {before - len(disks)} boot-ancestor drive(s) (lsdev text)")
 
         # Enrich non-root details
         disks = _enrich_with_lsblk_and_udev(disks)
@@ -550,7 +622,6 @@ def _map_by_vdev():
 
 def get_lsblk_disks(nvme_only=False):
     try:
-        boot_bases = _get_boot_bases()
         byv_map = _map_by_vdev()
 
         r = subprocess.run(
@@ -574,9 +645,6 @@ def get_lsblk_disks(nvme_only=False):
                 continue
 
             base = _dev_base(name)
-            if base in boot_bases:
-                logger.info(f"Skipping boot-ancestor drive (lsblk): {name}")
-                continue
 
             vdev_path = byv_map.get(base)  # None if no alias
             slot_name = os.path.basename(vdev_path) if vdev_path else None
@@ -654,6 +722,31 @@ def merge_overlay(base: dict, overlay: dict) -> dict:
                 out[k] = v
     return out
 
+def _all_pool_leaf_bases() -> Set[str]:
+    """Return base devices for all currently imported ZFS pools (so we never exclude them as boot disks)."""
+    out: Set[str] = set()
+    try:
+        r = subprocess.run(["zpool", "list", "-H", "-o", "name"],
+                          stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+        if r.returncode != 0:
+            return out
+        for pool_name in r.stdout.strip().splitlines():
+            pool_name = pool_name.strip()
+            if pool_name:
+                out |= _zpool_leaf_bases(pool_name)
+    except Exception:
+        pass
+    return out
+
+
+def _slot_key(d):
+    """Sort key: bay-id slots (X-Y) first in numeric order, then non-slot names alphabetically."""
+    m = re.match(r"^(\d+)-(\d+)$", d.get("name", ""))
+    if m:
+        return (0, int(m.group(1)), int(m.group(2)))
+    return (1, d.get("name", ""))
+
+
 # ------------------------- main -------------------------
 def main():
     try:
@@ -676,14 +769,25 @@ def main():
 
         all_disks = list(disks_by_base.values())
 
-        # FINAL SAFETY FILTER: remove any boot-ancestor devices
+        # Enrich all disks with alias paths (by-id, by-label, etc.)
+        all_disks = _enrich_alias_paths(all_disks)
+
+        # Gather active ZFS pool leaf bases so we never exclude them as boot disks
+        pool_leaf_bases = _all_pool_leaf_bases()
+        logger.info(f"Active ZFS pool leaf bases: {sorted(pool_leaf_bases)}")
+
+        # FINAL SAFETY FILTER: remove boot-ancestor devices, but NEVER remove active pool members
         boot_bases_final = _get_boot_bases()
         before = len(all_disks)
-        # all_disks = [d for d in all_disks if _dev_base(d.get("sd_path","")) not in boot_bases_final]
-        all_disks = [d for d in all_disks if _dev_base(d.get("sd_path","")) not in boot_bases_final]
+        all_disks = [d for d in all_disks
+                     if _dev_base(d.get("sd_path", "")) not in boot_bases_final
+                     or _dev_base(d.get("sd_path", "")) in pool_leaf_bases]
 
         if len(all_disks) != before:
             logger.info(f"Final filter removed {before - len(all_disks)} boot-ancestor disk(s)")
+
+        # Sort by bay slot ID for consistent UI ordering
+        all_disks.sort(key=_slot_key)
 
         logger.info(f"Total disks discovered: {len(all_disks)}")
         print(json.dumps(all_disks, indent=4))

@@ -105,6 +105,11 @@ export async function loadDisksThenPools(disks, pools) {
 				stats: {},
 				errors: errors,
 				hasPartitions: parsedJSON[i].has_partitions || false,
+				id_path: parsedJSON[i].id_path || '',
+				label_path: parsedJSON[i].label_path || '',
+				part_label_path: parsedJSON[i].part_label_path || '',
+				part_uuid: parsedJSON[i].part_uuid || '',
+				uuid: parsedJSON[i].uuid || '',
 			};
 
 
@@ -402,6 +407,11 @@ export async function loadDisks(disks) {
 				stats: {},
 				errors: errors,
 				hasPartitions: parsedJSON[i].has_partitions || false,
+				id_path: parsedJSON[i].id_path || '',
+				label_path: parsedJSON[i].label_path || '',
+				part_label_path: parsedJSON[i].part_label_path || '',
+				part_uuid: parsedJSON[i].part_uuid || '',
+				uuid: parsedJSON[i].uuid || '',
 			};
 
 			disks.value.push(disk);
@@ -419,9 +429,9 @@ export async function loadDisks(disks) {
 function cleanDiskPath(path) {
 	if (!path) return '';
 
-	// Remove partition numbers from standard disks (e.g., /dev/sda1 → /dev/sda)
-	if (/\/dev\/sd[a-z][0-9]+$/.test(path)) {
-		return path.replace(/[0-9]+$/, '');
+	// Remove partition numbers from standard disks (e.g., /dev/sda1 → /dev/sda, /dev/sdab1 → /dev/sdab)
+	if (/\/dev\/sd[a-z]+\d+$/.test(path)) {
+		return path.replace(/\d+$/, '');
 	}
 
 	// Remove 'pN' from NVMe paths (e.g., /dev/nvme0n1p2 → /dev/nvme0n1)
@@ -522,11 +532,11 @@ export function parseVDevData(vDev, poolName, disks, vDevType) {
 	const sdPathRegex = `\/dev\/sd[a-z0-9]+[0-9]*$`;
 	const nvmePathRegex = `\/dev\/nvme[0-9]+n[0-9]+(?:p[0-9]+)?$`; // Added regex for NVMe paths
 	const vDevPathRegex = `\/dev\/disk\/by-vdev\/[0-9a-zA-Z\-]+(?:-part[0-9]+)?$`;
-	const idPathRegex = `\/dev\/disk\/by-id\/[0-9a-zA-Z:\-]+(?:-part[0-9]+)?$`;
-	const labelPathRegex = `\/dev\/disk\/by-label\/[0-9a-zA-Z\-]+(?:-part[0-9]+)?$`;
-	const partLabelPathRegex = `\/dev\/disk\/by-partlabel\/[0-9a-zA-Z\-]+(?:-part[0-9]+)?$`;
-	const partUUIDRegex = `\/dev\/disk\/by-partuuid\/[0-9a-zA-Z\-]+$`;
-	const uuidRegex = `\/dev\/disk\/by-uuid\/[0-9a-zA-Z\-]+$`;
+	const idPathRegex = `\/dev\/disk\/by-id\/[0-9a-zA-Z:._\-]+(?:-part[0-9]+)?$`;
+	const labelPathRegex = `\/dev\/disk\/by-label\/[0-9a-zA-Z._\-]+(?:-part[0-9]+)?$`;
+	const partLabelPathRegex = `\/dev\/disk\/by-partlabel\/[0-9a-zA-Z._\-]+(?:-part[0-9]+)?$`;
+	const partUUIDRegex = `\/dev\/disk\/by-partuuid\/[0-9a-fA-F\-]+$`;
+	const uuidRegex = `\/dev\/disk\/by-uuid\/[0-9a-fA-F\-]+$`;
 
 	// Prefixes for constructing paths
 	const phyPathPrefix = '/dev/disk/by-path/';
@@ -552,40 +562,44 @@ export function parseVDevData(vDev, poolName, disks, vDevType) {
 		}
 
 		if (vDevData.path!.match(phyPathRegex)) {
-			diskPath.value = diskVDev.value.phy_path;
-			diskName.value = diskVDev.value.phy_path.replace(phyPathPrefix, '');
+			diskPath.value = diskVDev.value.phy_path || vDevData.path;
+			diskName.value = (diskVDev.value.phy_path || vDevData.path!).replace(phyPathPrefix, '');
 			// } else if (vDevData.path!.match(nvmePathRegex)) { // Check for NVMe path match
 			// 	diskPath.value = diskVDev.value.sd_path; // NVMe paths will use sd_path
 			// 	diskName.value = diskVDev.value.sd_path.replace(sdPathPrefix, '');
 		} else if (vDevData.path!.match(nvmePathRegex)) { // Check for NVMe path match
-			diskPath.value = diskVDev.value.sd_path || diskVDev.value.phy_path || diskVDev.value.vdev_path;
+			diskPath.value = diskVDev.value.sd_path || diskVDev.value.phy_path || diskVDev.value.vdev_path || vDevData.path;
 			diskName.value = diskVDev.value.sd_path ? diskVDev.value.sd_path.replace(sdPathPrefix, '') : diskVDev.value.name;
 		} else if (vDevData.path!.match(sdPathRegex)) {
-			diskPath.value = diskVDev.value.sd_path;
-			diskName.value = diskVDev.value.sd_path.replace(sdPathPrefix, '');
+			diskPath.value = diskVDev.value.sd_path || vDevData.path;
+			diskName.value = (diskVDev.value.sd_path || vDevData.path!).replace(sdPathPrefix, '');
 		} else if (vDevData.path!.match(vDevPathRegex)) {
 			diskPath.value = diskVDev.value.vdev_path;
 			diskName.value = diskVDev.value.name;
 		} else if (vDevData.path!.match(idPathRegex)) {
-			diskPath.value = diskVDev.value.id_path;
-			diskName.value = diskVDev.value.id_path.replace(idPathPrefix, '');
+			diskPath.value = diskVDev.value.id_path || vDevData.path;
+			diskName.value = (diskVDev.value.id_path || vDevData.path!).replace(idPathPrefix, '');
 		} else if (vDevData.path!.match(labelPathRegex)) {
-			diskPath.value = diskVDev.value.label_path;
-			diskName.value = diskVDev.value.label_path.replace(labelPathPrefix, '');
+			diskPath.value = diskVDev.value.label_path || vDevData.path;
+			diskName.value = (diskVDev.value.label_path || vDevData.path!).replace(labelPathPrefix, '');
 		} else if (vDevData.path!.match(partLabelPathRegex)) {
-			diskPath.value = diskVDev.value.part_label_path;
-			diskName.value = diskVDev.value.part_label_path.replace(partLabelPathPrefix, '');
+			diskPath.value = diskVDev.value.part_label_path || vDevData.path;
+			diskName.value = (diskVDev.value.part_label_path || vDevData.path!).replace(partLabelPathPrefix, '');
 		} else if (vDevData.path!.match(partUUIDRegex)) {
-			diskPath.value = diskVDev.value.part_uuid;
-			diskName.value = diskVDev.value.name;
+			diskPath.value = diskVDev.value.part_uuid || vDevData.path;
+			diskName.value = diskVDev.value.name || vDevData.path!.replace(partUUIDPrefix, '');
 		} else if (vDevData.path!.match(uuidRegex)) {
-			diskPath.value = diskVDev.value.uuid;
-			diskName.value = diskVDev.value.name;
+			diskPath.value = diskVDev.value.uuid || vDevData.path;
+			diskName.value = diskVDev.value.name || vDevData.path!.replace(uuidPrefix, '');
 		}
+
+		// Use the pool's leaf path for operations (offline/replace/etc.) — this is the
+		// identifier ZFS recognizes, which may differ from the display name.
+		const poolLeafPath = vDev.path || vDevData.path;
 
 		const notAChildDisk: VDevDisk = {
 			name: diskName!.value,
-			path: diskPath.value,
+			path: poolLeafPath,
 			guid: vDev.guid,
 			type: diskVDev.value!.type,
 			health: diskVDev.value!.status,
@@ -669,12 +683,18 @@ function handleDiskChild(child, vDevData, disks, vDevName, poolName, vDevType) {
 		const phyBase = cleanDiskPath(disk.phy_path);
 		const vdevBase = cleanDiskPath(disk.vdev_path);
 		const pathBase = cleanDiskPath(disk.path);
+		const idBase = cleanDiskPath(disk.id_path);
+		const labelBase = cleanDiskPath(disk.label_path);
+		const partLabelBase = cleanDiskPath(disk.part_label_path);
 
 		return (
 			sdBase === cleanedChildPath ||
 			phyBase === cleanedChildPath ||
 			vdevBase === cleanedChildPath ||
-			pathBase === cleanedChildPath
+			pathBase === cleanedChildPath ||
+			idBase === cleanedChildPath ||
+			labelBase === cleanedChildPath ||
+			partLabelBase === cleanedChildPath
 		);
 	});
 
@@ -694,7 +714,10 @@ function handleDiskChild(child, vDevData, disks, vDevName, poolName, vDevType) {
 		fullDiskData = disks.value.find(d =>
 			cleanDiskPath(d.vdev_path) === vdevBase ||
 			cleanDiskPath(d.sd_path) === vdevBase ||
-			cleanDiskPath(d.phy_path) === vdevBase
+			cleanDiskPath(d.phy_path) === vdevBase ||
+			cleanDiskPath(d.id_path) === vdevBase ||
+			cleanDiskPath(d.label_path) === vdevBase ||
+			cleanDiskPath(d.part_label_path) === vdevBase
 		);
 
 		if (fullDiskData) {

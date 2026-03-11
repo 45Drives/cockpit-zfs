@@ -1,3 +1,15 @@
+cockpit-zfs (1.2.14-3bookworm) bookworm; urgency=medium
+
+  * forgot to add github permission write to build-pkg.yml
+
+ -- Jordan Keough <jkeough@45drives.com>  Mon, 09 Mar 2026 06:23:59 -0300
+
+cockpit-zfs (1.2.14-1bookworm) bookworm; urgency=medium
+
+  * Fixes some disk data retrieval bugs
+
+ -- Jordan Keough <jkeough@45drives.com>  Mon, 09 Mar 2026 05:58:20 -0300
+
 cockpit-zfs (1.2.14-2bookworm) bookworm; urgency=medium
 
   * fixed the build.yml file
