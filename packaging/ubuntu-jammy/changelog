@@ -1,3 +1,10 @@
+cockpit-zfs (1.2.16-1jammy) jammy; urgency=medium
+
+  * Building new testing package with dependsNAlerts changes as well as NCR405799
+    changes
+
+ -- Jordan Keough <jkeough@45drives.com>  Wed, 11 Mar 2026 09:15:29 -0300
+
 cockpit-zfs (1.2.15-1jammy) jammy; urgency=medium
 
   * cockpit alerts added as deb

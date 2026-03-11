@@ -2,7 +2,7 @@ name: Build Packages
 on:
   push:
     branches: 
-      - dependsnNAlerts
+      - build
     tags:
       - 'v*.*.*'
 jobs:
@@ -77,8 +77,6 @@ jobs:
     permissions:
       contents: write
     runs-on: buildinator-5
-    permissions:
-      contents: write
     steps:
       - name: Set Variables
         if: startsWith(github.ref, 'refs/tags/')

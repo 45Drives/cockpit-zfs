@@ -1,3 +1,3 @@
-## zfs module 1.2.15-1
+## zfs module 1.2.16-1
 
-* cockpit alerts added as deb
+* Building new testing package with dependsNAlerts changes as well as NCR405799 changes
