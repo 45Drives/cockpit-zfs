@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+import warnings
+warnings.filterwarnings("ignore", category=DeprecationWarning, message=".*ABCs.*collections.*")
 import libzfs
 import json
 import sys

@@ -1,3 +1,5 @@
+import warnings
+warnings.filterwarnings("ignore", category=DeprecationWarning, message=".*ABCs.*collections.*")
 import libzfs
 import json
 

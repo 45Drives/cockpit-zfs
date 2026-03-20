@@ -64,6 +64,8 @@ def main():
         logger.info("Starting a new run of get-importable-pools script")
 
         try:
+            import warnings
+            warnings.filterwarnings("ignore", category=DeprecationWarning, message=".*ABCs.*collections.*")
             import libzfs
         except Exception as e:
             logger.error(f"libzfs import failed: {e}")

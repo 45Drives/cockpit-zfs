@@ -98,6 +98,8 @@ def get_disks(group):
 
 def main():
     try:
+        import warnings
+        warnings.filterwarnings("ignore", category=DeprecationWarning, message=".*ABCs.*collections.*")
         import libzfs
     except ImportError:
         print(json.dumps(_disk_stats_from_zpool_status(), indent=4))

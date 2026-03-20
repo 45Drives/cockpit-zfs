@@ -103,6 +103,8 @@ def _parse_scan_block(name, lines):
 
 def main():
     try:
+        import warnings
+        warnings.filterwarnings("ignore", category=DeprecationWarning, message=".*ABCs.*collections.*")
         import libzfs
     except ImportError:
         print(json.dumps(_scan_from_zpool_status(), indent=4))
