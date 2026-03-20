@@ -37,7 +37,10 @@ export const upperCaseWord = (word => {
 
 // Convert raw bytes to readable binary data size
 export const convertBytesToSize = (bytes: number, precision: number = 2): string => {
-	if (bytes === 0) {
+	if (bytes == null || isNaN(Number(bytes)) || Number(bytes) < 0) {
+		return `0 B`;
+	}
+	if (Number(bytes) === 0) {
 		return `0 B`;
 	}
 

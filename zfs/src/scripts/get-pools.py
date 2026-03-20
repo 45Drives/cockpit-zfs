@@ -58,6 +58,98 @@ def get_logger(name: str, file_basename: str, app_name: str = "cockpit-zfs") -> 
 
 logger = get_logger("cockpit_zfs_getpools", "getpools.log")
 
+def _parse_vdevs_from_status(pool_name):
+    """Parse VDev tree from 'zpool status' output for a given pool."""
+    try:
+        res = subprocess.run(
+            ["zpool", "status", pool_name],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True
+        )
+        if res.returncode != 0:
+            logger.error(f"zpool status {pool_name} failed: {res.stderr.strip()}")
+            return {"data": [], "cache": [], "dedup": [], "log": [], "spare": [], "special": []}
+
+        lines = res.stdout.splitlines()
+        groups = {"data": [], "cache": [], "dedup": [], "log": [], "spare": [], "special": []}
+        in_config = False
+        current_section = "data"
+        section_map = {
+            "cache": "cache",
+            "log": "log",
+            "dedup": "dedup",
+            "spare": "spare",
+            "special": "special",
+        }
+        pool_line_seen = False
+        vdev_stack = []  # [(indent, vdev_dict)]
+
+        for line in lines:
+            stripped = line.strip()
+            if stripped.startswith("config:"):
+                in_config = True
+                continue
+            if not in_config:
+                continue
+            if stripped == "" or stripped.startswith("NAME") or stripped.startswith("errors:"):
+                if stripped.startswith("errors:"):
+                    in_config = False
+                continue
+
+            # Detect section headers (cache, log, dedup, spare, special)
+            if stripped in section_map:
+                current_section = section_map[stripped]
+                pool_line_seen = True
+                vdev_stack = []
+                continue
+
+            parts = stripped.split()
+            if not parts:
+                continue
+            name = parts[0]
+            status = parts[1] if len(parts) > 1 else "ONLINE"
+
+            # Skip the pool name line itself
+            if name == pool_name and not pool_line_seen:
+                pool_line_seen = True
+                vdev_stack = []
+                continue
+
+            indent = len(line) - len(line.lstrip())
+
+            # Determine if this is a vdev (mirror/raidz/etc.) or a leaf disk
+            is_vdev_type = any(name.startswith(prefix) for prefix in
+                              ["mirror", "raidz", "draid", "replacing", "spare"])
+
+            vdev_entry = {
+                "name": name,
+                "type": "disk" if not is_vdev_type else name.rsplit("-", 1)[0] if "-" in name else name,
+                "path": f"/dev/{name}" if not is_vdev_type and not name.startswith("/dev/") else name if not is_vdev_type else None,
+                "status": status,
+                "guid": "",
+                "stats": {},
+                "children": [],
+            }
+
+            if is_vdev_type:
+                # This is a top-level vdev (mirror-0, raidz1-0, etc.)
+                groups[current_section].append(vdev_entry)
+                vdev_stack = [(indent, vdev_entry)]
+            else:
+                # This is a leaf disk
+                if vdev_stack:
+                    # Add as child to the most recent vdev
+                    parent_indent, parent_vdev = vdev_stack[-1]
+                    parent_vdev["children"].append(vdev_entry)
+                else:
+                    # No parent vdev — this is a stripe (single disk as vdev)
+                    groups[current_section].append(vdev_entry)
+
+        return groups
+    except Exception as e:
+        logger.error(f"Failed to parse vdevs from zpool status: {e}")
+        return {"data": [], "cache": [], "dedup": [], "log": [], "spare": [], "special": []}
+
+
 def _pools_from_zpool_list_min():
     """Permission-friendly fallback when libzfs /dev/zfs is blocked."""
     try:
@@ -93,6 +185,8 @@ def _pools_from_zpool_list_min():
                     "readonly": {"parsed": False},
                     "failmode": {"parsed": "wait"},
                     "altroot": {"value": "-"},
+                    "ashift": {"rawvalue": "0"},
+                    "comment": {"value": "-"},
                 },
                 "root_dataset": None,
                 "scan": {
@@ -101,7 +195,7 @@ def _pools_from_zpool_list_min():
                     "total_secs_left": 0, "bytes_issued": 0,
                     "bytes_processed": 0, "bytes_to_process": 0,
                 },
-                "groups": {"data": [], "cache": [], "dedup": [], "log": [], "spare": [], "special": []},
+                "groups": _parse_vdevs_from_status(name),
                 "status_code": "OK",
                 "status_detail": "",
                 "error_count": 0,

@@ -165,7 +165,7 @@ export async function loadDisksThenPools(disks, pools) {
 							// multiHost: isBoolOnOff(parsedJSON[i].properties.multihost),
 							health: parsedJSON[i].properties.health.parsed,
 							altroot: parsedJSON[i].properties.altroot.value,
-							available: changeUnitToBinary(convertBytesToSize(parsedJSON[i]?.root_dataset?.properties?.available.parsed)),
+							available: changeUnitToBinary(convertBytesToSize(parsedJSON[i]?.root_dataset?.properties?.available?.parsed)),
 
 						},
 						failMode: parsedJSON[i].properties.failmode.parsed,
@@ -226,7 +226,7 @@ export async function loadDisksThenPools(disks, pools) {
 							listSnapshots: parsedJSON[i].properties.listsnapshots.parsed,
 							health: parsedJSON[i].properties.health.parsed,
 							altroot: parsedJSON[i].properties.altroot.value,
-							available: convertBytesToSize(parsedJSON[i]?.root_dataset?.properties?.available.parsed),
+							available: changeUnitToBinary(convertBytesToSize(parsedJSON[i]?.root_dataset?.properties?.available?.parsed ?? parsedJSON[i].properties.free.parsed)),
 						},
 						failMode: parsedJSON[i].properties.failmode.parsed,
 						comment: parsedJSON[i].properties.comment.value !== '-' ? parsedJSON[i].properties.comment.value : '',
