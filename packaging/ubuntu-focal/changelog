@@ -1,3 +1,10 @@
+cockpit-zfs (1.2.17-1focal) focal; urgency=medium
+
+  * Updates documentation + fixes some issues from GitHub issues + merges in testing
+    package changes
+
+ -- Jordan Keough <jkeough@45drives.com>  Fri, 20 Mar 2026 11:35:16 -0300
+
 cockpit-zfs (1.2.16-1focal) focal; urgency=medium
 
   * Building new testing package with dependsNAlerts changes as well as NCR405799

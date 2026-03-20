@@ -1,3 +1,3 @@
-## zfs module 1.2.16-1
+## zfs module 1.2.17-1
 
-* Building new testing package with dependsNAlerts changes as well as NCR405799 changes
+* Updates documentation + fixes some issues from GitHub issues + merges in testing package changes
