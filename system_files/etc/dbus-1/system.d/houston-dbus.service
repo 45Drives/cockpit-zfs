@@ -1,0 +1,16 @@
+[Unit]
+Description=Houston D-Bus Service for Cockpit
+After=network.target
+
+[Service]
+ExecStartPre=/usr/bin/python3 /opt/45drives/houston/setup_notification_db.py
+
+ExecStart=/usr/bin/python3 /opt/45drives/houston/dbus_server.py
+Restart=always
+User=root
+Group=root
+StandardOutput=syslog
+StandardError=syslog
+
+[Install]
+WantedBy=multi-user.target
