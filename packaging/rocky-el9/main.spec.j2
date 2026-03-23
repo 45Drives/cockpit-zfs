@@ -36,14 +36,11 @@ make DESTDIR=%{buildroot} install
 # ZED event scripts (set executable permissions)
 %attr(0755, root, root) /etc/zfs/zed.d/*
 
-# Systemd service files (DO NOT use %config for these)
-/etc/systemd/system/houston-dbus.service
-
 # 45Drives Houston files (ensure executability)
 %dir /opt/45drives
 %dir /opt/45drives/houston
 %attr(0755, root, root) /opt/45drives/houston/dbus_server.py
-%attr(0755, root, root) /opt/45drives/houston/houston-notify
+%attr(0755, root, root) /opt/45drives/houston/houston-notify.py
 %attr(0755, root, root) /opt/45drives/houston/setup_notification_db.py
 %attr(0755,root,root) /etc/45drives/zfs-storage-check.sh
 %attr(0755,root,root) /opt/45drives/houston/notification_utils.py
