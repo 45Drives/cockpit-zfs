@@ -1,3 +1,3 @@
-## zfs module 1.2.18-3
+## zfs module 1.2.18-4
 
-* fixed main.spec for el8
+* fix

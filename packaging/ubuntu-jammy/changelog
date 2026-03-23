@@ -1,3 +1,9 @@
+cockpit-zfs (1.2.18-4jammy) jammy; urgency=medium
+
+  * fix
+
+ -- Jordan Keough <jkeough@45drives.com>  Mon, 23 Mar 2026 08:45:14 -0300
+
 cockpit-zfs (1.2.18-3jammy) jammy; urgency=medium
 
   * fixed main.spec for el8
