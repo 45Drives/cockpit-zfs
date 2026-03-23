@@ -1,3 +1,9 @@
+cockpit-zfs (1.2.18-1focal) focal; urgency=medium
+
+  * Rebuilding without cockpit-alerts dependency, package not in stable as of yet
+
+ -- Jordan Keough <jkeough@45drives.com>  Mon, 23 Mar 2026 08:18:56 -0300
+
 cockpit-zfs (1.2.17-1focal) focal; urgency=medium
 
   * Updates documentation + fixes some issues from GitHub issues + merges in testing
