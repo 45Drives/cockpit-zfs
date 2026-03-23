@@ -1,3 +1,9 @@
+cockpit-zfs (1.2.18-2bookworm) bookworm; urgency=medium
+
+  * fixed files list in main.spec
+
+ -- Jordan Keough <jkeough@45drives.com>  Mon, 23 Mar 2026 08:31:28 -0300
+
 cockpit-zfs (1.2.18-1bookworm) bookworm; urgency=medium
 
   * Rebuilding without cockpit-alerts dependency, package not in stable as of yet

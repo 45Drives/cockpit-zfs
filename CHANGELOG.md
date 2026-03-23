@@ -1,3 +1,3 @@
-## zfs module 1.2.18-1
+## zfs module 1.2.18-2
 
-* Rebuilding without cockpit-alerts dependency, package not in stable as of yet
+* fixed files list in main.spec
