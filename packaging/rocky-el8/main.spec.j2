@@ -27,11 +27,11 @@ make DESTDIR=%{buildroot} install
 /usr/share/cockpit/zfs/*
 # D-Bus configuration
 %config(noreplace) /etc/dbus-1/system.d/org._45drives.Houston.conf
+/etc/dbus-1/system.d/houston-dbus.service
 %config(noreplace) /etc/45drives/msmtp_oauth-email.py
-%config(noreplace) /etc/45drives/zfs-storage-check.sh
+%attr(0755,root,root) %config(noreplace) /etc/45drives/zfs-storage-check.sh
 /etc/systemd/system/houston-zfs-storage-alert.service
 /etc/systemd/system/houston-zfs-storage-alert.timer
-/opt/45drives/houston/notification_utils.py
 
 # ZED event scripts (set executable permissions)
 %attr(0755, root, root) /etc/zfs/zed.d/*
@@ -42,7 +42,6 @@ make DESTDIR=%{buildroot} install
 %attr(0755, root, root) /opt/45drives/houston/dbus_server.py
 %attr(0755, root, root) /opt/45drives/houston/houston-notify.py
 %attr(0755, root, root) /opt/45drives/houston/setup_notification_db.py
-%attr(0755,root,root) /etc/45drives/zfs-storage-check.sh
 %attr(0755,root,root) /opt/45drives/houston/notification_utils.py
 
 %post
