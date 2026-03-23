@@ -1,3 +1,9 @@
+cockpit-zfs (1.2.18-3bookworm) bookworm; urgency=medium
+
+  * fixed main.spec for el8
+
+ -- Jordan Keough <jkeough@45drives.com>  Mon, 23 Mar 2026 08:38:51 -0300
+
 cockpit-zfs (1.2.18-2bookworm) bookworm; urgency=medium
 
   * fixed files list in main.spec
