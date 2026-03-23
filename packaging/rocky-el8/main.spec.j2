@@ -23,6 +23,7 @@ make OS_PACKAGE_RELEASE=el8
 %install
 make DESTDIR=%{buildroot} install
 
+%files
 /usr/share/cockpit/zfs/*
 # D-Bus configuration
 %config(noreplace) /etc/dbus-1/system.d/org._45drives.Houston.conf
