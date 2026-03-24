@@ -7,10 +7,30 @@
 				<thead class="bg-well border-collapse">
 					<tr v-if="snapshots.length > 0 && !snapshotsInPoolLoading"
 						class="rounded-md grid grid-cols-7 font-semibold text-white">
-						<th class="py-2 col-span-2 text-center" :class="truncateText" title="Snapshot">Snapshot</th>
-						<th class="py-2 col-span-1 text-center" :class="truncateText" title="Created On">Created On</th>
-						<th class="py-2 col-span-1 text-center" :class="truncateText" title="Used">Used</th>
-						<th class="py-2 col-span-1 text-center" :class="truncateText" title="Referenced">Referenced</th>
+						<th class="py-2 col-span-2 text-center cursor-pointer select-none" :class="truncateText" title="Sort by Snapshot" @click="toggleSort('name')">
+							<span class="inline-flex items-center gap-1">Snapshot
+								<ChevronUpIcon v-if="sortColumn === 'name' && sortDirection === 'asc'" class="w-4 h-4" />
+								<ChevronDownIcon v-else-if="sortColumn === 'name' && sortDirection === 'desc'" class="w-4 h-4" />
+							</span>
+						</th>
+						<th class="py-2 col-span-1 text-center cursor-pointer select-none" :class="truncateText" title="Sort by Created On" @click="toggleSort('creation')">
+							<span class="inline-flex items-center gap-1">Created On
+								<ChevronUpIcon v-if="sortColumn === 'creation' && sortDirection === 'asc'" class="w-4 h-4" />
+								<ChevronDownIcon v-else-if="sortColumn === 'creation' && sortDirection === 'desc'" class="w-4 h-4" />
+							</span>
+						</th>
+						<th class="py-2 col-span-1 text-center cursor-pointer select-none" :class="truncateText" title="Sort by Used" @click="toggleSort('used')">
+							<span class="inline-flex items-center gap-1">Used
+								<ChevronUpIcon v-if="sortColumn === 'used' && sortDirection === 'asc'" class="w-4 h-4" />
+								<ChevronDownIcon v-else-if="sortColumn === 'used' && sortDirection === 'desc'" class="w-4 h-4" />
+							</span>
+						</th>
+						<th class="py-2 col-span-1 text-center cursor-pointer select-none" :class="truncateText" title="Sort by Referenced" @click="toggleSort('referenced')">
+							<span class="inline-flex items-center gap-1">Referenced
+								<ChevronUpIcon v-if="sortColumn === 'referenced' && sortDirection === 'asc'" class="w-4 h-4" />
+								<ChevronDownIcon v-else-if="sortColumn === 'referenced' && sortDirection === 'desc'" class="w-4 h-4" />
+							</span>
+						</th>
 						<th class="py-2 col-span-1 text-center" :class="truncateText" title="Clones">Clones</th>
 						<th class="relative py-2 sm:pr-6 lg:pr-8 rounded-tr-md col-span-1">
 							<span class="sr-only"></span>
@@ -29,7 +49,7 @@
 				</thead>
 				<tbody class="divide-y divide-default bg-default border-collapse">
 					<tr v-if="snapshots.length > 0 && !snapshotsInPoolLoading"
-						v-for="snapshot, snapshotIdx in snapshots" :key="snapshotIdx"
+						v-for="snapshot, snapshotIdx in sortedSnapshots" :key="snapshotIdx"
 						class="text-default grid grid-cols-7 justify-center items-center">
 						<td class="py-1 px-3 text-sm font-medium text-default text-left col-span-2"
 							:class="truncateText" :title="snapshot.name">
@@ -71,7 +91,7 @@
 									<MenuItems @click.stop
 										:class="[
 											'absolute right-0 z-10 w-max rounded-md bg-accent shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none',
-											shouldOpenMenuUp(snapshotIdx, snapshots.length)
+											shouldOpenMenuUp(snapshotIdx, sortedSnapshots.length)
 												? 'bottom-full mb-2 origin-bottom-right'
 												: 'mt-2 origin-top-right'
 										]">
@@ -121,10 +141,30 @@
 				class="table-auto min-w-full min-h-full divide-y divide-default">
 				<thead class="bg-secondary border-collapse">
 					<tr class="rounded-md grid grid-cols-8 font-semibold text-white">
-						<th class="py-2 col-span-2 text-center" :class="truncateText" title="Snapshot">Snapshot</th>
-						<th class="py-2 col-span-1 text-center" :class="truncateText" title="Created On">Created On</th>
-						<th class="py-2 col-span-1 text-center" :class="truncateText" title="Used">Used</th>
-						<th class="py-2 col-span-1 text-center" :class="truncateText" title="Referenced">Referenced</th>
+						<th class="py-2 col-span-2 text-center cursor-pointer select-none" :class="truncateText" title="Sort by Snapshot" @click="toggleSort('name')">
+							<span class="inline-flex items-center gap-1">Snapshot
+								<ChevronUpIcon v-if="sortColumn === 'name' && sortDirection === 'asc'" class="w-4 h-4" />
+								<ChevronDownIcon v-else-if="sortColumn === 'name' && sortDirection === 'desc'" class="w-4 h-4" />
+							</span>
+						</th>
+						<th class="py-2 col-span-1 text-center cursor-pointer select-none" :class="truncateText" title="Sort by Created On" @click="toggleSort('creation')">
+							<span class="inline-flex items-center gap-1">Created On
+								<ChevronUpIcon v-if="sortColumn === 'creation' && sortDirection === 'asc'" class="w-4 h-4" />
+								<ChevronDownIcon v-else-if="sortColumn === 'creation' && sortDirection === 'desc'" class="w-4 h-4" />
+							</span>
+						</th>
+						<th class="py-2 col-span-1 text-center cursor-pointer select-none" :class="truncateText" title="Sort by Used" @click="toggleSort('used')">
+							<span class="inline-flex items-center gap-1">Used
+								<ChevronUpIcon v-if="sortColumn === 'used' && sortDirection === 'asc'" class="w-4 h-4" />
+								<ChevronDownIcon v-else-if="sortColumn === 'used' && sortDirection === 'desc'" class="w-4 h-4" />
+							</span>
+						</th>
+						<th class="py-2 col-span-1 text-center cursor-pointer select-none" :class="truncateText" title="Sort by Referenced" @click="toggleSort('referenced')">
+							<span class="inline-flex items-center gap-1">Referenced
+								<ChevronUpIcon v-if="sortColumn === 'referenced' && sortDirection === 'asc'" class="w-4 h-4" />
+								<ChevronDownIcon v-else-if="sortColumn === 'referenced' && sortDirection === 'desc'" class="w-4 h-4" />
+							</span>
+						</th>
 						<th v-if="!bulkSnapDestroyMode.get(props.filesystem!.name)" class="py-2 col-span-2 text-center"
 							:class="truncateText" title="Clones">Clones</th>
 						<th v-if="bulkSnapDestroyMode.get(props.filesystem!.name)" class="py-2 col-span-1 text-center"
@@ -155,7 +195,7 @@
 					</tr>
 				</thead>
 				<tbody class="divide-y divide-default bg-accent border-collapse">
-					<tr v-for="snapshot, snapshotIdx in snapshotsInFilesystem" :key="snapshotIdx"
+					<tr v-for="snapshot, snapshotIdx in sortedSnapshotsInFilesystem" :key="snapshotIdx"
 						class="text-default grid grid-cols-8 justify-center items-center">
 						<td class="py-1 px-3 text-sm font-medium text-default text-left col-span-2"
 							:class="truncateText" :title="snapshot.name">
@@ -216,7 +256,7 @@
 									<MenuItems
 										:class="[
 											'absolute right-0 z-10 w-max rounded-md bg-accent shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none',
-											shouldOpenMenuUp(snapshotIdx, snapshotsInFilesystem.length)
+											shouldOpenMenuUp(snapshotIdx, sortedSnapshotsInFilesystem.length)
 												? 'bottom-full mb-2 origin-bottom-right'
 												: 'mt-2 origin-top-right'
 										]">
@@ -308,9 +348,9 @@
 
 </template>
 <script setup lang="ts">
-import { ref, inject, Ref, provide, watch, onMounted } from 'vue';
+import { ref, inject, Ref, provide, watch, onMounted, computed } from 'vue';
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/vue';
-import { EllipsisVerticalIcon } from '@heroicons/vue/24/outline';
+import { EllipsisVerticalIcon, ChevronUpIcon, ChevronDownIcon } from '@heroicons/vue/24/outline';
 import { loadSnapshotsInPool, loadSnapshotsInDataset } from '../../composables/loadData';
 import { destroySnapshot, rollbackSnapshot } from '../../composables/snapshots';
 import LoadingSpinner from '../common/LoadingSpinner.vue';
@@ -340,6 +380,51 @@ const snapshotNotFound = ref(false);
 const bulkDestroyCurrent = ref<string | null>(null);
 const bulkDestroyProcessed = ref(0);
 const bulkDestroyTotal = ref(0);
+
+////////////////// Sorting //////////////////////////
+/////////////////////////////////////////////////////
+type SortColumn = 'name' | 'creation' | 'used' | 'referenced';
+type SortDirection = 'asc' | 'desc';
+
+const sortColumn = ref<SortColumn>('creation');
+const sortDirection = ref<SortDirection>('asc');
+
+function toggleSort(column: SortColumn) {
+	if (sortColumn.value === column) {
+		sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc';
+	} else {
+		sortColumn.value = column;
+		sortDirection.value = 'asc';
+	}
+}
+
+function getSortValue(snapshot: Snapshot, column: SortColumn): number | string {
+	switch (column) {
+		case 'name':
+			return snapshot.name;
+		case 'creation':
+			return Number(snapshot.creationTimestamp) || 0;
+		case 'used':
+			return Number(snapshot.properties.used?.rawvalue ?? '0') || 0;
+		case 'referenced':
+			return Number(snapshot.properties.referenced?.rawvalue ?? '0') || 0;
+	}
+}
+
+function sortList(list: Snapshot[]): Snapshot[] {
+	const dir = sortDirection.value === 'asc' ? 1 : -1;
+	return [...list].sort((a, b) => {
+		const aVal = getSortValue(a, sortColumn.value);
+		const bVal = getSortValue(b, sortColumn.value);
+		if (typeof aVal === 'string' && typeof bVal === 'string') {
+			return dir * aVal.localeCompare(bVal);
+		}
+		return dir * ((aVal as number) - (bVal as number));
+	});
+}
+
+const sortedSnapshots = computed(() => sortList(snapshots.value));
+const sortedSnapshotsInFilesystem = computed(() => sortList(snapshotsInFilesystem.value));
 
 function shouldOpenMenuUp(index: number, total: number) {
 	// Open upward for the final rows so the menu is not clipped by the table scroll area.

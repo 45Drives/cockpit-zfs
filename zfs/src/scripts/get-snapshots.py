@@ -26,8 +26,8 @@ def _prop(snap, name) -> Optional[dict]:
         out = {}
         if hasattr(p, "value"):
             out["value"] = str(p.value)
-        if hasattr(p, "raw"):
-            out["rawvalue"] = str(p.raw)
+        if hasattr(p, "rawvalue"):
+            out["rawvalue"] = str(p.rawvalue)
         if hasattr(p, "parsed"):
             out["parsed"] = str(p.parsed)
         return out
