@@ -2,22 +2,28 @@ const cockpit: any = (globalThis as any).cockpit;
 
 const ADMIN_GROUPS = ["wheel", "sudo", "admin"]; // tweak for your distro
 
-// Helper: wait for the permission object to resolve its initial state
+// Helper: wait for the permission object to resolve its initial state.
+// Cockpit sets .allowed to null while pending, then true/false once resolved.
 function waitForPermission(perm: any): Promise<void> {
     return new Promise(resolve => {
-        // If the library has already determined .allowed, resolve on next tick
-        if (typeof perm.allowed !== "undefined") {
+        // Already determined (true or false, not null/undefined)
+        if (perm.allowed != null) {
             resolve();
             return;
         }
-        // Otherwise wait for the first 'changed' event
-        const onChanged = () => {
+        let settled = false;
+        const settle = () => {
+            if (settled) return;
+            settled = true;
             perm.removeEventListener?.("changed", onChanged);
+            clearTimeout(fallbackTimer);
             resolve();
         };
+        // Wait for the 'changed' event that fires once polkit resolves
+        const onChanged = () => settle();
         perm.addEventListener?.("changed", onChanged);
-        // Some cockpit versions also expose .watch; fall back to a microtask if events aren't available
-        setTimeout(resolve, 0);
+        // Fallback in case the changed event never fires (some cockpit versions)
+        const fallbackTimer = setTimeout(settle, 3000);
     });
 }
 

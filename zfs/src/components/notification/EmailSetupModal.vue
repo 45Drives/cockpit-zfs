@@ -266,7 +266,7 @@
                             <label>Warning</label>
                             </div>
                             <div class="flex text-default  items-center space-x-2 mr-4">
-                            <input type="checkbox" v-model="sendCritical" checked disabled class="h-4 w-4" />
+                            <input type="checkbox" :checked="sendCritical" disabled class="h-4 w-4" />
                             <label>Critical</label>
                             </div>
                         </div>
