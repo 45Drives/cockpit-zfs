@@ -385,22 +385,22 @@
 		<fieldset>
 			<legend class="mb-1 text-base font-semibold leading-6 text-default">Dataset Settings</legend>
 
-			<!-- Dataset Type Radio Buttons -->
+			<!-- Dataset Type Toggle Buttons -->
 			<div class="flex flex-row gap-2 mb-4">
 				<button @click="datasetCreationType = 'none'; poolConfig.createFileSystem = false"
-					:class="datasetCreationType === 'none' ? 'bg-green-300 dark:bg-green-700' : ''"
-					class="box-border rounded-lg shadow-md focus:outline-none focus:ring-0 flex-1 h-full bg-45d">
-					<span class="block py-3 w-full h-full font-medium text-white justify-center rounded">None</span>
+					:class="datasetCreationType === 'none' ? 'bg-primary text-white ring-2 ring-primary' : 'bg-accent text-muted hover:bg-well'"
+					class="box-border rounded-lg shadow-md focus:outline-none focus:ring-0 flex-1 h-full transition-colors duration-150">
+					<span class="block py-3 w-full h-full font-medium justify-center rounded">None</span>
 				</button>
 				<button @click="datasetCreationType = 'filesystem'; poolConfig.createFileSystem = true"
-					:class="datasetCreationType === 'filesystem' ? 'bg-green-300 dark:bg-green-700' : ''"
-					class="box-border rounded-lg shadow-md focus:outline-none focus:ring-0 flex-1 h-full bg-45d">
-					<span class="block py-3 w-full h-full font-medium text-white justify-center rounded">File System</span>
+					:class="datasetCreationType === 'filesystem' ? 'bg-primary text-white ring-2 ring-primary' : 'bg-accent text-muted hover:bg-well'"
+					class="box-border rounded-lg shadow-md focus:outline-none focus:ring-0 flex-1 h-full transition-colors duration-150">
+					<span class="block py-3 w-full h-full font-medium justify-center rounded">File System</span>
 				</button>
 				<button @click="datasetCreationType = 'zvol'; poolConfig.createFileSystem = false"
-					:class="datasetCreationType === 'zvol' ? 'bg-green-300 dark:bg-green-700' : ''"
-					class="box-border rounded-lg shadow-md focus:outline-none focus:ring-0 flex-1 h-full bg-45d">
-					<span class="block py-3 w-full h-full font-medium text-white justify-center rounded">Zvol</span>
+					:class="datasetCreationType === 'zvol' ? 'bg-primary text-white ring-2 ring-primary' : 'bg-accent text-muted hover:bg-well'"
+					class="box-border rounded-lg shadow-md focus:outline-none focus:ring-0 flex-1 h-full transition-colors duration-150">
+					<span class="block py-3 w-full h-full font-medium justify-center rounded">Zvol</span>
 				</button>
 			</div>
 
