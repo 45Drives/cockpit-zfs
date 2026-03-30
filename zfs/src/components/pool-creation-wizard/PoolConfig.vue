@@ -379,27 +379,93 @@
 		</fieldset>
 	</div>
 
-	<!-- tab four: file system creation (so user does not have a naked pool) -->
-	<!-- component has a toggle so user can choose if they want to create a file system at pool creation, or not if they do in fact want a naked pool -->
+	<!-- tab four: dataset creation (so user does not have a naked pool) -->
+	<!-- user can choose to create a file system, a zvol, or neither -->
 	<div v-show="props.tag ==='file-system'">
 		<fieldset>
-			<legend class="mb-1 text-base font-semibold leading-6 text-default">File System Settings</legend>
+			<legend class="mb-1 text-base font-semibold leading-6 text-default">Dataset Settings</legend>
 
-			<!-- Create a File System (Checkbox) -> Enables all fields underneath -->
-			<button :class="createFileSystemCardClass(poolConfig.createFileSystem!)"
-				class="box-border rounded-lg shadow-md focus:outline-none focus:ring-0 w-full h-full bg-45d mb-2">
-				<label :for="getIdKey('create-filesystem')"
-					:class="createFileSystemCardClass(poolConfig.createFileSystem!)"
-					class="block py-3 w-full h-full font-medium text-white justify-center rounded">
-					Create a File System?
-					<input :id="getIdKey('create-filesystem')" v-model="poolConfig.createFileSystem"
-						aria-describedby="create-filesystem" name="create-filesystem" type="checkbox"
-						class="ml-2 h-4 w-4 rounded text-success" />
-				</label>
-			</button>
+			<!-- Dataset Type Radio Buttons -->
+			<div class="flex flex-row gap-2 mb-4">
+				<button @click="datasetCreationType = 'none'; poolConfig.createFileSystem = false"
+					:class="datasetCreationType === 'none' ? 'bg-green-300 dark:bg-green-700' : ''"
+					class="box-border rounded-lg shadow-md focus:outline-none focus:ring-0 flex-1 h-full bg-45d">
+					<span class="block py-3 w-full h-full font-medium text-white justify-center rounded">None</span>
+				</button>
+				<button @click="datasetCreationType = 'filesystem'; poolConfig.createFileSystem = true"
+					:class="datasetCreationType === 'filesystem' ? 'bg-green-300 dark:bg-green-700' : ''"
+					class="box-border rounded-lg shadow-md focus:outline-none focus:ring-0 flex-1 h-full bg-45d">
+					<span class="block py-3 w-full h-full font-medium text-white justify-center rounded">File System</span>
+				</button>
+				<button @click="datasetCreationType = 'zvol'; poolConfig.createFileSystem = false"
+					:class="datasetCreationType === 'zvol' ? 'bg-green-300 dark:bg-green-700' : ''"
+					class="box-border rounded-lg shadow-md focus:outline-none focus:ring-0 flex-1 h-full bg-45d">
+					<span class="block py-3 w-full h-full font-medium text-white justify-center rounded">Zvol</span>
+				</button>
+			</div>
 
-			<component v-show="poolConfig.createFileSystem" :is="createFileSystemComponent" ref="fsConfig"
+			<!-- File System Form -->
+			<component v-show="datasetCreationType === 'filesystem'" :is="createFileSystemComponent" ref="fsConfig"
 				idKey="file-system" :isStandalone="false" />
+
+			<!-- Zvol Form -->
+			<div v-show="datasetCreationType === 'zvol'">
+				<div>
+					<label :for="getIdKey('zvol-name')" class="block text-sm font-medium leading-6 text-default">Zvol Name</label>
+					<input :id="getIdKey('zvol-name')" type="text" v-model="zvolConfig.name"
+						class="mt-1 block w-full input-textlike bg-default text-default" placeholder="Zvol Name" />
+				</div>
+				<div class="mt-2">
+					<label :for="getIdKey('zvol-size')" class="block text-sm font-medium leading-6 text-default">Volume Size</label>
+					<div class="flex flex-row mt-1">
+						<input :id="getIdKey('zvol-size')" type="number" min="1" v-model="zvolConfig.sizeValue"
+							class="block w-full input-textlike bg-default text-default" placeholder="Size" />
+						<select v-model="zvolConfig.sizeUnit"
+							class="block bg-default py-1.5 pl-3 pr-10 text-default input-textlike sm:text-sm sm:leading-6 ml-1">
+							<option value="M">MiB</option>
+							<option value="G">GiB</option>
+							<option value="T">TiB</option>
+						</select>
+					</div>
+				</div>
+				<div class="mt-2">
+					<label :for="getIdKey('zvol-blocksize')" class="block text-sm font-medium leading-6 text-default">Block Size</label>
+					<select :id="getIdKey('zvol-blocksize')" v-model="zvolConfig.volblocksize"
+						class="mt-1 block w-full input-textlike bg-default text-default">
+						<option value="">Default (8K)</option>
+						<option value="4K">4K</option>
+						<option value="8K">8K</option>
+						<option value="16K">16K</option>
+						<option value="32K">32K</option>
+						<option value="64K">64K</option>
+						<option value="128K">128K</option>
+					</select>
+				</div>
+				<div class="grid grid-cols-2 gap-4 mt-2">
+					<div>
+						<label :for="getIdKey('zvol-compression')" class="block text-sm font-medium leading-6 text-default">Compression</label>
+						<select :id="getIdKey('zvol-compression')" v-model="zvolConfig.compression"
+							class="mt-1 block w-full input-textlike bg-default text-default">
+							<option value="off">Off</option>
+							<option value="on">On (Default)</option>
+							<option value="lz4">LZ4</option>
+							<option value="gzip">Gzip</option>
+							<option value="zstd">Zstd</option>
+							<option value="lzjb">LZJB</option>
+							<option value="zle">ZLE</option>
+						</select>
+					</div>
+					<div>
+						<label :for="getIdKey('zvol-dedup')" class="block text-sm font-medium leading-6 text-default">Deduplication</label>
+						<select :id="getIdKey('zvol-dedup')" v-model="zvolConfig.dedup"
+							class="mt-1 block w-full input-textlike bg-default text-default">
+							<option value="off">Off</option>
+							<option value="on">On</option>
+							<option value="verify">Verify</option>
+						</select>
+					</div>
+				</div>
+			</div>
 
 		</fieldset>
 	</div>
@@ -420,8 +486,9 @@ import { ChevronUpIcon, ExclamationCircleIcon, ExclamationTriangleIcon } from '@
 import { Switch, Disclosure, DisclosureButton, DisclosurePanel } from '@headlessui/vue';
 import { isBoolOnOff, convertSizeToBytes, upperCaseWord, isBoolCompression, getDiskIDName, truncateName, getFullDiskInfo } from '../../composables/helpers';
 import { loadImportablePools } from '../../composables/loadImportables';
-import { ZPool ,VDevDisk, ZFSFileSystemInfo, ZpoolCreateOptions, ZPoolBase, VDev } from '@45drives/houston-common-lib';
+import { ZPool ,VDevDisk, ZFSFileSystemInfo, ZpoolCreateOptions, ZPoolBase, VDev, ZFSManager, ZvolCreateOptions } from '@45drives/houston-common-lib';
 import { NavigationCallback, StepsNavigationItem } from '../../types';
+import { pushNotification, Notification } from '@45drives/houston-common-ui';
 
 interface PoolConfigProps {
 	tag: string;
@@ -436,6 +503,18 @@ const poolConfig = inject<Ref<ZPoolBase & ZpoolCreateOptions>>('pool-config-data
 const disks = inject<Ref<VDevDisk[]>>('disks')!;
 const allPools = inject<Ref<ZPool[]>>('pools')!;
 const fileSystemConfig = inject<Ref<ZFSFileSystemInfo>>('file-system-data')!;
+
+const datasetCreationType = ref<'none' | 'filesystem' | 'zvol'>('filesystem');
+const zvolFeedback = ref('');
+const zvolConfig = ref({
+	name: '',
+	sizeValue: 1,
+	sizeUnit: 'G',
+	volblocksize: '',
+	compression: 'off',
+	dedup: 'off',
+});
+const zfsManager = new ZFSManager();
 
 const nameFeedback = inject<Ref<string>>('feedback-name')!;
 const vDevFeedback = inject<Ref<string>>('feedback-vdev')!;
@@ -469,7 +548,7 @@ const loadReviewTabComponent = async () => {
 }
 
 watchEffect(() => {
-	if (props.tag === 'file-system' && poolConfig.value.createFileSystem) {
+	if (props.tag === 'file-system' && datasetCreationType.value === 'filesystem') {
 		loadCreateFileSystemComponent();
 	}
 	if (props.tag === 'review') {
@@ -773,10 +852,14 @@ const validateAndProceed = (tabTag: string): boolean => {
 		if (nameCheck()) {
 			if (vDevCheck()) {
 				if (diskCheck()) {
-					if (poolConfig.value.createFileSystem!) {
+					if (datasetCreationType.value === 'filesystem') {
 						if (fsConfig.value.nameCheck(fileSystemConfig.value)) {
 							return true;
 						}
+					} else if (datasetCreationType.value === 'zvol') {
+						return validateZvol();
+					} else {
+						return true;
 					}
 				}
 			}
@@ -865,14 +948,64 @@ async function createNewFileSystem() {
 	await fsConfig.value.newFileSystemInPoolWizard();
 }
 
+async function createNewZvol(poolName: string) {
+	const options: ZvolCreateOptions = {
+		volsize: `${zvolConfig.value.sizeValue}${zvolConfig.value.sizeUnit}`,
+	};
+	if (zvolConfig.value.volblocksize) options.volblocksize = zvolConfig.value.volblocksize;
+	if (zvolConfig.value.compression) options.compression = zvolConfig.value.compression;
+	if (zvolConfig.value.dedup) options.dedup = zvolConfig.value.dedup;
+
+	try {
+		const output = await zfsManager.addZvol(poolName, zvolConfig.value.name, options);
+		if (output?.getStderr()?.trim()) {
+			pushNotification(new Notification('Error Creating Zvol', output.getStderr().trim(), 'error', 5000));
+		} else {
+			pushNotification(new Notification('Zvol Created!', `Created new zvol: ${poolName}/${zvolConfig.value.name}`, 'success', 5000));
+		}
+	} catch (error: any) {
+		console.error('Error creating zvol:', error);
+		pushNotification(new Notification('Error Creating Zvol', error.message || 'Unknown error', 'error', 5000));
+	}
+}
+
+function getDatasetCreationType() {
+	return datasetCreationType.value;
+}
+
+function getZvolConfig() {
+	return zvolConfig.value;
+}
+
 const getIdKey = (name: string) => `${props.idKey}-${name}`;
 
 if (poolConfig.value.vdevs.length < 1) initialVDev();
+
+function validateZvol(): boolean {
+	zvolFeedback.value = '';
+	if (!zvolConfig.value.name || !zvolConfig.value.name.trim()) {
+		zvolFeedback.value = 'Zvol name cannot be empty.';
+		return false;
+	}
+	if (!zvolConfig.value.name.match(/^[a-zA-Z0-9][a-zA-Z0-9_.:-]*$/)) {
+		zvolFeedback.value = 'Zvol name contains invalid characters.';
+		return false;
+	}
+	if (!zvolConfig.value.sizeValue || zvolConfig.value.sizeValue <= 0) {
+		zvolFeedback.value = 'Volume size must be greater than 0.';
+		return false;
+	}
+	return true;
+}
 
 defineExpose({
 	validateAndProceed,
 	fillNewPoolData,
 	addVDev,
 	createNewFileSystem,
+	createNewZvol,
+	getDatasetCreationType,
+	getZvolConfig,
+	zvolFeedback,
 });
 </script>

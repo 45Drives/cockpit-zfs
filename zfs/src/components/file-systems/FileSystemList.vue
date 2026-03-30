@@ -6,6 +6,8 @@
 			<div class="button-group-row justify-start">
 				<button id="createFS" class="btn btn-primary object-left justify-start"
 					@click="newFileSystemWizard()">Create File System</button>
+				<button id="createZvol" class="btn btn-primary object-left justify-start"
+					@click="newZvolWizard()">Create Zvol</button>
 			</div>
 			<div class="button-group-row justify-end">
 				<button id="refreshFS" class="btn btn-secondary object-right justify-self-end" @click="refreshData()">
@@ -57,7 +59,132 @@
 								<div v-if="allDatasets.length > 0 && allDatasetsLoaded == true">
 									<div v-for="dataset, datasetIdx in allDatasets" :key="dataset.name">
 
-										<div v-if="dataset.type == 'FILESYSTEM'" class="border border-default">
+										<!-- ZVOL ROW -->
+									<div v-if="dataset.type == 'VOLUME'" class="border border-default">
+										<Disclosure v-slot="{ open }">
+											<DisclosureButton
+												class="bg-default grid grid-cols-[2rem_4fr_repeat(9,_minmax(0,_1fr))_2.25rem] w-full items-center">
+												<div class="py-1 mt-1 col-span-1 pl-2 justify-self-start" :title="'Zvol'">
+													<ChevronUpIcon
+														class="h-10 w-10 text-default transition-all duration-200 transform"
+														:class="{ 'rotate-90': !open, 'rotate-180': open, }" />
+												</div>
+												<div class="py-1 mt-1 col-span-1 text-left min-w-0"
+													:class="[truncateText, `ml-${getNestingLevel(dataset)}`]"
+													:title="dataset.name + ' (Zvol)'">
+													{{ dataset.name }}
+													<span class="text-xs text-muted ml-1">(Zvol)</span>
+												</div>
+												<div class="py-1 mt-1 px-2 text-center font-medium col-span-1 min-w-0" :class="truncateText"
+													:title="convertBytesToSize(dataset.properties.available) || 'N/A'">
+													{{ convertBytesToSize(dataset.properties.available) || 'N/A' }}
+												</div>
+												<div class="py-1 mt-1 px-2 text-center font-medium col-span-1 min-w-0" :class="truncateText"
+													:title="dataset.properties.usedByDataset || 'N/A'">
+													{{ dataset.properties.usedByDataset || 'N/A' }}
+												</div>
+												<div class="py-1 mt-1 px-2 text-center font-medium col-span-1 min-w-0 text-muted">N/A</div>
+												<div class="py-1 mt-1 px-2 text-center font-medium col-span-1 min-w-0 text-muted">N/A</div>
+												<div class="py-1 mt-1 px-2 text-center font-medium col-span-1 min-w-0" :class="truncateText"
+													:title="dataset.properties.compression ? dataset.properties.compression.toUpperCase() : 'N/A'">
+													{{ dataset.properties.compression ? dataset.properties.compression.toUpperCase() : 'N/A' }}
+												</div>
+												<div class="py-1 mt-1 px-2 text-center font-medium col-span-1 min-w-0" :class="truncateText">
+													{{ getValue('dedup', dataset.properties.deduplication) || 'N/A' }}
+												</div>
+												<div class="py-1 mt-1 col-span-1 justify-self-center text-muted" title="N/A">
+													<NoSymbolIcon class="w-5 mt-0.5" aria-hidden="true" />
+												</div>
+												<div class="py-1 mt-1 col-span-1 justify-self-center text-muted" title="N/A (Zvol)">
+													<NoSymbolIcon class="w-5 mt-0.5" aria-hidden="true" />
+												</div>
+												<div class="py-1 mt-1 col-span-1 justify-self-center" :title="dataset.properties.isReadOnly ? 'Read Only ON' : 'Read Only OFF'">
+													<CheckIcon v-if="dataset.properties.isReadOnly" class="w-5 mt-0.5" aria-hidden="true" />
+													<NoSymbolIcon v-else class="w-5 mt-0.5" aria-hidden="true" />
+												</div>
+												<div class="py-1 mt-1 pr-2 col-span-1 justify-self-end">
+													<Menu as="div" class="relative inline-block text-right -mt-1">
+														<div>
+															<MenuButton @click.stop :disabled="!canDestructive"
+																:aria-disabled="!canDestructive"
+																:title="!canDestructive ? 'Requires administrative privileges' : ''"
+																:class="[
+																	'flex items-center rounded-full p-2 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 focus:ring-offset-gray-100',
+																	canDestructive ? 'bg-default hover:text-white cursor-pointer'
+																		: 'bg-default/60 text-muted cursor-not-allowed'
+																]">
+																<span class="sr-only">Open options</span>
+																<EllipsisVerticalIcon class="w-5"
+																	aria-hidden="true" />
+															</MenuButton>
+														</div>
+
+														<transition
+															enter-active-class="transition ease-out duration-100"
+															enter-from-class="transform opacity-0 scale-95"
+															enter-to-class="transform opacity-100 scale-100"
+															leave-active-class="transition ease-in duration-75"
+															leave-from-class="transform opacity-100 scale-100"
+															leave-to-class="transform opacity-0 scale-95">
+															<MenuItems @click.stop
+																class="absolute right-0 z-10 w-56 origin-top-right rounded-md bg-accent shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+																<div class="py-1">
+																	<MenuItem as="div"
+																		v-if="!findPoolDataset(allDatasets[datasetIdx])"
+																		v-slot="{ active }">
+																	<a href="#"
+																		@click="renameThisDataset(allDatasets[datasetIdx])"
+																		:class="[active ? 'bg-default text-default' : 'text-muted', 'block px-4 py-2 text-sm']">Rename
+																		Zvol</a>
+																	</MenuItem>
+																	<MenuItem as="div" v-slot="{ active }">
+																	<a href="#"
+																		@click="createSnapshotBtn(allDatasets[datasetIdx])"
+																		:class="[active ? 'bg-default text-default' : 'text-muted', 'block px-4 py-2 text-sm']">Create
+																		Snapshot</a>
+																	</MenuItem>
+																	<MenuItem as="div"
+																		v-if="!findPoolDataset(allDatasets[datasetIdx])"
+																		v-slot="{ active }">
+																	<a href="#"
+																		@click="deleteFileSystem(allDatasets[datasetIdx])"
+																		:class="[active ? 'bg-danger text-default' : 'text-muted', 'block px-4 py-2 text-sm']">Destroy
+																		Zvol</a>
+																	</MenuItem>
+																	<MenuItem as="div"
+																		v-if="!bulkSnapDestroyMode.get(dataset.name)"
+																		v-slot="{ active }">
+																	<a href="#"
+																		@click="enterBulkSnapDestroyMode(allDatasets[datasetIdx])"
+																		:class="[active ? 'bg-danger text-default' : 'text-muted', 'block px-4 py-2 text-sm']">Bulk
+																		Destroy Snapshot Mode</a>
+																	</MenuItem>
+																	<MenuItem as="div"
+																		v-if="bulkSnapDestroyMode.get(dataset.name)"
+																		v-slot="{ active }">
+																	<a href="#"
+																		@click="exitBulkSnapDestroyMode(allDatasets[datasetIdx])"
+																		:class="[active ? 'bg-default text-default' : 'text-muted', 'block px-4 py-2 text-sm']">Leave
+																		Bulk Destroy Mode</a>
+																	</MenuItem>
+																</div>
+															</MenuItems>
+														</transition>
+													</Menu>
+												</div>
+											</DisclosureButton>
+
+											<DisclosurePanel>
+												<SnapshotsList :filesystem="allDatasets[datasetIdx]"
+													:item="'filesystem'"
+													:bulkSnapDestroyMode="bulkSnapDestroyMode.get(allDatasets[datasetIdx].name)" />
+											</DisclosurePanel>
+
+										</Disclosure>
+									</div>
+
+									<!-- FILESYSTEM ROW -->
+									<div v-if="dataset.type == 'FILESYSTEM'" class="border border-default">
 											<Disclosure v-slot="{ open }">
 												<DisclosureButton
 													class="bg-default grid grid-cols-[2rem_4fr_repeat(9,_minmax(0,_1fr))_2.25rem] w-full items-center">
@@ -332,7 +459,7 @@
 					</div>
 					<div v-if="fileSystems.length < 1 && allDatasetsLoaded == true"
 						class="p-2 flex bg-default justify-center">
-						<span class="font-semibold text-lg my-2">No File Systems Found</span>
+						<span class="font-semibold text-lg my-2">No Datasets Found</span>
 					</div>
 
 				</div>
@@ -360,6 +487,11 @@
 	<div v-if="showNewFSWizard">
 		<component :is="newFileSystemComponent" :isStandalone="true" idKey="fs-wizard"
 			@close="showNewFSWizard = false" />
+	</div>
+
+	<div v-if="showNewZvolWizard">
+		<component :is="createZvolComponent" idKey="zvol-wizard"
+			@close="showNewZvolWizard = false" @created="onZvolCreated" />
 	</div>
 
 	<div v-if="showFSConfig">
@@ -630,6 +762,25 @@ async function newFileSystemWizard() {
 	showNewFSWizard.value = true;
 }
 
+///////////////// New Zvol ///////////////////////////
+/////////////////////////////////////////////////////
+const showNewZvolWizard = ref(false);
+const createZvolComponent = ref();
+const loadCreateZvolComponent = async () => {
+	const module = await import('./CreateZvolModal.vue');
+	createZvolComponent.value = module.default;
+}
+
+async function newZvolWizard() {
+	await loadCreateZvolComponent();
+	showNewZvolWizard.value = true;
+}
+
+async function onZvolCreated() {
+	showNewZvolWizard.value = false;
+	await refreshData();
+}
+
 ////////////// Configure File System ////////////////
 /////////////////////////////////////////////////////
 const configFileSystemComponent = ref();
@@ -743,7 +894,7 @@ watch(confirmDelete, async (newValue, oldValue) => {
 				confirmDelete.value = false;
 
 				await refreshData();
-				pushNotification(new Notification('File System Destroyed', selectedDataset.value!.name + " destroyed.", 'success', 5000));
+				pushNotification(new Notification('Dataset Destroyed', selectedDataset.value!.name + " destroyed.", 'success', 5000));
 				await refreshData();
 				showDeleteFileSystemConfirm.value = false;
 			}
@@ -824,7 +975,7 @@ watch(confirmUnmount, async (newValue, oldValue) => {
 
 				unmounting.value = false;
 				operationRunning.value = false;
-				pushNotification(new Notification('File System Unmounted', selectedDataset.value!.name + " unmounted.", 'success', 5000));
+				pushNotification(new Notification('Dataset Unmounted', selectedDataset.value!.name + " unmounted.", 'success', 5000));
 
 				showUnmountFileSystemConfirm.value = false;
 			}
@@ -888,7 +1039,7 @@ watch(confirmMount, async (newValue, oldValue) => {
 
 				mounting.value = false;
 				operationRunning.value = false;
-				pushNotification(new Notification('File System Mounted', selectedDataset.value!.name + " mounted.", 'success', 5000));
+				pushNotification(new Notification('Dataset Mounted', selectedDataset.value!.name + " mounted.", 'success', 5000));
 
 				showMountFileSystemConfirm.value = false;
 			}
