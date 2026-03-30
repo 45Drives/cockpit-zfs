@@ -793,7 +793,7 @@ async function oAuthBtn() {
                     // Prepare emailConfig for DBus call
                     authEmailConfig.value.email = emailFromOAuth;
                     authEmailConfig.value.oauthRefreshToken = refreshValue; // refresh_token
-                    authEmailConfig.value.recieversEmail = emailFromOAuth;
+                    authEmailConfig.value.recieversEmail = [emailFromOAuth];
                     authEmailConfig.value.authMethod = "oauth2";
                     authEmailConfig.value.oauthAccessToken = tokenValue;
                     authEmailConfig.value.tokenExpiry = expiry;
