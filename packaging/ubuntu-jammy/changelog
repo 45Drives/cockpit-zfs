@@ -1,3 +1,24 @@
+cockpit-zfs (1.2.20-2jammy) jammy; urgency=medium
+
+  * fix: wrap emailFromOAuth in array to prevent .join() error on recieversEmail
+
+
+ -- Rachit Hans <rhans@45drives.com>  Mon, 30 Mar 2026 13:06:09 -0300
+
+cockpit-zfs (1.2.20-1jammy) jammy; urgency=medium
+
+  * fix: wrap emailFromOAuth in array to prevent .join() error on recieversEmail
+
+
+ -- Rachit Hans <rhans@45drives.com>  Mon, 30 Mar 2026 13:01:26 -0300
+
+cockpit-zfs (1.2.19-2jammy) jammy; urgency=medium
+
+  * fix: wrap emailFromOAuth in array to prevent .join() error on recieversEmail
+
+
+ -- Rachit Hans <rhans@45drives.com>  Mon, 30 Mar 2026 12:38:47 -0300
+
 cockpit-zfs (1.2.19-1jammy) jammy; urgency=medium
 
   * Fixes a race condition in admin priv check

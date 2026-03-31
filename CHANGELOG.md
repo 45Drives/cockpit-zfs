@@ -1,3 +1,3 @@
-## zfs module 1.2.19-1
+## zfs module 1.2.20-2
 
-* Fixes a race condition in admin priv check
+* fix: wrap emailFromOAuth in array to prevent .join() error on recieversEmail
