@@ -1,3 +1,3 @@
-## zfs module 1.2.20-2
+## zfs module 1.2.21-1
 
-* fix: wrap emailFromOAuth in array to prevent .join() error on recieversEmail
+* added functionality of creating zvol
