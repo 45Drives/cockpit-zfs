@@ -1,3 +1,9 @@
+cockpit-zfs (1.2.19-1jammy) jammy; urgency=medium
+
+  * Fixes a race condition in admin priv check
+
+ -- Jordan Keough <jkeough@45drives.com>  Wed, 25 Mar 2026 13:17:19 -0300
+
 cockpit-zfs (1.2.18-4jammy) jammy; urgency=medium
 
   * fix

@@ -1,3 +1,3 @@
-## zfs module 1.2.18-4
+## zfs module 1.2.19-1
 
-* fix
+* Fixes a race condition in admin priv check
