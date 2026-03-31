@@ -25,6 +25,7 @@ import { loadScanActivities, loadTrimActivities } from '../composables/helpers';
 import { ZPool, VDevDisk, ZFSFileSystemInfo } from '@45drives/houston-common-lib';
 import { notificationStore } from "../store/notification";
 import { ImportablePoolData, Snapshot, Activity, PoolScanObjectGroup, PoolDiskStats } from '../types';
+import { useControlPlane } from '../composables/useControlPlane';
 
 interface ZFSProps {
   	tag: string;
@@ -45,6 +46,9 @@ const snapshots = ref<Snapshot[]>([]);
 const disksLoaded = ref(false);
 const poolsLoaded = ref(false);
 const fileSystemsLoaded = ref(false);
+
+// Control plane integration (cockpit-storage-encryption)
+const controlPlane = useControlPlane();
 
 const clearLabels = ref(false);
 
@@ -71,6 +75,8 @@ async function initialLoad(disks, pools, datasets, snapshots) {
 	disksLoaded.value = true;
 	poolsLoaded.value = true;
 	fileSystemsLoaded.value = true;
+	// Load control plane data in background (non-blocking)
+	controlPlane.refresh().catch(e => console.warn('[controlplane] Initial load failed:', e));
 	// console.log('ZFS.vue scanActivities', scanActivities.value);
 	// console.log('ZFS.vue trimActivities', trimActivities.value);
 	setUpMessageHandler((message) => {
@@ -173,4 +179,5 @@ provide('scan-interval', scanIntervalID);
 provide('disk-stats-interval', diskStatsIntervalID);
 provide('scan-activities', scanActivities);
 provide('trim-activities', trimActivities);
+provide('controlplane', controlPlane);
 </script>

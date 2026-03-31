@@ -315,10 +315,13 @@ export async function loadDatasets(datasets) {
 
 		//loops through JSON data and adds data to a Dataset object
 		for (let i = 0; i < parsedJSON.length; i++) {
+			try {
+			// Skip zvols — they lack filesystem properties (mountpoint, canmount, etc.)
+			if (parsedJSON[i].type === 'VOLUME') continue;
 			const dataset: ZFSFileSystemInfo = {
 				name: parsedJSON[i].name,
 				id: parsedJSON[i].id,
-				mountpoint: parsedJSON[i].properties.mountpoint.value,
+				mountpoint: parsedJSON[i].properties.mountpoint?.value ?? '',
 				pool: parsedJSON[i].pool,
 				encrypted: parsedJSON[i].encrypted,
 				key_loaded: parsedJSON[i].key_loaded,
@@ -364,9 +367,12 @@ export async function loadDatasets(datasets) {
 			}
 
 			datasets.value.push(dataset);
+			} catch (perDatasetErr) {
+				console.error(`Failed to parse dataset at index ${i} (${parsedJSON[i]?.name}):`, perDatasetErr);
+			}
 		}
 
-		console.log("loaded Datasets:", datasets);
+		console.log(`loaded Datasets: ${datasets.value.length} of ${parsedJSON.length} parsed`, datasets.value.map(d => d.name));
 
 
 	} catch (error) {

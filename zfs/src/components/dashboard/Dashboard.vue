@@ -49,6 +49,9 @@
 				<DashboardLoadingSkeleton color="bg-plugin-header" class="col-span-4"/>
 			</div>
 		</div>
+
+		<!-- Encryption Governance Card -->
+		<DashEncryptionCard />
 	</div>
 
 </template>
@@ -58,6 +61,7 @@ import {computed, Ref, inject} from 'vue';
 import { convertBytesToSize } from '../../composables/helpers';
 import { ArrowPathIcon } from '@heroicons/vue/24/outline';
 import DashPoolCard from "./DashPoolCard.vue";
+import DashEncryptionCard from './DashEncryptionCard.vue';
 import DashboardLoadingSkeleton from './DashboardLoadingSkeleton.vue';
 import LoadingSpinner from '../common/LoadingSpinner.vue';
 import { ZPool, VDevDisk, ZFSFileSystemInfo } from '@45drives/houston-common-lib';

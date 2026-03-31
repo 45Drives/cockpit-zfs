@@ -40,7 +40,9 @@
 								<th class="py-2 font-semibold text-default col-span-1" :class="truncateText"
 									title="Deduplication">Dedup.</th>
 								<th class="py-2 font-semibold text-default col-span-1" :class="truncateText"
-									title="Encrypted">Encrypted</th>
+									title="Encrypted">Encrypted
+									<span v-if="controlPlane?.available?.value" class="ml-1 inline-block px-1 py-0.5 rounded text-[0.6rem] font-medium bg-blue-100 text-blue-700 align-middle">KMS</span>
+								</th>
 								<th class="py-2 font-semibold text-default col-span-1" :class="truncateText"
 									title="Mounted">Mounted</th>
 								<th class="py-2 font-semibold text-default col-span-1" :class="truncateText"
@@ -107,13 +109,19 @@
 
 													<div v-if="dataset.encrypted && dataset.key_loaded"
 														class="py-1 mt-1 col-span-1 justify-self-center"
-														title="Encrypted & Unlocked">
-														<LockOpenIcon class="w-5 mt-0.5" aria-hidden="true" />
+														:title="encryptionTooltip(dataset)">
+														<div class="flex items-center gap-1">
+															<LockOpenIcon class="w-5 mt-0.5" aria-hidden="true" />
+															<span v-if="governanceBadge(dataset)" class="inline-block px-1 py-0.5 rounded text-[0.6rem] font-medium leading-none" :class="governanceBadge(dataset)!.cls">{{ governanceBadge(dataset)!.label }}</span>
+														</div>
 													</div>
 													<div v-if="dataset.encrypted && !dataset.key_loaded"
 														class="py-1 mt-1 col-span-1 justify-self-center"
-														title="Encrypted & Locked">
-														<LockClosedIcon class="w-5 mt-0.5" aria-hidden="true" />
+														:title="encryptionTooltip(dataset)">
+														<div class="flex items-center gap-1">
+															<LockClosedIcon class="w-5 mt-0.5" aria-hidden="true" />
+															<span v-if="governanceBadge(dataset)" class="inline-block px-1 py-0.5 rounded text-[0.6rem] font-medium leading-none" :class="governanceBadge(dataset)!.cls">{{ governanceBadge(dataset)!.label }}</span>
+														</div>
 													</div>
 													<div v-if="!dataset.encrypted"
 														class="py-1 mt-1 col-span-1 justify-self-center"
@@ -225,12 +233,48 @@
 																			File System</a>
 																		</MenuItem>
 																		<MenuItem as="div"
-																			v-if="allDatasets[datasetIdx].encrypted && allDatasets[datasetIdx].key_loaded"
+																			v-if="allDatasets[datasetIdx].encrypted && allDatasets[datasetIdx].key_loaded && !isKmsManaged(allDatasets[datasetIdx])"
 																			v-slot="{ active }">
 																		<a href="#"
 																			@click="changeThisPassphrase(allDatasets[datasetIdx])"
 																			:class="[active ? 'bg-default text-default' : 'text-muted', 'block px-4 py-2 text-sm']">Change
 																			Passphrase</a>
+																		</MenuItem>
+																		<!-- KMS: Rotate Key (replaces Change Passphrase) -->
+																		<MenuItem as="div"
+																			v-if="allDatasets[datasetIdx].encrypted && isKmsManaged(allDatasets[datasetIdx])"
+																			v-slot="{ active }">
+																		<a href="#"
+																			@click.prevent="navigateToEncryptionManager(getDatasetTargetId(allDatasets[datasetIdx]), 'rotate')"
+																			:class="[active ? 'bg-default text-default' : 'text-muted', 'block px-4 py-2 text-sm']">Rotate
+																			KMS Key ↗</a>
+																		</MenuItem>
+																		<!-- KMS: View in Encryption Manager -->
+																		<MenuItem as="div"
+																			v-if="controlPlane?.available?.value && getDatasetTargetId(allDatasets[datasetIdx])"
+																			v-slot="{ active }">
+																		<a href="#"
+																			@click.prevent="navigateToEncryptionManager(getDatasetTargetId(allDatasets[datasetIdx]))"
+																			:class="[active ? 'bg-default text-default' : 'text-muted', 'block px-4 py-2 text-sm']">View
+																			in Encryption Manager ↗</a>
+																		</MenuItem>
+																		<!-- KMS: Verify Key Assignment -->
+																		<MenuItem as="div"
+																			v-if="hasActiveBinding(allDatasets[datasetIdx])"
+																			v-slot="{ active }">
+																		<a href="#"
+																			@click="verifyDatasetBinding(allDatasets[datasetIdx])"
+																			:class="[active ? 'bg-default text-default' : 'text-muted', 'block px-4 py-2 text-sm']">Verify
+																			Key Assignment</a>
+																		</MenuItem>
+																		<!-- KMS: Migrate to KMS (for passphrase-only encrypted) -->
+																		<MenuItem as="div"
+																			v-if="allDatasets[datasetIdx].encrypted && !isKmsManaged(allDatasets[datasetIdx]) && controlPlane?.available?.value"
+																			v-slot="{ active }">
+																		<a href="#"
+																			@click.prevent="navigateToEncryptionManager(getDatasetTargetId(allDatasets[datasetIdx]), 'migrate')"
+																			:class="[active ? 'bg-default text-default' : 'text-muted', 'block px-4 py-2 text-sm']">Migrate
+																			to KMS Encryption ↗</a>
 																		</MenuItem>
 																		<MenuItem as="div" v-slot="{ active }">
 																		<a href="#"
@@ -430,9 +474,12 @@ import { ZPool, ZFSFileSystemInfo } from "@45drives/houston-common-lib";
 import { pushNotification, Notification } from '@45drives/houston-common-ui';
 import { ConfirmationCallback, Snapshot } from "../../types";
 import { getSnapshotsOfDataset } from "../../composables/snapshots";
+import type { ControlPlaneState } from '../../composables/useControlPlane';
+import { navigateToEncryptionManager } from '../../controlplane/controlplane-client';
 
 const truncateText = inject<Ref<string>>('style-truncate-text')!;
 const canDestructive = inject<Ref<boolean>>('can-destructive')!;
+const controlPlane = inject<ControlPlaneState>('controlplane')!;
 	
 ///////// Values for Confirmation Modals ////////////
 /////////////////////////////////////////////////////
@@ -566,6 +613,75 @@ const debugNestingLevel = computed(() => {
 onMounted(async () => {
 	await refreshData();
 });
+
+/** Get governance badge info for a dataset from the control plane */
+function governanceBadge(dataset: any): { label: string; cls: string } | null {
+	if (!controlPlane?.available?.value) return null;
+	const info = controlPlane.getInfoForDataset(dataset.name);
+	if (!info) return null;
+	if (info.binding) {
+		if (info.binding.state === 'verified') return { label: 'KMS ✓', cls: 'bg-green-100 text-green-800' };
+		if (info.binding.state === 'active') return { label: 'KMS', cls: 'bg-blue-100 text-blue-700' };
+		if (info.binding.state === 'pending') return { label: 'Pending', cls: 'bg-yellow-100 text-yellow-800' };
+		if (info.binding.state === 'error') return { label: 'Error', cls: 'bg-red-100 text-red-700' };
+		return { label: 'Managed', cls: 'bg-blue-100 text-blue-700' };
+	}
+	return null;
+}
+
+/** Build a tooltip string for the encryption column */
+function encryptionTooltip(dataset: any): string {
+	const base = dataset.key_loaded ? 'Encrypted & Unlocked' : 'Encrypted & Locked';
+	if (!controlPlane?.available?.value) return base;
+	const info = controlPlane.getInfoForDataset(dataset.name);
+	if (!info?.binding) return base;
+	const parts = [base];
+	if (info.policy) parts.push(`Policy: ${info.policy.name}`);
+	parts.push(`State: ${info.binding.state}`);
+	if (info.binding.dek_key_version) parts.push(`DEK v${info.binding.dek_key_version}`);
+	if (info.binding.last_verified) parts.push(`Verified: ${info.binding.last_verified}`);
+	return parts.join(' · ');
+}
+
+/** Check if a dataset is KMS-managed (has control plane binding) */
+function isKmsManaged(dataset: any): boolean {
+	if (!controlPlane?.available?.value) return false;
+	const info = controlPlane.getInfoForDataset(dataset.name);
+	return info?.binding != null && info.binding.state !== 'unbound';
+}
+
+/** Get the control plane target ID for a dataset */
+function getDatasetTargetId(dataset: any): string | undefined {
+	const info = controlPlane?.getInfoForDataset(dataset.name);
+	return info?.target?.id;
+}
+
+/** Check if a dataset has an active (non-unbound) binding */
+function hasActiveBinding(dataset: any): boolean {
+	if (!controlPlane?.available?.value) return false;
+	const info = controlPlane.getInfoForDataset(dataset.name);
+	return info?.binding != null && info.binding.state !== 'unbound';
+}
+
+/** Run verify on a dataset's binding and show result as notification */
+async function verifyDatasetBinding(dataset: any) {
+	const info = controlPlane?.getInfoForDataset(dataset.name);
+	if (!info?.binding) return;
+	try {
+		const result = await controlPlane.verifyBinding(info.binding.id) as any;
+		if (result?.state === 'verified') {
+			pushNotification(new Notification({ title: 'Key Assignment Verified', body: `${dataset.name}: KMS key assignment verified successfully.`, level: 'success' }));
+		} else if (result?.state === 'error') {
+			pushNotification(new Notification({ title: 'Verification Failed', body: result?.result ?? 'Round-trip verification failed', level: 'error' }));
+		} else {
+			pushNotification(new Notification({ title: 'Verification Issue', body: result?.result ?? 'Verification returned unexpected result', level: 'warning' }));
+		}
+		await controlPlane.refresh();
+	} catch (e: unknown) {
+		const msg = e instanceof Error ? e.message : String(e);
+		pushNotification(new Notification({ title: 'Verification Failed', body: msg, level: 'error' }));
+	}
+}
 
 function findPoolDataset(fileSystem) {
 	try {
