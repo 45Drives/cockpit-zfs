@@ -364,7 +364,8 @@ export async function loadDatasets(datasets) {
 							unit: getSizeUnitFromString(getQuotaRefreservUnit(props.refreservation?.parsed ?? 0)),
 						},
 						used: props.used?.parsed ?? 0,
-						usedBySnapshots: convertBytesToSize(props.usedbysnapshots?.parsed ?? 0)
+						usedBySnapshots: convertBytesToSize(props.usedbysnapshots?.parsed ?? 0),
+						volsize: props.volsize?.parsed ?? 0,
 					},
 					children: parsedJSON[i].children,
 					parentFS: getParentPath(parsedJSON[i].name),

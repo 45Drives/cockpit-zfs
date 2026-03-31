@@ -1,3 +1,9 @@
+cockpit-zfs (1.2.21-2bookworm) bookworm; urgency=medium
+
+  * building test package with ui fix for zvol
+
+ -- Rachit Hans <rhans@45drives.com>  Tue, 31 Mar 2026 08:47:19 -0300
+
 cockpit-zfs (1.2.21-1bookworm) bookworm; urgency=medium
 
   * added functionality of creating zvol

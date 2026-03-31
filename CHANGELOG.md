@@ -1,3 +1,3 @@
-## zfs module 1.2.21-1
+## zfs module 1.2.21-2
 
-* added functionality of creating zvol
+* building test package with ui fix for zvol

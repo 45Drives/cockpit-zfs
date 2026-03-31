@@ -71,9 +71,9 @@
 												</div>
 												<div class="py-1 mt-1 col-span-1 text-left min-w-0"
 													:class="[truncateText, `ml-${getNestingLevel(dataset)}`]"
-													:title="dataset.name + ' (Zvol)'">
+													:title="dataset.name + ' (Zvol - Size: ' + convertBytesToSize(dataset.properties.volsize) + ')'">
 													{{ dataset.name }}
-													<span class="text-xs text-muted ml-1">(Zvol)</span>
+													<span class="text-xs text-muted ml-1">(Zvol - {{ convertBytesToSize(dataset.properties.volsize) }})</span>
 												</div>
 												<div class="py-1 mt-1 px-2 text-center font-medium col-span-1 min-w-0" :class="truncateText"
 													:title="convertBytesToSize(dataset.properties.available) || 'N/A'">
@@ -83,8 +83,14 @@
 													:title="dataset.properties.usedByDataset || 'N/A'">
 													{{ dataset.properties.usedByDataset || 'N/A' }}
 												</div>
-												<div class="py-1 mt-1 px-2 text-center font-medium col-span-1 min-w-0 text-muted">N/A</div>
-												<div class="py-1 mt-1 px-2 text-center font-medium col-span-1 min-w-0 text-muted">N/A</div>
+												<div class="py-1 mt-1 px-2 text-center font-medium col-span-1 min-w-0" :class="truncateText"
+													:title="dataset.properties.usedBySnapshots || 'N/A'">
+													{{ dataset.properties.usedBySnapshots || 'N/A' }}
+												</div>
+												<div class="py-1 mt-1 px-2 text-center font-medium col-span-1 min-w-0" :class="truncateText"
+													:title="dataset.properties.usedbyRefreservation ? dataset.properties.usedbyRefreservation : 'N/A'">
+													{{ dataset.properties.usedbyRefreservation ? dataset.properties.usedbyRefreservation : 'N/A' }}
+												</div>
 												<div class="py-1 mt-1 px-2 text-center font-medium col-span-1 min-w-0" :class="truncateText"
 													:title="dataset.properties.compression ? dataset.properties.compression.toUpperCase() : 'N/A'">
 													{{ dataset.properties.compression ? dataset.properties.compression.toUpperCase() : 'N/A' }}
