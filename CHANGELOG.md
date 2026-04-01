@@ -1,3 +1,3 @@
-## zfs module 1.2.19-1
+## zfs module 1.2.21-2
 
-* Fixes a race condition in admin priv check
+* building test package with ui fix for zvol
