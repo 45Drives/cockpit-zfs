@@ -1,3 +1,9 @@
+cockpit-zfs (1.2.21-3jammy) jammy; urgency=medium
+
+  * making a release for zvol
+
+ -- Rachit Hans <rhans@45drives.com>  Wed, 01 Apr 2026 07:45:17 -0300
+
 cockpit-zfs (1.2.21-2jammy) jammy; urgency=medium
 
   * building test package with ui fix for zvol
