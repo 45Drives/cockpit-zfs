@@ -2,7 +2,7 @@
     "schema_version": "45D_AP_V2.0",
     "name": "cockpit-zfs",
     "title": "zfs module",
-    "stable": false,
+    "stable": true,
     "version": "1.2.21",
     "build_number": "3",
     "author": "Jordan Keough <jkeough@45drives.com>",
