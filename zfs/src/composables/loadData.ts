@@ -9,8 +9,9 @@ import { VDevDisk, ZFSFileSystemInfo, VDev } from "@45drives/houston-common-lib"
 import { PoolDiskStats, PoolScanObjectGroup, Snapshot } from '../types';
 import { safeParse, unpackArray } from '../utils/json';
 
+// NOTE: vDevs is module-scoped but reset per-pool in loadDisksThenPools.
+// Each disk/vdev gets its own errors array — never share a single reference.
 const vDevs = ref<VDev[]>([]);
-const errors: string[] = [];
 
 function isPlainObject(v: any): v is Record<string, any> {
 	return v !== null && typeof v === "object" && !Array.isArray(v);
@@ -103,7 +104,7 @@ export async function loadDisksThenPools(disks, pools) {
 				temp: parsedJSON[i].temp || 'N/A',
 				rotationRate: parsedJSON[i].rotation_rate || 0,
 				stats: {},
-				errors: errors,
+				errors: [],
 				hasPartitions: parsedJSON[i].has_partitions || false,
 				id_path: parsedJSON[i].id_path || '',
 				label_path: parsedJSON[i].label_path || '',
@@ -184,7 +185,7 @@ export async function loadDisksThenPools(disks, pools) {
 							bytes_processed: parsedJSON[i].scan.bytes_processed,
 							bytes_to_process: parsedJSON[i].scan.bytes_to_process,
 						},
-						errors: errors,
+						errors: [],
 						statusCode: parsedJSON[i].status_code,
 						statusDetail: parsedJSON[i].status_detail,
 						errorCount: parsedJSON[i].error_count,
@@ -244,7 +245,7 @@ export async function loadDisksThenPools(disks, pools) {
 							bytes_processed: parsedJSON[i].scan.bytes_processed,
 							bytes_to_process: parsedJSON[i].scan.bytes_to_process,
 						},
-						errors: errors,
+						errors: [],
 						statusCode: parsedJSON[i].status_code,
 						statusDetail: parsedJSON[i].status_detail,
 						errorCount: parsedJSON[i].error_count,
@@ -405,7 +406,7 @@ export async function loadDisks(disks) {
 				temp: parsedJSON[i].temp || 'N/A',
 				rotationRate: parsedJSON[i].rotation_rate || 0,
 				stats: {},
-				errors: errors,
+				errors: [],
 				hasPartitions: parsedJSON[i].has_partitions || false,
 				id_path: parsedJSON[i].id_path || '',
 				label_path: parsedJSON[i].label_path || '',
@@ -439,12 +440,17 @@ function cleanDiskPath(path) {
 		return path.replace(/p\d+$/, '');
 	}
 
-	// Remove '-partN' suffix (e.g., /dev/disk/by-vdev/1-1-part1 → /dev/disk/by-vdev/1-1)
+	// Remove 'pN' from mmcblk paths (e.g., /dev/mmcblk0p1 → /dev/mmcblk0)
+	if (/\/dev\/mmcblk\d+p\d+$/.test(path)) {
+		return path.replace(/p\d+$/, '');
+	}
+
+	// Remove '-partN' suffix (e.g., /dev/disk/by-vdev/1-1-part1, /dev/disk/by-id/...-part2, /dev/disk/by-path/...-part1)
 	if (/-part\d+$/.test(path)) {
 		return path.replace(/-part\d+$/, '');
 	}
 
-	return path; // Return unchanged if no modifications needed
+	return path;
 }
 
 export async function loadDisksExtraData(disks, pools) {
@@ -622,10 +628,15 @@ export function parseVDevData(vDev, poolName, disks, vDevType) {
 			vDevName: vDev.name,
 			poolName: poolName,
 			vDevType: vDevType,
-			errors: errors
+			errors: []
 		};
 
-		if (!vDevData.disks.some(disk => disk.guid === notAChildDisk.guid)) {
+		const isDupe = vDevData.disks.some(disk =>
+			(disk.guid && disk.guid !== '' && disk.guid !== 'N/A' && disk.guid === notAChildDisk.guid) ||
+			(disk.path && disk.path === notAChildDisk.path) ||
+			(disk.name && disk.name === notAChildDisk.name)
+		);
+		if (!isDupe) {
 			vDevData.disks.push(notAChildDisk);
 		}
 
@@ -671,7 +682,7 @@ export function parseVDevData(vDev, poolName, disks, vDevType) {
 }
 
 function handleDiskChild(child, vDevData, disks, vDevName, poolName, vDevType) {
-	if (!child || child.path === null) {
+	if (!child || child.path === null || child.path === "") {
 		return null;
 	}
 
@@ -698,16 +709,7 @@ function handleDiskChild(child, vDevData, disks, vDevName, poolName, vDevType) {
 		);
 	});
 
-	// If no matching disk was found, create a missing disk ONLY if the original disk is truly missing
-	if (!fullDiskData && (child.path === null || child.path === "")) {
-		console.warn(`Disk not found for path: ${child.path}. Creating placeholder.`);
-		fullDiskData = createMissingDisk(child.path, vDevName, vDevType, poolName);
-		// Ensure the missing disk is added only once
-		if (!vDevData.disks.some(disk => disk.path === fullDiskData!.path)) {
-			vDevData.disks.push(fullDiskData);
-		}
-	}
-	// If fullDiskData is still null (but child has a valid path), try to recover it
+	// If fullDiskData is still null (child has a valid path), try to recover it
 	if (!fullDiskData) {
 		// 1) If the child path is a by-vdev partition, match its base by-vdev
 		const vdevBase = cleanedChildPath.replace(/-part\d+$/, '');
@@ -724,28 +726,28 @@ function handleDiskChild(child, vDevData, disks, vDevName, poolName, vDevType) {
 			console.warn(`Recovered disk via safety net using ${vdevBase}`);
 		} else {
 			// 2) Still nothing → create a real placeholder
-			console.warn(`Disk marked as REMOVED but not found in disks array: ${child.path}`);
+			console.warn(`Disk not found in inventory for path: ${child.path}. ZFS status: ${child.status || 'unknown'}`);
 			fullDiskData = {
 				name: child.name || "Unknown",
 				path: child.path,
 				guid: child.guid || "N/A",
 				type: "N/A",
-				health: "REMOVED",
+				health: child.status || "REMOVED",
 				stats: child.stats || {},
 				capacity: "Unknown",
 				model: "N/A",
 				phy_path: child.path || "N/A",
-				sd_path: "N/A",
+				sd_path: child.path || "N/A",
 				vdev_path: "",
 				serial: "N/A",
 				powerOnHours: 0,
 				powerOnCount: "0",
-				temp: "0",
+				temp: "N/A",
 				rotationRate: 0,
 				vDevName: vDevName,
 				poolName: poolName,
 				vDevType: vDevType,
-				errors: [`Disk was removed from pool: ${poolName}, vDev: ${vDevName}`],
+				errors: [`Disk not found in system inventory. Pool: ${poolName}, vDev: ${vDevName}`],
 			};
 		}
 	}
@@ -793,7 +795,6 @@ function handleDiskChild(child, vDevData, disks, vDevName, poolName, vDevType) {
 }
 
 function createMissingDisk(path, vDevName, vDevType, poolName) {
-	// console.log(`Creating placeholder for missing disk at path: ${path}`);
 	return {
 		name: 'Missing Disk',
 		path: path,
@@ -809,7 +810,7 @@ function createMissingDisk(path, vDevName, vDevType, poolName) {
 		serial: 'N/A',
 		powerOnHours: 0,
 		powerOnCount: '0',
-		temp: '0',
+		temp: 'N/A',
 		rotationRate: 0,
 		vDevName: vDevName,
 		poolName: poolName,
@@ -952,19 +953,19 @@ export async function loadSnapshotsInDataset(snapshots, datasetName, snapshotNot
 
 // Function to determine the type of disks in a VDev
 function determineDiskType(vDev, disks): string {
-	const childDisks = vDev.children.map(child => child.name);
-
-	const diskTypes = childDisks.map(diskName => {
-		const disk = disks.value.find(disk => disk.name === diskName);
-		return disk ? disk.type : 'MISSING'; // Mark as 'MISSING' if disk not found
+	const diskTypes = vDev.children.map(child => {
+		// Try name match first, then path-based match via matchDiskByVdevOrPath
+		let disk = disks.value.find(d => d.name === child.name);
+		if (!disk && child.path) {
+			disk = matchDiskByVdevOrPath(disks, cleanDiskPath(child.path));
+		}
+		return disk ? disk.type : 'Unknown';
 	});
 
 	// Determine the disk type based on the types of child disks in the VDev
 	const uniqueDiskTypes = new Set(diskTypes);
 
-	if (uniqueDiskTypes.has('MISSING')) {
-		return 'MISSING';
-	} else if (uniqueDiskTypes.size === 1) {
+	if (uniqueDiskTypes.size === 1) {
 		return Array.from(uniqueDiskTypes)[0] as string; // Return the single type if all disks are the same
 	} else if (uniqueDiskTypes.has('Disk')) {
 		return 'Disk'; // All disks in VDev are Disks

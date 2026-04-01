@@ -658,8 +658,16 @@ export function matchDiskByVdevOrPath(
 		return p;
 	};
 
-	const sameOrStartsWith = (a: string, b: string) =>
-		a === b || (a && b && (b.startsWith(a) || a.startsWith(b)));
+	const sameOrStartsWith = (a: string, b: string) => {
+		if (!a || !b) return false;
+		if (a === b) return true;
+		// Require a path-separator boundary to avoid sda matching sdab
+		const longer = a.length > b.length ? a : b;
+		const shorter = a.length > b.length ? b : a;
+		if (!longer.startsWith(shorter)) return false;
+		const nextChar = longer[shorter.length];
+		return nextChar === '/' || nextChar === '-' || nextChar === undefined;
+	};
 
 	const want = vdevPathOrAnyPath;
 	const wantBase = clean(want);

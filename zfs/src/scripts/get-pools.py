@@ -62,7 +62,7 @@ def _parse_vdevs_from_status(pool_name):
     """Parse VDev tree from 'zpool status' output for a given pool."""
     try:
         res = subprocess.run(
-            ["zpool", "status", pool_name],
+            ["zpool", "status", "-P", pool_name],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True
         )
         if res.returncode != 0:
@@ -107,6 +107,9 @@ def _parse_vdevs_from_status(pool_name):
                 continue
             name = parts[0]
             status = parts[1] if len(parts) > 1 else "ONLINE"
+            read_err = parts[2] if len(parts) > 2 else "0"
+            write_err = parts[3] if len(parts) > 3 else "0"
+            cksum_err = parts[4] if len(parts) > 4 else "0"
 
             # Skip the pool name line itself
             if name == pool_name and not pool_line_seen:
@@ -120,13 +123,34 @@ def _parse_vdevs_from_status(pool_name):
             is_vdev_type = any(name.startswith(prefix) for prefix in
                               ["mirror", "raidz", "draid", "replacing", "spare"])
 
+            # Resolve the device path: zpool status -P gives full /dev/... paths for disks
+            if not is_vdev_type:
+                if name.startswith("/dev/"):
+                    disk_path = name
+                else:
+                    disk_path = f"/dev/{name}"
+            else:
+                disk_path = None
+
+            # Parse error stats for leaf disks
+            disk_stats = {}
+            if not is_vdev_type:
+                try:
+                    disk_stats = {
+                        "read_errors": int(read_err) if read_err.isdigit() else 0,
+                        "write_errors": int(write_err) if write_err.isdigit() else 0,
+                        "checksum_errors": int(cksum_err) if cksum_err.isdigit() else 0,
+                    }
+                except (ValueError, TypeError):
+                    disk_stats = {}
+
             vdev_entry = {
                 "name": name,
                 "type": "disk" if not is_vdev_type else name.rsplit("-", 1)[0] if "-" in name else name,
-                "path": f"/dev/{name}" if not is_vdev_type and not name.startswith("/dev/") else name if not is_vdev_type else None,
+                "path": disk_path,
                 "status": status,
                 "guid": "",
-                "stats": {},
+                "stats": disk_stats,
                 "children": [],
             }
 

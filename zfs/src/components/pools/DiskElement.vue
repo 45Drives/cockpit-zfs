@@ -255,14 +255,42 @@ async function getScanStatus() {
 
 const diskState = computed(() => {
 	const diskArray = poolDiskStats.value[props.pool.name];
-	const diskState = diskArray.find(disk => disk.name === props.disk.name);
+	if (!diskArray) return props.disk.health || 'MISSING';
 
-	if (diskState) {
-		return diskState.status;
-	} else {
-		return 'MISSING';
-	}
+	// 1) Exact name match
+	let match = diskArray.find(d => d.name === props.disk.name);
+	if (match) return match.status;
 
+	// 2) Match stat name against any of the disk's path fields
+	//    Strip /dev/disk/by-xxx/ prefixes and -partN / pN / N suffixes to get base device
+	const stripToBase = (s: string) => {
+		if (!s) return '';
+		let v = s;
+		// Strip common prefixes
+		v = v.replace(/^\/dev\/(disk\/by-[^/]+\/)?/, '');
+		// Strip partition suffixes
+		v = v.replace(/-part\d+$/, '');
+		// NVMe: nvme0n1p2 -> nvme0n1
+		v = v.replace(/^(nvme\d+n\d+)p\d+$/, '$1');
+		// SCSI: sda1 -> sda
+		v = v.replace(/^(sd[a-z]+)\d+$/, '$1');
+		return v;
+	};
+
+	const diskBases = [
+		props.disk.name, props.disk.path, props.disk.sd_path,
+		props.disk.phy_path, props.disk.vdev_path
+	].filter(Boolean).map(p => stripToBase(p!));
+
+	match = diskArray.find(d => {
+		const statBase = stripToBase(d.name);
+		return diskBases.some(db => db && statBase && (db === statBase || statBase.endsWith(db) || db.endsWith(statBase)));
+	});
+
+	if (match) return match.status;
+
+	// 3) Fall back to the health property set during pool loading
+	return props.disk.health || 'MISSING';
 });
 
 

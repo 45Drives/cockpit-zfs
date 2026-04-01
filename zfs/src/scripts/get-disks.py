@@ -212,6 +212,14 @@ def _zpool_leaf_bases(pool: str) -> Set[str]:
                 try:
                     resolved = os.path.realpath(dev)
                     out.add(_dev_base(resolved))
+                    # Also keep the unresolved base in case the symlink is broken
+                    # (realpath returns the link path itself when target is missing)
+                    if resolved != dev:
+                        out.add(_dev_base(dev))
+                    elif not resolved.startswith("/dev/sd") and not resolved.startswith("/dev/nvme"):
+                        # Broken symlink: resolved == dev but it's not a real block device.
+                        # Still add it so it can match the disk inventory entry.
+                        out.add(_dev_base(dev))
                 except Exception:
                     out.add(_dev_base(dev))
     except Exception:
@@ -689,7 +697,7 @@ def get_lsblk_disks(nvme_only=False):
                 "rotation_rate": 0 if is_nvme else (7200 if rota else 0),
                 "power_on_count": smart["power_cycle_count"],
                 "power_on_time": smart["power_on_hours"],
-                "has_partitions": False,
+                "has_partitions": _has_partitions_for(os.path.basename(base)),
             })
 
         logger.info(f"Disks discovered via lsblk: {len(disks)}")
