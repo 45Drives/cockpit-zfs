@@ -133,6 +133,25 @@
 					</template>
 				</Card>
 			</div>
+
+			<!-- Zvol Review Card -->
+			<div v-if="datasetCreationType === 'zvol' && !creatingFilesystem && !filesystemCreated" class="">
+				<Card :bgColor="'bg-accent'" :titleSection="true" :contentSection="false" :footerSection="true" class="mt-2 mb-4 truncate rounded-lg border border-default text-default">
+					<template v-slot:title>
+						<div class="rounded-lg">
+							<p>Zvol Name: <b>{{ zvolConfigData.name }}</b></p>
+						</div>
+					</template>
+					<template v-slot:footer>
+						<div>
+							<p>Volume Size: <b>{{ zvolConfigData.sizeValue }}{{ zvolConfigData.sizeUnit === 'M' ? ' MiB' : zvolConfigData.sizeUnit === 'G' ? ' GiB' : ' TiB' }}</b></p>
+							<p v-if="zvolConfigData.volblocksize">Block Size: <b>{{ zvolConfigData.volblocksize }}</b></p>
+							<p>Compression: <b>{{ upperCaseWord(zvolConfigData.compression) }}</b></p>
+							<p>Deduplication: <b>{{ upperCaseWord(zvolConfigData.dedup) }}</b></p>
+						</div>
+					</template>
+				</Card>
+			</div>
 		</div>
 
 		<div v-if="finishPressed" class="grid grid-cols-1 gap-1 bg-well rounded-md border border-default p-2">
@@ -149,7 +168,7 @@
 				</div>
 			</div>
 		</div>
-		<div v-if="finishPressed && poolConfig.createFileSystem!" class="mt-2 p-2 grid grid-cols-1 gap-1 bg-well rounded-md border border-default">
+		<div v-if="finishPressed && (poolConfig.createFileSystem! || datasetCreationType === 'zvol')" class="mt-2 p-2 grid grid-cols-1 gap-1 bg-well rounded-md border border-default">
 			<div v-if="creatingPool">
 				<div class="grid justify-center justify-items-center">
 					<legend class="text-lg text-muted animate-pulse">Waiting for Pool...</legend>
@@ -158,13 +177,13 @@
 			</div>
 			<div v-if="!creatingPool && creatingFilesystem && !filesystemCreated">
 				<div class="grid justify-center justify-items-center">
-					<legend class="text-lg text-default animate-pulse">Creating File System...</legend>
+					<legend class="text-lg text-default animate-pulse">{{ datasetCreationType === 'zvol' ? 'Creating Zvol...' : 'Creating File System...' }}</legend>
 					<LoadingSpinner :width="'w-24'" :height="'h-24'" :baseColor="'text-gray-200'" :fillColor="'fill-green-500'" class="font-semibold text-lg my-0.5"/>
 				</div>
 			</div>
 			<div v-if="!creatingPool && !creatingFilesystem && filesystemCreated" class="">
 				<div class="grid justify-center justify-items-center">
-					<legend class="text-lg text-success">File System Created!</legend>
+					<legend class="text-lg text-success">{{ datasetCreationType === 'zvol' ? 'Zvol Created!' : 'File System Created!' }}</legend>
 					<CheckCircleIcon class="aspect-square w-10 h-10 text-green-400"/>
 				</div>
 			</div>
@@ -190,6 +209,8 @@ const creatingPool = inject<Ref<boolean>>('creating-pool')!;
 const poolCreated = inject<Ref<boolean>>('pool-created')!;
 const creatingFilesystem = inject<Ref<boolean>>('creating-filesystem')!;
 const filesystemCreated = inject<Ref<boolean>>('filesystem-created')!;
+const datasetCreationType = inject<Ref<string>>('dataset-creation-type')!;
+const zvolConfigData = inject<Ref<any>>('zvol-config-data')!;
 
 const truncateText = inject<Ref<string>>('style-truncate-text')!;
 

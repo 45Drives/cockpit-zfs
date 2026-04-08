@@ -1,3 +1,36 @@
+cockpit-zfs (1.2.21-2focal) focal; urgency=medium
+
+  * building test package with ui fix for zvol
+
+ -- Rachit Hans <rhans@45drives.com>  Tue, 31 Mar 2026 08:47:19 -0300
+
+cockpit-zfs (1.2.21-1focal) focal; urgency=medium
+
+  * added functionality of creating zvol
+
+ -- Rachit Hans <rhans@45drives.com>  Tue, 31 Mar 2026 07:15:29 -0300
+
+cockpit-zfs (1.2.20-2focal) focal; urgency=medium
+
+  * fix: wrap emailFromOAuth in array to prevent .join() error on recieversEmail
+
+
+ -- Rachit Hans <rhans@45drives.com>  Mon, 30 Mar 2026 13:06:09 -0300
+
+cockpit-zfs (1.2.20-1focal) focal; urgency=medium
+
+  * fix: wrap emailFromOAuth in array to prevent .join() error on recieversEmail
+
+
+ -- Rachit Hans <rhans@45drives.com>  Mon, 30 Mar 2026 13:01:26 -0300
+
+cockpit-zfs (1.2.19-2focal) focal; urgency=medium
+
+  * fix: wrap emailFromOAuth in array to prevent .join() error on recieversEmail
+
+
+ -- Rachit Hans <rhans@45drives.com>  Mon, 30 Mar 2026 12:38:47 -0300
+
 cockpit-zfs (1.2.19-1focal) focal; urgency=medium
 
   * Fixes a race condition in admin priv check
