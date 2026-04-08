@@ -1,3 +1,9 @@
+cockpit-zfs (1.2.23-1focal) focal; urgency=medium
+
+  * Adds extra handling to properly support sata drives directly connected to mobo
+
+ -- Jordan Keough <jkeough@45drives.com>  Wed, 08 Apr 2026 11:16:28 -0300
+
 cockpit-zfs (1.2.22-1focal) focal; urgency=medium
 
   * Improves disk data retrieval/matching

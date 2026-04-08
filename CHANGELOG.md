@@ -1,3 +1,3 @@
-## zfs module 1.2.22-1
+## zfs module 1.2.23-1
 
-* Improves disk data retrieval/matching
+* Adds extra handling to properly support sata drives directly connected to mobo
