@@ -277,14 +277,32 @@ const diskState = computed(() => {
 		return v;
 	};
 
+	// Boundary-safe endsWith: require the character just before the suffix to be
+	// a path separator (/ or -) so "sda" won't falsely match "nvmesda" etc.
+	const endsWithBoundary = (haystack: string, needle: string) => {
+		if (!haystack || !needle || needle.length > haystack.length) return false;
+		if (haystack === needle) return true;
+		if (!haystack.endsWith(needle)) return false;
+		const preceding = haystack[haystack.length - needle.length - 1];
+		return preceding === '/' || preceding === '-';
+	};
+
 	const diskBases = [
 		props.disk.name, props.disk.path, props.disk.sd_path,
 		props.disk.phy_path, props.disk.vdev_path
 	].filter(Boolean).map(p => stripToBase(p!));
 
+	// 2a) Stripped exact match first (safest)
 	match = diskArray.find(d => {
 		const statBase = stripToBase(d.name);
-		return diskBases.some(db => db && statBase && (db === statBase || statBase.endsWith(db) || db.endsWith(statBase)));
+		return diskBases.some(db => db && statBase && db === statBase);
+	});
+	if (match) return match.status;
+
+	// 2b) Boundary-safe endsWith fallback (handles different path prefixes)
+	match = diskArray.find(d => {
+		const statBase = stripToBase(d.name);
+		return diskBases.some(db => db && statBase && (endsWithBoundary(statBase, db) || endsWithBoundary(db, statBase)));
 	});
 
 	if (match) return match.status;

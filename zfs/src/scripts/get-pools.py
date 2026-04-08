@@ -105,14 +105,14 @@ def _parse_vdevs_from_status(pool_name):
             parts = stripped.split()
             if not parts:
                 continue
-            name = parts[0]
+            raw_name = parts[0]
             status = parts[1] if len(parts) > 1 else "ONLINE"
             read_err = parts[2] if len(parts) > 2 else "0"
             write_err = parts[3] if len(parts) > 3 else "0"
             cksum_err = parts[4] if len(parts) > 4 else "0"
 
             # Skip the pool name line itself
-            if name == pool_name and not pool_line_seen:
+            if raw_name == pool_name and not pool_line_seen:
                 pool_line_seen = True
                 vdev_stack = []
                 continue
@@ -120,17 +120,29 @@ def _parse_vdevs_from_status(pool_name):
             indent = len(line) - len(line.lstrip())
 
             # Determine if this is a vdev (mirror/raidz/etc.) or a leaf disk
-            is_vdev_type = any(name.startswith(prefix) for prefix in
+            is_vdev_type = any(raw_name.startswith(prefix) for prefix in
                               ["mirror", "raidz", "draid", "replacing", "spare"])
 
-            # Resolve the device path: zpool status -P gives full /dev/... paths for disks
+            # Resolve the device path: -P gives full paths, use for matching
+            # Display name comes from basename so the UI shows the user's chosen identifier
             if not is_vdev_type:
-                if name.startswith("/dev/"):
-                    disk_path = name
+                if raw_name.startswith("/dev/"):
+                    disk_path = raw_name
                 else:
-                    disk_path = f"/dev/{name}"
+                    # Try known symlink directories to reconstruct the full path
+                    disk_path = None
+                    for prefix in ("/dev/disk/by-path/", "/dev/disk/by-vdev/", "/dev/disk/by-id/", "/dev/"):
+                        candidate = prefix + raw_name
+                        if os.path.exists(candidate):
+                            disk_path = candidate
+                            break
+                    if not disk_path:
+                        disk_path = f"/dev/{raw_name}"
+                # Display name = basename of whatever zpool reports (preserves user's chosen identifier)
+                name = os.path.basename(raw_name)
             else:
                 disk_path = None
+                name = raw_name
 
             # Parse error stats for leaf disks
             disk_stats = {}
@@ -146,7 +158,7 @@ def _parse_vdevs_from_status(pool_name):
 
             vdev_entry = {
                 "name": name,
-                "type": "disk" if not is_vdev_type else name.rsplit("-", 1)[0] if "-" in name else name,
+                "type": "disk" if not is_vdev_type else raw_name.rsplit("-", 1)[0] if "-" in raw_name else raw_name,
                 "path": disk_path,
                 "status": status,
                 "guid": "",

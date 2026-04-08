@@ -104,7 +104,7 @@ export async function loadDisksThenPools(disks, pools) {
 				temp: parsedJSON[i].temp || 'N/A',
 				rotationRate: parsedJSON[i].rotation_rate || 0,
 				stats: {},
-				errors: [],
+				errors: parsedJSON[i].health === 'POOR' ? ['SMART health: POOR'] : [],
 				hasPartitions: parsedJSON[i].has_partitions || false,
 				id_path: parsedJSON[i].id_path || '',
 				label_path: parsedJSON[i].label_path || '',
@@ -185,7 +185,9 @@ export async function loadDisksThenPools(disks, pools) {
 							bytes_processed: parsedJSON[i].scan.bytes_processed,
 							bytes_to_process: parsedJSON[i].scan.bytes_to_process,
 						},
-						errors: [],
+						errors: (parsedJSON[i].error_count > 0 || parsedJSON[i].status_code !== 'OK')
+							? [parsedJSON[i].status_detail || `${parsedJSON[i].error_count} error(s)`].filter(Boolean)
+							: [],
 						statusCode: parsedJSON[i].status_code,
 						statusDetail: parsedJSON[i].status_detail,
 						errorCount: parsedJSON[i].error_count,
@@ -245,7 +247,9 @@ export async function loadDisksThenPools(disks, pools) {
 							bytes_processed: parsedJSON[i].scan.bytes_processed,
 							bytes_to_process: parsedJSON[i].scan.bytes_to_process,
 						},
-						errors: [],
+						errors: (parsedJSON[i].error_count > 0 || parsedJSON[i].status_code !== 'OK')
+							? [parsedJSON[i].status_detail || `${parsedJSON[i].error_count} error(s)`].filter(Boolean)
+							: [],
 						statusCode: parsedJSON[i].status_code,
 						statusDetail: parsedJSON[i].status_detail,
 						errorCount: parsedJSON[i].error_count,
@@ -406,7 +410,7 @@ export async function loadDisks(disks) {
 				temp: parsedJSON[i].temp || 'N/A',
 				rotationRate: parsedJSON[i].rotation_rate || 0,
 				stats: {},
-				errors: [],
+				errors: parsedJSON[i].health === 'POOR' ? ['SMART health: POOR'] : [],
 				hasPartitions: parsedJSON[i].has_partitions || false,
 				id_path: parsedJSON[i].id_path || '',
 				label_path: parsedJSON[i].label_path || '',
@@ -524,7 +528,9 @@ export function parseVDevData(vDev, poolName, disks, vDevType) {
 		poolName: poolName,
 		path: vDev.path,
 		diskType: determineDiskType(vDev, disks),
-		errors: [],
+		errors: Object.entries(vDev.stats || {})
+			.filter(([k, v]) => typeof v === 'number' && v > 0)
+			.map(([k, v]) => `${k}: ${v}`),
 	};
 
 	// console.log("parsedVdevdata: ",vDev, poolName, disks, vDevType )
@@ -608,7 +614,7 @@ export function parseVDevData(vDev, poolName, disks, vDevType) {
 			path: poolLeafPath,
 			guid: vDev.guid,
 			type: diskVDev.value!.type,
-			health: diskVDev.value!.status,
+			health: diskVDev.value!.health ?? diskVDev.value!.status,
 			stats: diskVDev.value!.stats,
 			capacity: changeUnitToBinary(
 				isCapacityPatternInvalid(diskVDev.value!.capacity)
@@ -628,7 +634,9 @@ export function parseVDevData(vDev, poolName, disks, vDevType) {
 			vDevName: vDev.name,
 			poolName: poolName,
 			vDevType: vDevType,
-			errors: []
+			errors: Object.entries(diskVDev.value?.stats || {})
+				.filter(([k, v]) => typeof v === 'number' && v > 0)
+				.map(([k, v]) => `${k}: ${v}`)
 		};
 
 		const isDupe = vDevData.disks.some(disk =>
@@ -725,30 +733,36 @@ function handleDiskChild(child, vDevData, disks, vDevName, poolName, vDevType) {
 		if (fullDiskData) {
 			console.warn(`Recovered disk via safety net using ${vdevBase}`);
 		} else {
-			// 2) Still nothing → create a real placeholder
-			console.warn(`Disk not found in inventory for path: ${child.path}. ZFS status: ${child.status || 'unknown'}`);
-			fullDiskData = {
-				name: child.name || "Unknown",
-				path: child.path,
-				guid: child.guid || "N/A",
-				type: "N/A",
-				health: child.status || "REMOVED",
-				stats: child.stats || {},
-				capacity: "Unknown",
-				model: "N/A",
-				phy_path: child.path || "N/A",
-				sd_path: child.path || "N/A",
-				vdev_path: "",
-				serial: "N/A",
-				powerOnHours: 0,
-				powerOnCount: "0",
-				temp: "N/A",
-				rotationRate: 0,
-				vDevName: vDevName,
-				poolName: poolName,
-				vDevType: vDevType,
-				errors: [`Disk not found in system inventory. Pool: ${poolName}, vDev: ${vDevName}`],
-			};
+			// 2) Try matchDiskByVdevOrPath which has prefix/startsWith fallback matching
+			fullDiskData = matchDiskByVdevOrPath(disks, child.path);
+			if (fullDiskData) {
+				console.warn(`Recovered disk via matchDiskByVdevOrPath for ${child.path}`);
+			} else {
+				// 3) Still nothing → create a real placeholder
+				console.warn(`Disk not found in inventory for path: ${child.path}. ZFS status: ${child.status || 'unknown'}`);
+				fullDiskData = {
+					name: child.name || "Unknown",
+					path: child.path,
+					guid: child.guid || "N/A",
+					type: "N/A",
+					health: child.status || "REMOVED",
+					stats: child.stats || {},
+					capacity: "Unknown",
+					model: "N/A",
+					phy_path: child.path || "N/A",
+					sd_path: child.path || "N/A",
+					vdev_path: "",
+					serial: "N/A",
+					powerOnHours: 0,
+					powerOnCount: "0",
+					temp: "N/A",
+					rotationRate: 0,
+					vDevName: vDevName,
+					poolName: poolName,
+					vDevType: vDevType,
+					errors: [`Disk not found in system inventory. Pool: ${poolName}, vDev: ${vDevName}`],
+				};
+			}
 		}
 	}
 
@@ -760,7 +774,7 @@ function handleDiskChild(child, vDevData, disks, vDevName, poolName, vDevType) {
 		path: child.path,
 		guid: child.guid,
 		type: fullDiskData.type,
-		health: fullDiskData.health,
+		health: fullDiskData.health ?? fullDiskData.status,
 		stats: child.stats || {},
 		capacity: changeUnitToBinary(fullDiskData.capacity),
 		model: fullDiskData.model,
@@ -775,7 +789,12 @@ function handleDiskChild(child, vDevData, disks, vDevName, poolName, vDevType) {
 		vDevName: vDevName,
 		poolName: poolName,
 		vDevType: vDevType,
-		errors: [],
+		errors: [
+			...Object.entries(child.stats || {})
+				.filter(([k, v]) => typeof v === 'number' && v > 0)
+				.map(([k, v]) => `${k}: ${v}`),
+			...(fullDiskData.errors || []),
+		],
 		// replacingTarget: null
 	};
 	// Ensure no duplicates in vDevData
@@ -801,6 +820,7 @@ function createMissingDisk(path, vDevName, vDevType, poolName) {
 		guid: 'N/A',
 		type: 'N/A',
 		health: 'MISSING',
+		status: 'MISSING',
 		stats: {},
 		capacity: 'Unknown',
 		model: 'N/A',
