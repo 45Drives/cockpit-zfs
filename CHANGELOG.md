@@ -1,3 +1,3 @@
-## zfs module 1.2.23-1
+## zfs module 1.2.23-2
 
-* Adds extra handling to properly support sata drives directly connected to mobo
+* Adds concurrent smartctl/udevadm checks for disk temp to improve speed

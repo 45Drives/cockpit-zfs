@@ -1,3 +1,9 @@
+cockpit-zfs (1.2.23-2jammy) jammy; urgency=medium
+
+  * Adds concurrent smartctl/udevadm checks for disk temp to improve speed
+
+ -- Jordan Keough <jkeough@45drives.com>  Wed, 08 Apr 2026 11:34:14 -0300
+
 cockpit-zfs (1.2.23-1jammy) jammy; urgency=medium
 
   * Adds extra handling to properly support sata drives directly connected to mobo
