@@ -655,6 +655,8 @@ export function matchDiskByVdevOrPath(
 		p = p.replace(/(\/mmcblk\d+)p\d+$/, "$1");
 		p = p.replace(/(\/sd[a-z]+)\d+$/, "$1");
 		p = p.replace(/-part\d+$/, "");
+		// Normalize ATA SCSI target suffixes: ata-3.0 ↔ ata-3
+		p = p.replace(/(-ata-\d+)\.0(?=$|-)/, "$1");
 		return p;
 	};
 
@@ -666,7 +668,7 @@ export function matchDiskByVdevOrPath(
 		const shorter = a.length > b.length ? b : a;
 		if (!longer.startsWith(shorter)) return false;
 		const nextChar = longer[shorter.length];
-		return nextChar === '/' || nextChar === '-' || nextChar === undefined;
+		return nextChar === '/' || nextChar === '-' || nextChar === '.' || nextChar === undefined;
 	};
 
 	const want = vdevPathOrAnyPath;

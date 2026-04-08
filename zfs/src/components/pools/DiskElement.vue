@@ -274,6 +274,8 @@ const diskState = computed(() => {
 		v = v.replace(/^(nvme\d+n\d+)p\d+$/, '$1');
 		// SCSI: sda1 -> sda
 		v = v.replace(/^(sd[a-z]+)\d+$/, '$1');
+		// ATA target normalization: ata-3.0 -> ata-3
+		v = v.replace(/(-ata-\d+)\.0(?=$|-)/, '$1');
 		return v;
 	};
 

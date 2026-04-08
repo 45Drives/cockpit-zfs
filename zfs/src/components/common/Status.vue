@@ -468,7 +468,37 @@ const trimActivity = computed(() => {
 
 const selectedDisk = computed<any | null>(() => {
 	if (!props.disk?.name) return null;
-	return poolDisks.value.find(d => d?.name === props.disk!.name) ?? null;
+
+	// 1) Exact name match
+	let match = poolDisks.value.find(d => d?.name === props.disk!.name);
+	if (match) return match;
+
+	// 2) Partition-aware matching: strip prefixes and partition suffixes, then compare
+	const stripToBase = (s: string) => {
+		if (!s) return '';
+		let v = s;
+		v = v.replace(/^\/dev\/(disk\/by-[^/]+\/)?/, '');
+		v = v.replace(/-part\d+$/, '');
+		v = v.replace(/^(nvme\d+n\d+)p\d+$/, '$1');
+		v = v.replace(/^(sd[a-z]+)\d+$/, '$1');
+		// ATA target normalization: ata-3.0 -> ata-3
+		v = v.replace(/(-ata-\d+)\.0(?=$|-)/, '$1');
+		return v;
+	};
+
+	const diskBases = [
+		props.disk!.name, props.disk!.path, props.disk!.sd_path,
+		props.disk!.phy_path, props.disk!.vdev_path
+	].filter(Boolean).map(p => stripToBase(p!));
+
+	match = poolDisks.value.find(d => {
+		const statBase = stripToBase(d?.name ?? '');
+		return diskBases.some(db => db && statBase && (
+			db === statBase || statBase.endsWith(db) || db.endsWith(statBase)
+		));
+	});
+
+	return match ?? null;
 });
 
 const isTrimActive = computed(() => poolDisks.value.some(d => d?.stats?.trim_notsup !== 1 && d?.stats?.trim_state === 1));

@@ -546,7 +546,10 @@ def get_lsdev_disks():
                     base_name = os.path.basename(dev)
                     dtype = (d.get("disk_type") or "HDD").strip()
                     temp_raw = d.get("temp-c")
-                    temp_str = str(temp_raw) if temp_raw is not None else "Unknown"
+                    # Treat 0°C as unreported — HDDs can't physically operate at 0°C,
+                    # so the SES enclosure likely doesn't support temperature sensing.
+                    # "Unknown" lets merge_overlay preserve smartctl-based temperature.
+                    temp_str = str(temp_raw) if (temp_raw is not None and temp_raw != 0) else "Unknown"
 
                     disk_data = {
                         "vdev_path": f"/dev/disk/by-vdev/{bay_id}" if bay_id else "N/A",
@@ -779,6 +782,33 @@ def main():
 
         # Enrich all disks with alias paths (by-id, by-label, etc.)
         all_disks = _enrich_alias_paths(all_disks)
+
+        # Fallback phy_path enrichment: scan /dev/disk/by-path/ symlinks to fill
+        # missing phy_path values. This handles cases where udevadm didn't return
+        # ID_PATH, ensuring we can match ZFS by-path vdev identifiers to disks.
+        try:
+            bypath_dir = "/dev/disk/by-path"
+            if os.path.isdir(bypath_dir):
+                bypath_map = {}  # base sd_path -> by-path link (base, no partition)
+                for link in os.listdir(bypath_dir):
+                    full = os.path.join(bypath_dir, link)
+                    try:
+                        target = os.path.realpath(full)
+                        base = _dev_base(target)
+                        link_base = re.sub(r'-part\d+$', '', link)
+                        bypath_map[base] = f"{bypath_dir}/{link_base}"
+                    except Exception:
+                        pass
+                for d in all_disks:
+                    cur = d.get("phy_path", "")
+                    if cur and cur not in ("unknown", "N/A"):
+                        continue
+                    sd_base = _dev_base(d.get("sd_path", ""))
+                    if sd_base and sd_base in bypath_map:
+                        d["phy_path"] = bypath_map[sd_base]
+                        logger.debug(f"Enriched phy_path for {d.get('name')}: {d['phy_path']}")
+        except Exception as e:
+            logger.warning(f"by-path enrichment failed: {e}")
 
         # Gather active ZFS pool leaf bases so we never exclude them as boot disks
         pool_leaf_bases = _all_pool_leaf_bases()
