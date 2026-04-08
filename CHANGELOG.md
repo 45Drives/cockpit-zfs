@@ -1,3 +1,3 @@
-## zfs module 1.2.21-2
+## zfs module 1.2.22-1
 
-* building test package with ui fix for zvol
+* Improves disk data retrieval/matching
