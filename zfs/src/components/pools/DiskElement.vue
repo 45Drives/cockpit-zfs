@@ -166,7 +166,7 @@ import { EllipsisVerticalIcon } from '@heroicons/vue/24/outline';
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/vue';
 import { scrubPool, clearErrors } from "../../composables/pools";
 import { labelClear, detachDisk, offlineDisk, onlineDisk, trimDisk } from "../../composables/disks";
-import { formatStatus } from '../../composables/helpers'
+import { formatStatus, findMatchingPoolDisk } from '../../composables/helpers'
 import Status from "../common/Status.vue";
 import { ZPool, VDev, VDevDisk, ZFSFileSystemInfo } from "@45drives/houston-common-lib";
 import { pushNotification, Notification } from '@45drives/houston-common-ui';
@@ -256,61 +256,8 @@ async function getScanStatus() {
 const diskState = computed(() => {
 	const diskArray = poolDiskStats.value[props.pool.name];
 	if (!diskArray) return props.disk.health || 'MISSING';
-
-	// 1) Exact name match
-	let match = diskArray.find(d => d.name === props.disk.name);
-	if (match) return match.status;
-
-	// 2) Match stat name against any of the disk's path fields
-	//    Strip /dev/disk/by-xxx/ prefixes and -partN / pN / N suffixes to get base device
-	const stripToBase = (s: string) => {
-		if (!s) return '';
-		let v = s;
-		// Strip common prefixes
-		v = v.replace(/^\/dev\/(disk\/by-[^/]+\/)?/, '');
-		// Strip partition suffixes
-		v = v.replace(/-part\d+$/, '');
-		// NVMe: nvme0n1p2 -> nvme0n1
-		v = v.replace(/^(nvme\d+n\d+)p\d+$/, '$1');
-		// SCSI: sda1 -> sda
-		v = v.replace(/^(sd[a-z]+)\d+$/, '$1');
-		// ATA target normalization: ata-3.0 -> ata-3
-		v = v.replace(/(-ata-\d+)\.0(?=$|-)/, '$1');
-		return v;
-	};
-
-	// Boundary-safe endsWith: require the character just before the suffix to be
-	// a path separator (/ or -) so "sda" won't falsely match "nvmesda" etc.
-	const endsWithBoundary = (haystack: string, needle: string) => {
-		if (!haystack || !needle || needle.length > haystack.length) return false;
-		if (haystack === needle) return true;
-		if (!haystack.endsWith(needle)) return false;
-		const preceding = haystack[haystack.length - needle.length - 1];
-		return preceding === '/' || preceding === '-';
-	};
-
-	const diskBases = [
-		props.disk.name, props.disk.path, props.disk.sd_path,
-		props.disk.phy_path, props.disk.vdev_path
-	].filter(Boolean).map(p => stripToBase(p!));
-
-	// 2a) Stripped exact match first (safest)
-	match = diskArray.find(d => {
-		const statBase = stripToBase(d.name);
-		return diskBases.some(db => db && statBase && db === statBase);
-	});
-	if (match) return match.status;
-
-	// 2b) Boundary-safe endsWith fallback (handles different path prefixes)
-	match = diskArray.find(d => {
-		const statBase = stripToBase(d.name);
-		return diskBases.some(db => db && statBase && (endsWithBoundary(statBase, db) || endsWithBoundary(db, statBase)));
-	});
-
-	if (match) return match.status;
-
-	// 3) Fall back to the health property set during pool loading
-	return props.disk.health || 'MISSING';
+	const match = findMatchingPoolDisk(diskArray, props.disk);
+	return match?.status ?? props.disk.health ?? 'MISSING';
 });
 
 

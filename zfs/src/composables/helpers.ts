@@ -690,6 +690,63 @@ export function matchDiskByVdevOrPath(
 }
 
 
+/**
+ * Find a pool disk stat entry matching a VDevDisk by comparing stripped base paths.
+ * Shared by DiskElement (diskState) and Status (selectedDisk).
+ */
+export function findMatchingPoolDisk(
+	poolDiskArray: any[],
+	disk: { name?: string; path?: string; sd_path?: string; phy_path?: string; vdev_path?: string }
+): any | null {
+	if (!disk?.name || !Array.isArray(poolDiskArray)) return null;
+
+	// 1) Exact name match
+	let match = poolDiskArray.find(d => d?.name === disk.name);
+	if (match) return match;
+
+	// 2) Partition-aware matching: strip prefixes and partition suffixes, then compare
+	const stripToBase = (s: string) => {
+		if (!s) return '';
+		let v = s;
+		v = v.replace(/^\/dev\/(disk\/by-[^/]+\/)?/, '');
+		v = v.replace(/-part\d+$/, '');
+		v = v.replace(/^(nvme\d+n\d+)p\d+$/, '$1');
+		v = v.replace(/^(sd[a-z]+)\d+$/, '$1');
+		v = v.replace(/(-ata-\d+)\.0(?=$|-)/, '$1');
+		return v;
+	};
+
+	// Boundary-safe endsWith: require the character just before the suffix to be
+	// a path separator (/ or -) so "sda" won't falsely match "nvmesda" etc.
+	const endsWithBoundary = (haystack: string, needle: string) => {
+		if (!haystack || !needle || needle.length > haystack.length) return false;
+		if (haystack === needle) return true;
+		if (!haystack.endsWith(needle)) return false;
+		const preceding = haystack[haystack.length - needle.length - 1];
+		return preceding === '/' || preceding === '-';
+	};
+
+	const diskBases = [
+		disk.name, disk.path, disk.sd_path,
+		disk.phy_path, disk.vdev_path
+	].filter(Boolean).map(p => stripToBase(p!));
+
+	// 2a) Stripped exact match first (safest)
+	match = poolDiskArray.find(d => {
+		const statBase = stripToBase(d?.name ?? '');
+		return diskBases.some(db => db && statBase && db === statBase);
+	});
+	if (match) return match;
+
+	// 2b) Boundary-safe endsWith fallback (handles different path prefixes)
+	match = poolDiskArray.find(d => {
+		const statBase = stripToBase(d?.name ?? '');
+		return diskBases.some(db => db && statBase && (endsWithBoundary(statBase, db) || endsWithBoundary(db, statBase)));
+	});
+
+	return match ?? null;
+}
+
 export function truncateName(name : string, threshold : number) {
     return (name.length > threshold ? name.slice(0, threshold) + '...' : name)
 }
