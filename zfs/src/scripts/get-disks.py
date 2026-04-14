@@ -596,7 +596,10 @@ def _parse_smartctl_output(lines):
     info = {"temp": None, "power_on_hours": None, "power_cycle_count": None, "health": None}
     for line in lines:
         if ("Temperature" in line and "Celsius" in line) or "Temperature_Celsius" in line:
-            nums = [int(t) for t in re.findall(r"(\d+)", line)]
+            # Strip parenthetical suffixes like "(0 12 0 0 0)" or "(Min/Max 13/43)"
+            # so that the last number extracted is the actual temperature value.
+            stripped = re.sub(r"\(.*?\)", "", line)
+            nums = [int(t) for t in re.findall(r"(\d+)", stripped)]
             if nums: info["temp"] = nums[-1]
         elif "Power_On_Hours" in line or "Power On Hours" in line:
             nums = re.findall(r"(\d+)", line); info["power_on_hours"] = int(nums[-1]) if nums else None
