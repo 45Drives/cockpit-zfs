@@ -2,7 +2,7 @@ name: Build Packages
 on:
   push:
     branches: 
-      - oauth-test-email-without-save
+      - build
     tags:
       - 'v*.*.*'
 jobs:
