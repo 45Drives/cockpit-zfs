@@ -2,7 +2,7 @@ name: Build Packages
 on:
   push:
     branches: 
-      - zvol
+      - build
     tags:
       - 'v*.*.*'
 jobs:
