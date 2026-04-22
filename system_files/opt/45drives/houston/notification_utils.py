@@ -207,6 +207,36 @@ import email.message
 
 def sendTestEmailViaGmailApi(config):
     try:
+        # Ensure OAuth token file exists before refreshing.
+        # When sending a test email without saving first, the token file
+        # may not exist yet, so we write it from the config passed in.
+        oauth_file_missing = (
+            not os.path.exists(MSMTP_OAUTH_JSON_PATH)
+            or os.stat(MSMTP_OAUTH_JSON_PATH).st_size == 0
+        )
+        if oauth_file_missing:
+            access_token_from_config = config.get("oauthAccessToken", "")
+            refresh_token_from_config = config.get("oauthRefreshToken", "")
+            email_from_config = config.get("email", "")
+            expiry_from_config = config.get("tokenExpiry", "")
+
+            if not refresh_token_from_config:
+                return {
+                    "success": False,
+                    "message": "❌ No OAuth credentials found. Please sign in with Gmail first."
+                }
+
+            oauth_data_init = {
+                "access_token": access_token_from_config,
+                "refresh_token": refresh_token_from_config,
+                "user_email": email_from_config,
+                "expiry": expiry_from_config
+            }
+            os.makedirs(os.path.dirname(MSMTP_OAUTH_JSON_PATH), exist_ok=True)
+            with open(MSMTP_OAUTH_JSON_PATH, "w") as f:
+                json.dump(oauth_data_init, f, indent=4)
+            os.chmod(MSMTP_OAUTH_JSON_PATH, 0o600)
+
         # Refresh token first
         if not os.path.exists(MSMTP_OAUTH_REFRESH_SCRIPT):
             return {

@@ -62,6 +62,11 @@ if systemctl cat houston-zfs-storage-alert.service &>/dev/null; then
     systemctl start houston-zfs-storage-alert.service || true
 fi
 
+# Restart Houston D-Bus server to pick up updated code
+if systemctl cat houston-dbus.service &>/dev/null; then
+    systemctl restart houston-dbus.service || true
+fi
+
 # Optional: Restart zed if present (ZFS Event Daemon)
 if systemctl cat zed.service &>/dev/null; then
     systemctl restart zed || true
