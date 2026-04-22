@@ -1,3 +1,9 @@
+cockpit-zfs (1.2.22-1bookworm) bookworm; urgency=medium
+
+  * building test package
+
+ -- Rachit Hans <rhans@45drives.com>  Wed, 22 Apr 2026 07:24:48 -0300
+
 cockpit-zfs (1.2.21-3bookworm) bookworm; urgency=medium
 
   * making a release for zvol

@@ -1,3 +1,3 @@
-## zfs module 1.2.21-3
+## zfs module 1.2.22-1
 
-* making a release for zvol
+* building test package
