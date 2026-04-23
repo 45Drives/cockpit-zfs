@@ -11,9 +11,6 @@ echo "[INFO] Enabling services..."
 systemctl enable --now houston-zfs-storage-alert.timer || true
 systemctl enable houston-zfs-storage-alert.service || true
 
-echo "[INFO] Restarting Houston D-Bus server..."
-systemctl restart houston-dbus.service || true
-
 echo "[INFO] Starting services..."
 # Restarting services safely, allowing them to fail without aborting script
 systemctl restart zed || true

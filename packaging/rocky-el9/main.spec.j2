@@ -27,22 +27,14 @@ make DESTDIR=%{buildroot} install
 /usr/share/cockpit/zfs/*
 # D-Bus configuration
 %config(noreplace) /etc/dbus-1/system.d/org._45drives.Houston.conf
-/etc/dbus-1/system.d/houston-dbus.service
-%config(noreplace) /etc/45drives/msmtp_oauth-email.py
-%attr(0755,root,root) %config(noreplace) /etc/45drives/zfs-storage-check.sh
+%config(noreplace) /etc/45drives/zfs-storage-check.sh
 /etc/systemd/system/houston-zfs-storage-alert.service
 /etc/systemd/system/houston-zfs-storage-alert.timer
 
 # ZED event scripts (set executable permissions)
 %attr(0755, root, root) /etc/zfs/zed.d/*
 
-# 45Drives Houston files (ensure executability)
-%dir /opt/45drives
-%dir /opt/45drives/houston
-%attr(0755, root, root) /opt/45drives/houston/dbus_server.py
-%attr(0755, root, root) /opt/45drives/houston/houston-notify.py
-%attr(0755, root, root) /opt/45drives/houston/setup_notification_db.py
-%attr(0755,root,root) /opt/45drives/houston/notification_utils.py
+%attr(0755,root,root) /etc/45drives/zfs-storage-check.sh
 
 %post
 
@@ -60,11 +52,6 @@ fi
 # Start the alert service if it exists
 if systemctl cat houston-zfs-storage-alert.service &>/dev/null; then
     systemctl start houston-zfs-storage-alert.service || true
-fi
-
-# Restart Houston D-Bus server to pick up updated code
-if systemctl cat houston-dbus.service &>/dev/null; then
-    systemctl restart houston-dbus.service || true
 fi
 
 # Optional: Restart zed if present (ZFS Event Daemon)
