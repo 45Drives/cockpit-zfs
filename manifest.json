@@ -26,7 +26,8 @@
             "sqlite3",
             "jq",
             "msmtp",
-            "python3-dateutil"
+            "python3-dateutil",
+            "cockpit-alerts"
         ],
         "rocky_common": [
             "cockpit",
@@ -36,7 +37,8 @@
             "sqlite",
             "jq",
             "msmtp",
-            "python3-dateutil"
+            "python3-dateutil",
+            "cockpit-alerts"
         ],
         "debian": [
             "cockpit",
@@ -46,7 +48,8 @@
             "sqlite3",
             "jq",
             "msmtp",
-            "python3-dateutil"
+            "python3-dateutil",
+            "cockpit-alerts"
         ]
     },
     "builds": [

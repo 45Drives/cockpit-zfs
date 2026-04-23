@@ -7,14 +7,21 @@ cockpit-zfs (1.2.23-2jammy) jammy; urgency=medium
 cockpit-zfs (1.2.23-1jammy) jammy; urgency=medium
 
   * Adds extra handling to properly support sata drives directly connected to mobo
+  * Improves disk data retrieval/matching
 
  -- Jordan Keough <jkeough@45drives.com>  Wed, 08 Apr 2026 11:16:28 -0300
 
 cockpit-zfs (1.2.22-1jammy) jammy; urgency=medium
 
-  * Improves disk data retrieval/matching
+  * building test package
 
- -- Jordan Keough <jkeough@45drives.com>  Wed, 08 Apr 2026 09:11:19 -0300
+ -- Rachit Hans <rhans@45drives.com>  Wed, 22 Apr 2026 07:24:48 -0300
+
+cockpit-zfs (1.2.21-3jammy) jammy; urgency=medium
+
+  * making a release for zvol
+
+ -- Rachit Hans <rhans@45drives.com>  Wed, 01 Apr 2026 07:45:17 -0300
 
 cockpit-zfs (1.2.21-2jammy) jammy; urgency=medium
 
