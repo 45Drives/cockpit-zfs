@@ -1,3 +1,9 @@
+cockpit-zfs (1.2.23-3bookworm) bookworm; urgency=medium
+
+  * Uses Cockpit-Alerts as dependency for notification and email alerts
+
+ -- Jordan Keough <jkeough@45drives.com>  Thu, 23 Apr 2026 08:52:20 -0300
+
 cockpit-zfs (1.2.23-1bookworm) bookworm; urgency=medium
 
   * Uses Cockpit-Alerts as dependency for notification/email alerts
