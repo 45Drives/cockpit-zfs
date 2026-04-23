@@ -166,7 +166,7 @@ import { EllipsisVerticalIcon } from '@heroicons/vue/24/outline';
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/vue';
 import { scrubPool, clearErrors } from "../../composables/pools";
 import { labelClear, detachDisk, offlineDisk, onlineDisk, trimDisk } from "../../composables/disks";
-import { formatStatus } from '../../composables/helpers'
+import { formatStatus, findMatchingPoolDisk } from '../../composables/helpers'
 import Status from "../common/Status.vue";
 import { ZPool, VDev, VDevDisk, ZFSFileSystemInfo } from "@45drives/houston-common-lib";
 import { pushNotification, Notification } from '@45drives/houston-common-ui';
@@ -255,14 +255,9 @@ async function getScanStatus() {
 
 const diskState = computed(() => {
 	const diskArray = poolDiskStats.value[props.pool.name];
-	const diskState = diskArray.find(disk => disk.name === props.disk.name);
-
-	if (diskState) {
-		return diskState.status;
-	} else {
-		return 'MISSING';
-	}
-
+	if (!diskArray) return props.disk.health || 'MISSING';
+	const match = findMatchingPoolDisk(diskArray, props.disk);
+	return match?.status ?? props.disk.health ?? 'MISSING';
 });
 
 

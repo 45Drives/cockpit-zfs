@@ -1,3 +1,3 @@
-## zfs module 1.2.22-1
+## zfs module 1.2.23-2
 
-* building test package
+* Adds concurrent smartctl/udevadm checks for disk temp to improve speed

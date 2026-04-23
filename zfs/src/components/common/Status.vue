@@ -194,7 +194,7 @@
 
 <script setup lang="ts">
 import { ref, inject, Ref, computed, ComputedRef, onMounted, watch } from "vue";
-import { convertBytesToSize, convertSecondsToString, convertRawTimestampToString, upperCaseWord, convertTimestampToLocal } from "../../composables/helpers";
+import { convertBytesToSize, convertSecondsToString, convertRawTimestampToString, upperCaseWord, convertTimestampToLocal, findMatchingPoolDisk } from "../../composables/helpers";
 import { loadScanObjectGroup, loadDiskStats } from "../../composables/loadData";
 import { ZPool, VDevDisk } from "@45drives/houston-common-lib";
 import { PoolScanObjectGroup, Activity, PoolDiskStats } from "../../types";
@@ -468,7 +468,7 @@ const trimActivity = computed(() => {
 
 const selectedDisk = computed<any | null>(() => {
 	if (!props.disk?.name) return null;
-	return poolDisks.value.find(d => d?.name === props.disk!.name) ?? null;
+	return findMatchingPoolDisk(poolDisks.value, props.disk);
 });
 
 const isTrimActive = computed(() => poolDisks.value.some(d => d?.stats?.trim_notsup !== 1 && d?.stats?.trim_state === 1));
