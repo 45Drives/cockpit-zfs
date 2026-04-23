@@ -675,6 +675,29 @@ def _get_udev_phy_path(name):
         pass
     return "unknown"
 
+def _fanout_smart_and_udev(candidates):
+    """Run smartctl and udevadm lookups for all candidate devices in parallel.
+    Returns (smart_results, udev_results) dicts keyed by device name."""
+    smart_results = {}
+    udev_results = {}
+    if not candidates:
+        return smart_results, udev_results
+    with ThreadPoolExecutor(max_workers=min(len(candidates), 8)) as pool:
+        smart_futures = {
+            pool.submit(get_smartctl_data, os.path.basename(dev["name"])): dev["name"]
+            for dev in candidates
+        }
+        udev_futures = {
+            pool.submit(_get_udev_phy_path, dev["name"]): dev["name"]
+            for dev in candidates
+        }
+        for fut in as_completed(smart_futures):
+            smart_results[smart_futures[fut]] = fut.result()
+        for fut in as_completed(udev_futures):
+            udev_results[udev_futures[fut]] = fut.result()
+    return smart_results, udev_results
+
+
 def get_lsblk_disks(nvme_only=False):
     try:
         byv_map = _map_by_vdev()
@@ -701,22 +724,7 @@ def get_lsblk_disks(nvme_only=False):
                 continue
             candidates.append(device)
 
-        # Fan out smartctl + udevadm for all disks in parallel
-        smart_results = {}
-        udev_results = {}
-        with ThreadPoolExecutor(max_workers=min(len(candidates), 8) if candidates else 1) as pool:
-            smart_futures = {
-                pool.submit(get_smartctl_data, os.path.basename(dev["name"])): dev["name"]
-                for dev in candidates
-            }
-            udev_futures = {
-                pool.submit(_get_udev_phy_path, dev["name"]): dev["name"]
-                for dev in candidates
-            }
-            for fut in as_completed(smart_futures):
-                smart_results[smart_futures[fut]] = fut.result()
-            for fut in as_completed(udev_futures):
-                udev_results[udev_futures[fut]] = fut.result()
+        smart_results, udev_results = _fanout_smart_and_udev(candidates)
 
         disks = []
         for device in candidates:
