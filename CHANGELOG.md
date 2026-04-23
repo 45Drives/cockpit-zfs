@@ -1,3 +1,3 @@
-## zfs module 1.2.23-3
+## zfs module 1.2.24-1
 
-* Uses Cockpit-Alerts as dependency for notification and email alerts
+* Merges in disk path/temp fixes/improvements into latest build
