@@ -1,3 +1,3 @@
-## zfs module 1.2.22-2
+## zfs module 1.2.23-1
 
-* build pacakge
+* Uses Cockpit-Alerts as dependency for notification/email alerts

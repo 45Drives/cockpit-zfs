@@ -1,3 +1,9 @@
+cockpit-zfs (1.2.23-1focal) focal; urgency=medium
+
+  * Uses Cockpit-Alerts as dependency for notification/email alerts
+
+ -- Jordan Keough <jkeough@45drives.com>  Thu, 23 Apr 2026 08:51:09 -0300
+
 cockpit-zfs (1.2.22-2focal) focal; urgency=medium
 
   * build pacakge
