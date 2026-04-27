@@ -1,3 +1,4 @@
-## zfs module 1.2.24-1
+## zfs module 1.2.25-1
 
-* Merges in disk path/temp fixes/improvements into latest build
+* Fixes issue with cockpit-alerts file still existing in cockpit-zfs
+* Fixes issue with cockpit-alerts file still existing in cockpit-zfs

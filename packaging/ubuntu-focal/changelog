@@ -1,3 +1,10 @@
+cockpit-zfs (1.2.25-1focal) focal; urgency=medium
+
+  * Fixes issue with cockpit-alerts file still existing in cockpit-zfs
+  * Fixes issue with cockpit-alerts file still existing in cockpit-zfs
+
+ -- Jordan Keough <jkeough@45drives.com>  Mon, 27 Apr 2026 07:06:58 -0300
+
 cockpit-zfs (1.2.24-1focal) focal; urgency=medium
 
   * Merges in disk path/temp fixes/improvements into latest build
