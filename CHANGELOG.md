@@ -1,3 +1,3 @@
-## zfs module 1.2.19-1
+## zfs module 1.2.19-2
 
-* Fixes a race condition in admin priv check
+* kms storage encryption
