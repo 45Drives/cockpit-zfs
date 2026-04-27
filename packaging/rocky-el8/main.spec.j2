@@ -25,8 +25,6 @@ make DESTDIR=%{buildroot} install
 
 %files
 /usr/share/cockpit/zfs/*
-# D-Bus configuration
-%config(noreplace) /etc/dbus-1/system.d/org._45drives.Houston.conf
 %config(noreplace) /etc/45drives/zfs-storage-check.sh
 /etc/systemd/system/houston-zfs-storage-alert.service
 /etc/systemd/system/houston-zfs-storage-alert.timer
