@@ -1,3 +1,9 @@
+cockpit-zfs (1.2.19-3jammy) jammy; urgency=medium
+
+  * kms storage encryption
+
+ -- Jordan Keough <jkeough@45drives.com>  Mon, 27 Apr 2026 09:19:23 -0300
+
 cockpit-zfs (1.2.19-2jammy) jammy; urgency=medium
 
   * kms storage encryption
