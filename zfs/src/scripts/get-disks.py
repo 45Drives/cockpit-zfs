@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import sys, os, logging, subprocess, json, re
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from logging.handlers import RotatingFileHandler, SysLogHandler
 from pathlib import Path
 from typing import Set
@@ -212,6 +213,14 @@ def _zpool_leaf_bases(pool: str) -> Set[str]:
                 try:
                     resolved = os.path.realpath(dev)
                     out.add(_dev_base(resolved))
+                    # Also keep the unresolved base in case the symlink is broken
+                    # (realpath returns the link path itself when target is missing)
+                    if resolved != dev:
+                        out.add(_dev_base(dev))
+                    elif not resolved.startswith("/dev/sd") and not resolved.startswith("/dev/nvme"):
+                        # Broken symlink: resolved == dev but it's not a real block device.
+                        # Still add it so it can match the disk inventory entry.
+                        out.add(_dev_base(dev))
                 except Exception:
                     out.add(_dev_base(dev))
     except Exception:
@@ -538,7 +547,10 @@ def get_lsdev_disks():
                     base_name = os.path.basename(dev)
                     dtype = (d.get("disk_type") or "HDD").strip()
                     temp_raw = d.get("temp-c")
-                    temp_str = str(temp_raw) if temp_raw is not None else "Unknown"
+                    # Treat 0°C as unreported — HDDs can't physically operate at 0°C,
+                    # so the SES enclosure likely doesn't support temperature sensing.
+                    # "Unknown" lets merge_overlay preserve smartctl-based temperature.
+                    temp_str = str(temp_raw) if (temp_raw is not None and temp_raw != 0) else "Unknown"
 
                     disk_data = {
                         "vdev_path": f"/dev/disk/by-vdev/{bay_id}" if bay_id else "N/A",
@@ -579,30 +591,59 @@ def get_lsdev_disks():
         return None
 
 # ------------------------- lsblk (NVMe & fallback) -------------------------
-def get_smartctl_data(device):
-    """Best-effort SMART; usually fails non-root → returns Unknowns."""
-    try:
-        r = subprocess.run(["smartctl", "-a", f"/dev/{device}"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
-        if r.returncode != 0:
-            logger.info(f"smartctl limited/failed for {device}: {r.stderr.strip()}")
-            return {"temp": None, "power_on_hours": None, "power_cycle_count": None, "health": None}
+def _parse_smartctl_output(lines):
+    """Extract SMART fields from smartctl output lines."""
+    info = {"temp": None, "power_on_hours": None, "power_cycle_count": None, "health": None}
+    for line in lines:
+        if ("Temperature" in line and "Celsius" in line) or "Temperature_Celsius" in line:
+            # Strip parenthetical suffixes like "(0 12 0 0 0)" or "(Min/Max 13/43)"
+            # so that the last number extracted is the actual temperature value.
+            stripped = re.sub(r"\(.*?\)", "", line)
+            nums = [int(t) for t in re.findall(r"(\d+)", stripped)]
+            if nums: info["temp"] = nums[-1]
+        elif "Power_On_Hours" in line or "Power On Hours" in line:
+            nums = re.findall(r"(\d+)", line); info["power_on_hours"] = int(nums[-1]) if nums else None
+        elif "Power_Cycle_Count" in line or "Power Cycle Count" in line:
+            nums = re.findall(r"(\d+)", line); info["power_cycle_count"] = int(nums[-1]) if nums else None
+        elif "SMART overall-health" in line or "SMART overall-health self-assessment" in line:
+            if ":" in line: info["health"] = line.split(":", 1)[1].strip()
+    return info
 
-        out = r.stdout.splitlines()
-        info = {"temp": None, "power_on_hours": None, "power_cycle_count": None, "health": None}
-        for line in out:
-            if ("Temperature" in line and "Celsius" in line) or "Temperature_Celsius" in line:
-                nums = [int(t) for t in re.findall(r"(\d+)", line)]
-                if nums: info["temp"] = nums[-1]
-            elif "Power_On_Hours" in line or "Power On Hours" in line:
-                nums = re.findall(r"(\d+)", line); info["power_on_hours"] = int(nums[-1]) if nums else None
-            elif "Power_Cycle_Count" in line or "Power Cycle Count" in line:
-                nums = re.findall(r"(\d+)", line); info["power_cycle_count"] = int(nums[-1]) if nums else None
-            elif "SMART overall-health" in line or "SMART overall-health self-assessment" in line:
-                if ":" in line: info["health"] = line.split(":", 1)[1].strip()
-        return info
-    except Exception as e:
-        logger.error(f"smartctl exception: {e}")
-        return {"temp": None, "power_on_hours": None, "power_cycle_count": None, "health": None}
+def get_smartctl_data(device):
+    """Best-effort SMART with device-type fallbacks for SATA-behind-SAS etc."""
+    best = {"temp": None, "power_on_hours": None, "power_cycle_count": None, "health": None}
+    # NVMe drives always work with default mode — no point trying sat/scsi
+    modes = (None,) if "nvme" in device else (None, "sat", "scsi")
+    for dtype in modes:
+        try:
+            cmd = ["smartctl", "-a"]
+            if dtype:
+                cmd += ["-d", dtype]
+            cmd.append(f"/dev/{device}")
+            r = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                               universal_newlines=True, timeout=15)
+            # smartctl return code is a bitmask:
+            #   bit 0 = command line parse error
+            #   bit 1 = device open failed
+            # Bits 2-7 indicate disk issues but output is still valid.
+            if r.returncode & 0x03:
+                label = f"-d {dtype}" if dtype else "default"
+                logger.info(f"smartctl ({label}) failed for {device}: rc={r.returncode}")
+                continue
+            info = _parse_smartctl_output(r.stdout.splitlines())
+            if info["temp"] is not None:
+                label = f"-d {dtype}" if dtype else "default"
+                logger.debug(f"smartctl ({label}) got temp for {device}: {info['temp']}")
+                return info
+            # Got valid output but no temp — keep as fallback and try next type
+            for k, v in info.items():
+                if v is not None and best[k] is None:
+                    best[k] = v
+        except Exception as e:
+            logger.error(f"smartctl exception ({dtype or 'default'}): {e}")
+            continue
+    # Return whatever we collected (may still have power/health even without temp)
+    return best
 
 def _map_by_vdev():
     base_dir = "/dev/disk/by-vdev"
@@ -620,6 +661,43 @@ def _map_by_vdev():
             pass
     return m
 
+def _get_udev_phy_path(name):
+    """Best-effort phy_path via udevadm."""
+    try:
+        ur = subprocess.run(["udevadm", "info", "--query=property", f"--name={name}"],
+                            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                            universal_newlines=True, timeout=10)
+        if ur.returncode == 0:
+            props = dict(line.split("=",1) for line in ur.stdout.splitlines() if "=" in line)
+            if props.get("ID_PATH"):
+                return f"/dev/disk/by-path/{props['ID_PATH']}"
+    except Exception:
+        pass
+    return "unknown"
+
+def _fanout_smart_and_udev(candidates):
+    """Run smartctl and udevadm lookups for all candidate devices in parallel.
+    Returns (smart_results, udev_results) dicts keyed by device name."""
+    smart_results = {}
+    udev_results = {}
+    if not candidates:
+        return smart_results, udev_results
+    with ThreadPoolExecutor(max_workers=min(len(candidates), 8)) as pool:
+        smart_futures = {
+            pool.submit(get_smartctl_data, os.path.basename(dev["name"])): dev["name"]
+            for dev in candidates
+        }
+        udev_futures = {
+            pool.submit(_get_udev_phy_path, dev["name"]): dev["name"]
+            for dev in candidates
+        }
+        for fut in as_completed(smart_futures):
+            smart_results[smart_futures[fut]] = fut.result()
+        for fut in as_completed(udev_futures):
+            udev_results[udev_futures[fut]] = fut.result()
+    return smart_results, udev_results
+
+
 def get_lsblk_disks(nvme_only=False):
     try:
         byv_map = _map_by_vdev()
@@ -633,8 +711,9 @@ def get_lsblk_disks(nvme_only=False):
             return []
 
         data = json.loads(r.stdout or "{}")
-        disks = []
 
+        # Filter to relevant devices first
+        candidates = []
         for device in (data.get("blockdevices") or []):
             name = device.get("name")
             if not name:
@@ -643,30 +722,25 @@ def get_lsblk_disks(nvme_only=False):
                 continue
             if device.get("type","").lower() == "loop":
                 continue
+            candidates.append(device)
 
+        smart_results, udev_results = _fanout_smart_and_udev(candidates)
+
+        disks = []
+        for device in candidates:
+            name = device["name"]
             base = _dev_base(name)
 
             vdev_path = byv_map.get(base)  # None if no alias
             slot_name = os.path.basename(vdev_path) if vdev_path else None
             pretty_name = slot_name or os.path.basename(base)  # prefer by-vdev, else sdX/nvmeXnY
 
-            # SMART (best-effort non-root)
-            smart = get_smartctl_data(os.path.basename(name))
+            smart = smart_results.get(name, {"temp": None, "power_on_hours": None, "power_cycle_count": None, "health": None})
             rota = bool(int(device.get("rota", 0) or 0))
             try: usable = (int(device.get("ro", 0) or 0) == 0)
             except Exception: usable = True
 
-            # phy_path via udev (best-effort)
-            phy_path = "unknown"
-            try:
-                ur = subprocess.run(["udevadm", "info", "--query=property", f"--name={name}"],
-                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
-                if ur.returncode == 0:
-                    props = dict(line.split("=",1) for line in ur.stdout.splitlines() if "=" in line)
-                    if props.get("ID_PATH"):
-                        phy_path = f"/dev/disk/by-path/{props['ID_PATH']}"
-            except Exception:
-                pass
+            phy_path = udev_results.get(name, "unknown")
 
             health_raw = smart.get("health")
             health = "Unknown" if not health_raw else ("OK" if str(health_raw).upper() == "PASSED" else "POOR")
@@ -689,7 +763,7 @@ def get_lsblk_disks(nvme_only=False):
                 "rotation_rate": 0 if is_nvme else (7200 if rota else 0),
                 "power_on_count": smart["power_cycle_count"],
                 "power_on_time": smart["power_on_hours"],
-                "has_partitions": False,
+                "has_partitions": _has_partitions_for(os.path.basename(base)),
             })
 
         logger.info(f"Disks discovered via lsblk: {len(disks)}")
@@ -771,6 +845,33 @@ def main():
 
         # Enrich all disks with alias paths (by-id, by-label, etc.)
         all_disks = _enrich_alias_paths(all_disks)
+
+        # Fallback phy_path enrichment: scan /dev/disk/by-path/ symlinks to fill
+        # missing phy_path values. This handles cases where udevadm didn't return
+        # ID_PATH, ensuring we can match ZFS by-path vdev identifiers to disks.
+        try:
+            bypath_dir = "/dev/disk/by-path"
+            if os.path.isdir(bypath_dir):
+                bypath_map = {}  # base sd_path -> by-path link (base, no partition)
+                for link in os.listdir(bypath_dir):
+                    full = os.path.join(bypath_dir, link)
+                    try:
+                        target = os.path.realpath(full)
+                        base = _dev_base(target)
+                        link_base = re.sub(r'-part\d+$', '', link)
+                        bypath_map[base] = f"{bypath_dir}/{link_base}"
+                    except Exception:
+                        pass
+                for d in all_disks:
+                    cur = d.get("phy_path", "")
+                    if cur and cur not in ("unknown", "N/A"):
+                        continue
+                    sd_base = _dev_base(d.get("sd_path", ""))
+                    if sd_base and sd_base in bypath_map:
+                        d["phy_path"] = bypath_map[sd_base]
+                        logger.debug(f"Enriched phy_path for {d.get('name')}: {d['phy_path']}")
+        except Exception as e:
+            logger.warning(f"by-path enrichment failed: {e}")
 
         # Gather active ZFS pool leaf bases so we never exclude them as boot disks
         pool_leaf_bases = _all_pool_leaf_bases()

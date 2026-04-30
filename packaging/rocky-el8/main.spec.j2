@@ -27,22 +27,14 @@ make DESTDIR=%{buildroot} install
 /usr/share/cockpit/zfs/*
 # D-Bus configuration
 %config(noreplace) /etc/dbus-1/system.d/org._45drives.Houston.conf
-/etc/dbus-1/system.d/houston-dbus.service
-%config(noreplace) /etc/45drives/msmtp_oauth-email.py
-%attr(0755,root,root) %config(noreplace) /etc/45drives/zfs-storage-check.sh
+%config(noreplace) /etc/45drives/zfs-storage-check.sh
 /etc/systemd/system/houston-zfs-storage-alert.service
 /etc/systemd/system/houston-zfs-storage-alert.timer
 
 # ZED event scripts (set executable permissions)
 %attr(0755, root, root) /etc/zfs/zed.d/*
 
-# 45Drives Houston files (ensure executability)
-%dir /opt/45drives
-%dir /opt/45drives/houston
-%attr(0755, root, root) /opt/45drives/houston/dbus_server.py
-%attr(0755, root, root) /opt/45drives/houston/houston-notify.py
-%attr(0755, root, root) /opt/45drives/houston/setup_notification_db.py
-%attr(0755,root,root) /opt/45drives/houston/notification_utils.py
+%attr(0755,root,root) /etc/45drives/zfs-storage-check.sh
 
 %post
 
@@ -67,11 +59,30 @@ if systemctl cat zed.service &>/dev/null; then
 fi
 
 
+
 %changelog
-* Mon Apr 27 2026 Jordan Keough <jkeough@45drives.com> 1.2.19-3
-- kms storage encryption
-* Mon Apr 27 2026 Jordan Keough <jkeough@45drives.com> 1.2.19-2
-- kms storage encryption
+* Wed Apr 08 2026 Jordan Keough <jkeough@45drives.com> 1.2.23-2
+- Adds concurrent smartctl/udevadm checks for disk temp to improve speed
+* Wed Apr 08 2026 Jordan Keough <jkeough@45drives.com> 1.2.23-1
+- Adds extra handling to properly support sata drives directly connected to mobo
+- Improves disk data retrieval/matching
+* Wed Apr 22 2026 Rachit Hans <rhans@45drives.com> 1.2.22-1
+- building test package
+* Wed Apr 01 2026 Rachit Hans <rhans@45drives.com> 1.2.21-3
+- making a release for zvol
+* Tue Mar 31 2026 Rachit Hans <rhans@45drives.com> 1.2.21-2
+- building test package with ui fix for zvol
+* Tue Mar 31 2026 Rachit Hans <rhans@45drives.com> 1.2.21-1
+- added functionality of creating zvol
+* Mon Mar 30 2026 Rachit Hans <rhans@45drives.com> 1.2.20-2
+- fix: wrap emailFromOAuth in array to prevent .join() error on recieversEmail
+
+* Mon Mar 30 2026 Rachit Hans <rhans@45drives.com> 1.2.20-1
+- fix: wrap emailFromOAuth in array to prevent .join() error on recieversEmail
+
+* Mon Mar 30 2026 Rachit Hans <rhans@45drives.com> 1.2.19-2
+- fix: wrap emailFromOAuth in array to prevent .join() error on recieversEmail
+
 * Wed Mar 25 2026 Jordan Keough <jkeough@45drives.com> 1.2.19-1
 - Fixes a race condition in admin priv check
 * Mon Mar 23 2026 Jordan Keough <jkeough@45drives.com> 1.2.18-4

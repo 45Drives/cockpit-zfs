@@ -1,3 +1,3 @@
-## zfs module 1.2.19-3
+## zfs module 1.2.23-2
 
-* kms storage encryption
+* Adds concurrent smartctl/udevadm checks for disk temp to improve speed

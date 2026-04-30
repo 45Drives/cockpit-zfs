@@ -1,14 +1,60 @@
-cockpit-zfs (1.2.19-3jammy) jammy; urgency=medium
+cockpit-zfs (1.2.23-2jammy) jammy; urgency=medium
 
-  * kms storage encryption
+  * Adds concurrent smartctl/udevadm checks for disk temp to improve speed
 
- -- Jordan Keough <jkeough@45drives.com>  Mon, 27 Apr 2026 09:19:23 -0300
+ -- Jordan Keough <jkeough@45drives.com>  Wed, 08 Apr 2026 11:34:14 -0300
+
+cockpit-zfs (1.2.23-1jammy) jammy; urgency=medium
+
+  * Adds extra handling to properly support sata drives directly connected to mobo
+  * Improves disk data retrieval/matching
+
+ -- Jordan Keough <jkeough@45drives.com>  Wed, 08 Apr 2026 11:16:28 -0300
+
+cockpit-zfs (1.2.22-1jammy) jammy; urgency=medium
+
+  * building test package
+
+ -- Rachit Hans <rhans@45drives.com>  Wed, 22 Apr 2026 07:24:48 -0300
+
+cockpit-zfs (1.2.21-3jammy) jammy; urgency=medium
+
+  * making a release for zvol
+
+ -- Rachit Hans <rhans@45drives.com>  Wed, 01 Apr 2026 07:45:17 -0300
+
+cockpit-zfs (1.2.21-2jammy) jammy; urgency=medium
+
+  * building test package with ui fix for zvol
+
+ -- Rachit Hans <rhans@45drives.com>  Tue, 31 Mar 2026 08:47:19 -0300
+
+cockpit-zfs (1.2.21-1jammy) jammy; urgency=medium
+
+  * added functionality of creating zvol
+
+ -- Rachit Hans <rhans@45drives.com>  Tue, 31 Mar 2026 07:15:29 -0300
+
+cockpit-zfs (1.2.20-2jammy) jammy; urgency=medium
+
+  * fix: wrap emailFromOAuth in array to prevent .join() error on recieversEmail
+
+
+ -- Rachit Hans <rhans@45drives.com>  Mon, 30 Mar 2026 13:06:09 -0300
+
+cockpit-zfs (1.2.20-1jammy) jammy; urgency=medium
+
+  * fix: wrap emailFromOAuth in array to prevent .join() error on recieversEmail
+
+
+ -- Rachit Hans <rhans@45drives.com>  Mon, 30 Mar 2026 13:01:26 -0300
 
 cockpit-zfs (1.2.19-2jammy) jammy; urgency=medium
 
-  * kms storage encryption
+  * fix: wrap emailFromOAuth in array to prevent .join() error on recieversEmail
 
- -- Jordan Keough <jkeough@45drives.com>  Mon, 27 Apr 2026 08:47:47 -0300
+
+ -- Rachit Hans <rhans@45drives.com>  Mon, 30 Mar 2026 12:38:47 -0300
 
 cockpit-zfs (1.2.19-1jammy) jammy; urgency=medium
 
