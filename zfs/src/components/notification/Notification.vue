@@ -19,7 +19,7 @@
 							</MenuButton>
 
 							<!-- Dropdown Menu Items -->
-							<MenuItems v-bind="emailSetUpModal ? { static: true } : {}" @click.stop class="absolute right-0 overflow-y-scroll z-10 w-[30rem] max-h-[40rem] origin-top-right rounded-md bg-default shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+							<MenuItems @click.stop class="absolute right-0 overflow-y-scroll z-10 w-[30rem] max-h-[40rem] origin-top-right rounded-md bg-default shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
 								<div class="flex items-center justify-between text-xl p-4 border-b border-gray-300">
 									<p>Notifications</p>
 									<div class="relative inline-block">
@@ -40,8 +40,6 @@
 											</div>
 										</transition>
 									</div>	
-									<EmailSetupModal v-if="emailSetUpModal" @close="emailSetUpModal = false" />
-							
 								</div>
 
 
@@ -432,12 +430,12 @@ import { BellIcon, Cog6ToothIcon, CheckCircleIcon,ExclamationCircleIcon, XMarkIc
 import {Menu,MenuButton, MenuItem, MenuItems } from '@headlessui/vue';
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { notificationStore } from "../../store/notification";
-import EmailSetupModal from './EmailSetupModal.vue';
+
 
 // Reactive state to track menu visibility
 const menuOpen = ref(false);
 const showDropdown = ref(false);
-const emailSetUpModal = ref(false);
+
 const loadMoreTrigger = ref(null)
 
 // Watch for menu state changes and control page scrolling
@@ -463,9 +461,13 @@ const toggleDropdown = () => {
   showDropdown.value = !showDropdown.value;
 };
 const openEmailSettings = () => {
-	// console.log("Opening Email Settings...");
-	emailSetUpModal.value = true;
-	showDropdown.value = false; // Close dropdown when opening modal
+	showDropdown.value = false;
+	const url = '/alerts';
+	if (window.top) {
+		window.top.location.href = url;
+	} else {
+		window.location.href = url;
+	}
 };
 
 const offset = ref(0)
