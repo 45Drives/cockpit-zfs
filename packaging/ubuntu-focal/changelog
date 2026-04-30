@@ -1,3 +1,9 @@
+cockpit-zfs (1.2.26-1focal) focal; urgency=medium
+
+  * Updates Notification UI with full support for Cockpit-Alerts redirect
+
+ -- Jordan Keough <jkeough@45drives.com>  Thu, 30 Apr 2026 10:54:09 -0300
+
 cockpit-zfs (1.2.25-1focal) focal; urgency=medium
 
   * Fixes issue with cockpit-alerts file still existing in cockpit-zfs

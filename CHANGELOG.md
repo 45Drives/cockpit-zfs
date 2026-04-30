@@ -1,4 +1,3 @@
-## zfs module 1.2.25-1
+## zfs module 1.2.26-1
 
-* Fixes issue with cockpit-alerts file still existing in cockpit-zfs
-* Fixes issue with cockpit-alerts file still existing in cockpit-zfs
+* Updates Notification UI with full support for Cockpit-Alerts redirect
