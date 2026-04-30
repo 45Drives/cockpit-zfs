@@ -257,7 +257,7 @@ def sendTestEmailViaGmailApi(config):
         if missing:
             return {
                 "success": False,
-                "message": f"❌ Missing required fields for Gmail API test: {', '.join(missing)}"
+                "message": f" Missing required fields for Gmail API test: {', '.join(missing)}"
             }
 
         # Compose payload with joined recipients
@@ -278,18 +278,18 @@ def sendTestEmailViaGmailApi(config):
         if response.status_code == 200:
             return {
                 "success": True,
-                "message": f"✅ Gmail API test email sent successfully to: {', '.join(recipients)}"
+                "message": f" Gmail API test email sent successfully to: {', '.join(recipients)}"
             }
         else:
             return {
                 "success": False,
-                "message": f"❌ Gmail API error {response.status_code}: {response.text.strip()}"
+                "message": f" Gmail API error {response.status_code}: {response.text.strip()}"
             }
 
     except Exception as e:
         return {
             "success": False,
-            "message": f"❌ Gmail API test failed: {str(e)}"
+            "message": f" Gmail API test failed: {str(e)}"
         }
 
 
@@ -307,7 +307,7 @@ def sendTestEmail(config_json):
             return sendTestEmailViaSMTP(config)
 
     except Exception as e:
-        error_message = f"❌ Error sending test email: {str(e)}"
+        error_message = f" Error sending test email: {str(e)}"
         logging.error(error_message)
         return {
 			"success": False,
@@ -449,7 +449,7 @@ def updateSMTPConfig(config_json):
                 f.write("")
             os.chmod(MSMTP_CONFIG_PATH, 0o600)
 
-            print("✅ Gmail API config (OAuth2) saved and msmtp config cleared.")
+            print("Gmail API config (OAuth2) saved and msmtp config cleared.")
 
         else:
             # Traditional SMTP config (msmtp)
@@ -557,7 +557,7 @@ def sendEmailNotification(subject, message, severity):
             sender_email = oauth_data.get("user_email")
 
             if not all([access_token, sender_email]):
-                return "❌ Missing required OAuth fields."
+                return "Missing required OAuth fields."
 
             payload = {
                 "accessToken": access_token,
@@ -575,11 +575,11 @@ def sendEmailNotification(subject, message, severity):
             )
 
             if response.status_code == 200:
-                logging.info("✅ Gmail API email sent successfully.")
+                logging.info(" Gmail API email sent successfully.")
                 return response.text.strip()
             else:
-                logging.error(f"❌ Gmail API error {response.status_code}: {response.text.strip()}")
-                return f"❌ Gmail API error {response.status_code}: {response.text.strip()}"
+                logging.error(f" Gmail API error {response.status_code}: {response.text.strip()}")
+                return f" Gmail API error {response.status_code}: {response.text.strip()}"
 
         else:
             # Use msmtp
