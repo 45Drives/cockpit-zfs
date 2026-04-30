@@ -7,7 +7,7 @@ export const notificationStore = reactive<{
   addNotification: (message: string) => void;
   removeNotification: (id: number) => void;
   removeAllNotifications: () => void;
-  fetchMissedNotifications: (limit, offset) => Promise<void>;
+  fetchMissedNotifications: (limit: number, offset: number) => Promise<number>;
   markNotificationAsRead: (id: number) => Promise<void>;
   clearAllNotifications: () => Promise<void>;
   countMissedNotifications: () => void;
@@ -132,6 +132,7 @@ export const notificationStore = reactive<{
         //console.log("Missed notifications fetched successfully.");
     } catch (error) {
         console.error("Error fetching missed notifications via D-Bus:", error);
+        return 0;
     }
 },
 
