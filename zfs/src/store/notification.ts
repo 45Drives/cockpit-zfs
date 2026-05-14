@@ -1,6 +1,15 @@
 import { reactive } from "vue";
 import { Notification } from "../types";
 
+// Shared D-Bus singleton — reused across all store methods to avoid leaking connections
+let _dbus: ReturnType<typeof cockpit.dbus> | null = null;
+function getHoustonDbus() {
+  if (!_dbus) {
+    _dbus = cockpit.dbus("org._45drives.Houston");
+  }
+  return _dbus;
+}
+
 // Define the reactive notification store
 export const notificationStore = reactive<{
   notifications: Notification[];
@@ -96,7 +105,7 @@ export const notificationStore = reactive<{
     try {
         // console.log("Fetching missed notifications via D-Bus...");
 
-        const dbus = cockpit.dbus("org._45drives.Houston");
+        const dbus = getHoustonDbus();
 
         // Call GetMissedNotifications with correct object path & interface
         const response = await dbus.call(
@@ -141,7 +150,7 @@ export const notificationStore = reactive<{
     try {
         // console.log(`Marking notification ${notificationId} as read via D-Bus...`);
 
-        const dbus = cockpit.dbus("org._45drives.Houston");
+        const dbus = getHoustonDbus();
 
         // Call the D-Bus method instead of FastAPI
         const response = await dbus.call(
@@ -170,7 +179,7 @@ export const notificationStore = reactive<{
     try {
         // console.log("Marking all notifications as read via D-Bus...");
 
-        const dbus = cockpit.dbus("org._45drives.Houston");
+        const dbus = getHoustonDbus();
 
         // Call the new D-Bus method
         const response = await dbus.call(
@@ -191,7 +200,7 @@ export const notificationStore = reactive<{
   },
 
   async countMissedNotifications(){
-    const dbus = cockpit.dbus("org._45drives.Houston");
+    const dbus = getHoustonDbus();
     const result = await dbus.call(
       "/org/_45drives/Houston",
       "org._45drives.Houston",
@@ -212,7 +221,7 @@ export const notificationStore = reactive<{
 async function sideBarNotification(): Promise<void> {
   const count: number = notificationStore.notificationsCount;
 
-  const dbus = cockpit.dbus("org._45drives.Houston");
+  const dbus = getHoustonDbus();
 
   try {
     const [highestSeverity] = await dbus.call(
