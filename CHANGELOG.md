@@ -1,3 +1,3 @@
-## zfs module 1.2.26-1
+## zfs module 1.2.27-1
 
-* Updates Notification UI with full support for Cockpit-Alerts redirect
+* Testing package for dbus leaks fix
