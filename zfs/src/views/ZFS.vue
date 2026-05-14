@@ -82,13 +82,24 @@ async function initialLoad(disks, pools, datasets, snapshots) {
 let houstonDbusClient: ReturnType<typeof cockpit.dbus> | null = null;
 let houstonMessageHandler: ((event: any, message: any) => void) | null = null;
 let houstonProxy: any = null;
+let isUnmounted = false;
 
 async function setUpMessageHandler(handler) {
     try {
         console.log("Setting up ZFS Notification DBus message handler...");
 
-        houstonDbusClient = cockpit.dbus("org._45drives.Houston");
-        houstonProxy = await houstonDbusClient.proxy("org._45drives.Houston", "/org/_45drives/Houston");
+        const client = cockpit.dbus("org._45drives.Houston");
+        const proxy = await client.proxy("org._45drives.Houston", "/org/_45drives/Houston");
+
+        // If the component was unmounted while we were awaiting the proxy,
+        // close immediately and bail out.
+        if (isUnmounted) {
+            try { client.close(); } catch {}
+            return;
+        }
+
+        houstonDbusClient = client;
+        houstonProxy = proxy;
 
         console.log("Connected to ZFS Notification DBus. Subscribing to Message signal...");
 
@@ -109,10 +120,13 @@ async function setUpMessageHandler(handler) {
 // })
 
 onMounted(() => {
+	isUnmounted = false;
 	initialLoad(disks, pools, datasets, snapshots);
 });
 
 onBeforeUnmount(() => {
+	isUnmounted = true;
+
 	// Clean up D-Bus listener + connection
 	if (houstonProxy && houstonMessageHandler) {
 		try { houstonProxy.removeEventListener("Message", houstonMessageHandler); } catch {}

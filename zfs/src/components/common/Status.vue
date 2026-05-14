@@ -291,6 +291,8 @@ async function setScanActivity(activity: Activity) {
 
 const scanning = ref(false);
 let scanPollInFlight = false;
+// Per-instance handle so we only clear the shared ref if WE own it
+let ownScanIntervalId: ReturnType<typeof setInterval> | null = null;
 
 async function scanNow() {
 	await loadScanObjectGroup(scanObjectGroup);
@@ -322,14 +324,19 @@ async function pollScanStatus() {
 
 function startScanInterval() {
 	if (!scanIntervalID.value) {
-		scanIntervalID.value = setInterval(pollScanStatus, 3000);
+		ownScanIntervalId = setInterval(pollScanStatus, 3000);
+		scanIntervalID.value = ownScanIntervalId;
 	}
 }
 
 function stopScanInterval() {
-	if (scanIntervalID.value) {
-		clearInterval(scanIntervalID.value);
-		scanIntervalID.value = null;
+	// Only clear the shared ref if this instance owns it
+	if (ownScanIntervalId) {
+		clearInterval(ownScanIntervalId);
+		if (scanIntervalID.value === ownScanIntervalId) {
+			scanIntervalID.value = null;
+		}
+		ownScanIntervalId = null;
 	}
 }
 
@@ -495,6 +502,8 @@ async function setTrimActivity(activity: Activity) {
 
 const checkingDiskStats = ref(false);
 let trimPollInFlight = false;
+// Per-instance handle so we only clear the shared ref if WE own it
+let ownTrimIntervalId: ReturnType<typeof setInterval> | null = null;
 
 async function checkDiskStats() {
 	await loadDiskStats(poolDiskStats);
@@ -541,14 +550,19 @@ async function pollTrimStatus() {
 
 function startDiskStatsInterval() {
 	if (!diskStatsIntervalID.value) {
-		diskStatsIntervalID.value = setInterval(pollTrimStatus, 3000);
+		ownTrimIntervalId = setInterval(pollTrimStatus, 3000);
+		diskStatsIntervalID.value = ownTrimIntervalId;
 	}
 }
 
 function stopDiskStatsInterval() {
-	if (diskStatsIntervalID.value) {
-		clearInterval(diskStatsIntervalID.value);
-		diskStatsIntervalID.value = null;
+	// Only clear the shared ref if this instance owns it
+	if (ownTrimIntervalId) {
+		clearInterval(ownTrimIntervalId);
+		if (diskStatsIntervalID.value === ownTrimIntervalId) {
+			diskStatsIntervalID.value = null;
+		}
+		ownTrimIntervalId = null;
 	}
 }
 
