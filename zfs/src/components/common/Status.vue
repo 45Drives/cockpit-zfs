@@ -498,7 +498,6 @@ async function setTrimActivity(activity: Activity) {
 }
 
 const checkingDiskStats = ref(false);
-let trimPollInFlight = false;
 const trimSubscribers = inject<Ref<number>>('trim-subscribers')!;
 let trimSubscribed = false;
 

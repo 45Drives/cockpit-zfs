@@ -5,7 +5,13 @@ import { Notification } from "../types";
 let _dbus: ReturnType<typeof cockpit.dbus> | null = null;
 function getHoustonDbus() {
   if (!_dbus) {
-    _dbus = cockpit.dbus("org._45drives.Houston");
+    const dbus = cockpit.dbus("org._45drives.Houston");
+    dbus.addEventListener("close", () => {
+      if (_dbus === dbus) {
+        _dbus = null;
+      }
+    });
+    _dbus = dbus;
   }
   return _dbus;
 }
