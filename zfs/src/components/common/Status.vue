@@ -193,7 +193,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, inject, Ref, computed, ComputedRef, onMounted, watch } from "vue";
+import { ref, inject, Ref, computed, ComputedRef, onMounted, onBeforeUnmount, watch } from "vue";
 import { convertBytesToSize, convertSecondsToString, convertRawTimestampToString, upperCaseWord, convertTimestampToLocal, findMatchingPoolDisk } from "../../composables/helpers";
 import { loadScanObjectGroup, loadDiskStats } from "../../composables/loadData";
 import { ZPool, VDevDisk } from "@45drives/houston-common-lib";
@@ -290,26 +290,33 @@ async function setScanActivity(activity: Activity) {
 }
 
 const scanning = ref(false);
+let scanPollInFlight = false;
 
 async function scanNow() {
 	await loadScanObjectGroup(scanObjectGroup);
 }
 
 async function pollScanStatus() {
-	await scanNow();
+	if (scanPollInFlight) return;
+	scanPollInFlight = true;
+	try {
+		await scanNow();
 
-	const act = scanActivity.value;
-	if (!act) {
-		scanning.value = false;
-		return;
-	}
+		const act = scanActivity.value;
+		if (!act) {
+			scanning.value = false;
+			return;
+		}
 
-	await setScanActivity(act);
+		await setScanActivity(act);
 
-	if (act.isActive) {
-		scanning.value = !act.isPaused;
-	} else {
-		scanning.value = false;
+		if (act.isActive) {
+			scanning.value = !act.isPaused;
+		} else {
+			scanning.value = false;
+		}
+	} finally {
+		scanPollInFlight = false;
 	}
 }
 
@@ -487,6 +494,7 @@ async function setTrimActivity(activity: Activity) {
 }
 
 const checkingDiskStats = ref(false);
+let trimPollInFlight = false;
 
 async function checkDiskStats() {
 	await loadDiskStats(poolDiskStats);
@@ -501,27 +509,33 @@ function checkActivityState(activity: Activity) {
 }
 
 async function pollTrimStatus() {
-	await checkDiskStats();
+	if (trimPollInFlight) return;
+	trimPollInFlight = true;
+	try {
+		await checkDiskStats();
 
-	const act = trimActivity.value;
-	if (!act) {
-		checkingDiskStats.value = false;
-		return;
-	}
-
-	await setTrimActivity(act);
-
-	switch (checkActivityState(act)) {
-		case "active":
-			checkingDiskStats.value = true;
-			break;
-		case "paused":
-		case "canceled":
-		case "finished":
+		const act = trimActivity.value;
+		if (!act) {
 			checkingDiskStats.value = false;
-			break;
-		default:
-			break;
+			return;
+		}
+
+		await setTrimActivity(act);
+
+		switch (checkActivityState(act)) {
+			case "active":
+				checkingDiskStats.value = true;
+				break;
+			case "paused":
+			case "canceled":
+			case "finished":
+				checkingDiskStats.value = false;
+				break;
+			default:
+				break;
+		}
+	} finally {
+		trimPollInFlight = false;
 	}
 }
 
@@ -649,6 +663,11 @@ function trimProgressBarClass(disk: any) {
 onMounted(() => {
 	pollScanStatus();
 	pollTrimStatus();
+});
+
+onBeforeUnmount(() => {
+	stopScanInterval();
+	stopDiskStatsInterval();
 });
 
 defineExpose({
