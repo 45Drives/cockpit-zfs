@@ -299,11 +299,12 @@ async function scanNow() {
 
 // Derive local scan state from the shared scan data (called reactively + on-demand)
 function deriveScanState() {
-	const act = scanActivity.value;
-	if (!act) {
+	const actRef = scanActivity.value;
+	if (!actRef) {
 		scanning.value = false;
 		return;
 	}
+	const act = actRef.value;
 	// Inline getScanComputedProps + setScanActivity (synchronous)
 	isScanning.value = getScanStateBool("SCANNING").value;
 	isFinished.value = getScanStateBool("FINISHED").value;
@@ -515,11 +516,12 @@ function checkActivityState(activity: Activity) {
 
 // Derive local trim state from the shared disk-stats data
 function deriveTrimState() {
-	const act = trimActivity.value;
-	if (!act) {
+	const actRef = trimActivity.value;
+	if (!actRef) {
 		checkingDiskStats.value = false;
 		return;
 	}
+	const act = actRef.value;
 	// Inline setTrimActivity (synchronous — computed refs already updated)
 	act.isActive = isTrimActive.value;
 	act.isPaused = isTrimSuspended.value;
