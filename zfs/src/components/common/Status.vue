@@ -670,9 +670,9 @@ function trimProgressBarClass(disk: any) {
 }
 
 onMounted(() => {
-	// Derive initial state from data already loaded by ZFS.vue initialLoad
-	deriveScanState();
-	deriveTrimState();
+	// One-shot refresh + derive so we discover already-running scrubs/trims
+	pollScanStatus();
+	pollTrimStatus();
 });
 
 onBeforeUnmount(() => {
