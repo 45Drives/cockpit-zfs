@@ -198,21 +198,19 @@ export const notificationStore = reactive<{
 
   async clearAllNotifications() {
     try {
-        // console.log("Marking all notifications as read via D-Bus...");
-
         const dbus = getHoustonDbus();
 
-        // Call the new D-Bus method
-        const response = await dbus.call(
-            "/org/_45drives/Houston",  // Object path
-            "org._45drives.Houston",   // Interface
-            "MarkAllNotificationsAsRead"  // Method name
+        // Mark only ZFS-scoped notifications as read (not global)
+        await dbus.call(
+            "/org/_45drives/Houston",
+            "org._45drives.Houston",
+            "MarkAllNotificationsByEventsAsRead",
+            [ZFS_EVENTS_JSON]
         );
-
-        // console.log(`D-Bus Response: ${response}`);
 
         // Clear UI notifications
         notificationStore.notifications = [];
+        this.notificationsCount = 0;
 
         sideBarNotification();
     } catch (error) {
@@ -245,22 +243,25 @@ async function sideBarNotification(): Promise<void> {
   const dbus = getHoustonDbus();
 
   try {
-    const [highestSeverity] = await dbus.call(
-      "/org/_45drives/Houston",
-      "org._45drives.Houston",
-      "GetHighestMissedSeverityByEvents",
-      [ZFS_EVENTS_JSON]
-    );
+    if (count > 0) {
+      const [highestSeverity] = await dbus.call(
+        "/org/_45drives/Houston",
+        "org._45drives.Houston",
+        "GetHighestMissedSeverityByEvents",
+        [ZFS_EVENTS_JSON]
+      );
 
-    const severityType = count > 0 ? highestSeverity : null;
-    // console.log("severityType:", severityType);
-
-    (cockpit.transport as any).control("notify", {
-      page_status: {
-        type: severityType,
-        title: cockpit.gettext(`${count} Notifications available`)
-      }
-    });
+      (cockpit.transport as any).control("notify", {
+        page_status: {
+          type: highestSeverity,
+          title: cockpit.gettext(`${count} Notifications available`)
+        }
+      });
+    } else {
+      (cockpit.transport as any).control("notify", {
+        page_status: null
+      });
+    }
   } catch (error) {
     console.error("Failed to fetch highest severity:", error);
   }
