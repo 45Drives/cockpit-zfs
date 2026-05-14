@@ -10,6 +10,28 @@ function getHoustonDbus() {
   return _dbus;
 }
 
+// Event types that belong to the ZFS module
+const ZFS_EVENTS = [
+  "scrub_finish",
+  "storage_threshold",
+  "snapshot_created",
+  "snapshot_failed",
+  "zfs_replication_success",
+  "zfs_replication_failed",
+  "vdev_attach",
+  "resilver_finish",
+  "vdev_clear",
+  "pool_import",
+  "statechange",
+  "data",
+];
+
+const ZFS_EVENTS_JSON = JSON.stringify(ZFS_EVENTS);
+
+function isZfsEvent(event: string | undefined): boolean {
+  return !!event && ZFS_EVENTS.includes(event);
+}
+
 // Define the reactive notification store
 export const notificationStore = reactive<{
   notifications: Notification[];
@@ -25,7 +47,7 @@ export const notificationStore = reactive<{
   notifications: [],
   notificationsCount: 0,
 
-  // Add notification to the list
+  // Add notification to the list (only ZFS-related events)
   addNotification(message: string) {
     try {
       const parsedMessage = JSON.parse(message) as {
@@ -42,7 +64,9 @@ export const notificationStore = reactive<{
         snapShot?: string;
         replicationDestination?: string
       };
-      // console.log("message id recieved in adddnotification: ", parsedMessage.id)
+
+      // Ignore events that don't belong to the ZFS module
+      if (!isZfsEvent(parsedMessage.event)) return;
   
       // Find existing notification by ID
       const existingNotification = notificationStore.notifications.find(
@@ -103,16 +127,13 @@ export const notificationStore = reactive<{
 
   async fetchMissedNotifications(limit = 50, offset = 0) {
     try {
-        // console.log("Fetching missed notifications via D-Bus...");
-
         const dbus = getHoustonDbus();
 
-        // Call GetMissedNotifications with correct object path & interface
         const response = await dbus.call(
-          "/org/_45drives/Houston",       
-          "org._45drives.Houston",       
-          "GetMissedNotifications",      
-          [limit, offset]                
+          "/org/_45drives/Houston",
+          "org._45drives.Houston",
+          "GetMissedNotificationsByEvents",
+          [ZFS_EVENTS_JSON, limit, offset]
         );
         if (!response) throw new Error("No response received from Houston D-Bus.");
 
@@ -204,13 +225,13 @@ export const notificationStore = reactive<{
     const result = await dbus.call(
       "/org/_45drives/Houston",
       "org._45drives.Houston",
-      "GetNotificationCount"
+      "GetNotificationCountByEvents",
+      [ZFS_EVENTS_JSON]
     );
-    const count = result[0]; // Extract the count
+    const count = result[0];
     this.notificationsCount = count;
-    // console.log("Total missed notifications:", count);
 
-    return parseInt(result); // result is returned as a string
+    return parseInt(result);
   }
 
 
@@ -227,7 +248,8 @@ async function sideBarNotification(): Promise<void> {
     const [highestSeverity] = await dbus.call(
       "/org/_45drives/Houston",
       "org._45drives.Houston",
-      "GetHighestMissedSeverity"
+      "GetHighestMissedSeverityByEvents",
+      [ZFS_EVENTS_JSON]
     );
 
     const severityType = count > 0 ? highestSeverity : null;

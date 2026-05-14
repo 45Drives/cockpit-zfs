@@ -290,7 +290,6 @@ async function setScanActivity(activity: Activity) {
 }
 
 const scanning = ref(false);
-let scanPollInFlight = false;
 const scanSubscribers = inject<Ref<number>>('scan-subscribers')!;
 let scanSubscribed = false;
 
@@ -298,59 +297,51 @@ async function scanNow() {
 	await loadScanObjectGroup(scanObjectGroup);
 }
 
-async function pollScanStatus() {
-	if (scanPollInFlight) return;
-	scanPollInFlight = true;
-	try {
-		await scanNow();
-
-		const act = scanActivity.value;
-		if (!act) {
-			scanning.value = false;
-			return;
-		}
-
-		await setScanActivity(act);
-
-		if (act.isActive) {
-			scanning.value = !act.isPaused;
-		} else {
-			scanning.value = false;
-		}
-	} finally {
-		scanPollInFlight = false;
+// Derive local scan state from the shared scan data (called reactively + on-demand)
+function deriveScanState() {
+	const act = scanActivity.value;
+	if (!act) {
+		scanning.value = false;
+		return;
 	}
+	// Inline getScanComputedProps + setScanActivity (synchronous)
+	isScanning.value = getScanStateBool("SCANNING").value;
+	isFinished.value = getScanStateBool("FINISHED").value;
+	isCanceled.value = getScanStateBool("CANCELED").value;
+	isPaused.value = getScanPauseBool("None").value;
+	act.isActive = isScanning.value;
+	act.isPaused = isPaused.value;
+	act.isFinished = isFinished.value;
+	act.isCanceled = isCanceled.value;
+	scanning.value = act.isActive && !act.isPaused;
 }
 
-function subscribeScanInterval() {
+// React to shared scan data updates (provider refreshes scanObjectGroup periodically)
+watch(poolScan, deriveScanState, { deep: true });
+
+// One-shot refresh for exposed callers (e.g. after starting a scrub)
+async function pollScanStatus() {
+	await scanNow();
+	deriveScanState();
+}
+
+function subscribeScan() {
 	if (scanSubscribed) return;
 	scanSubscribed = true;
 	scanSubscribers.value++;
-	if (scanSubscribers.value === 1) {
-		// First subscriber starts the single shared interval
-		scanIntervalID.value = setInterval(pollScanStatus, 3000);
-	}
 }
 
-function unsubscribeScanInterval() {
+function unsubscribeScan() {
 	if (!scanSubscribed) return;
 	scanSubscribed = false;
-	scanSubscribers.value--;
-	if (scanSubscribers.value <= 0) {
-		// Last subscriber stops the shared interval
-		scanSubscribers.value = 0;
-		if (scanIntervalID.value) {
-			clearInterval(scanIntervalID.value);
-			scanIntervalID.value = null;
-		}
-	}
+	scanSubscribers.value = Math.max(0, scanSubscribers.value - 1);
 }
 
 watch(
 	scanning,
 	() => {
-		if (scanning.value) subscribeScanInterval();
-		else unsubscribeScanInterval();
+		if (scanning.value) subscribeScan();
+		else unsubscribeScan();
 	},
 	{ immediate: true }
 );
@@ -523,64 +514,59 @@ function checkActivityState(activity: Activity) {
 	return undefined;
 }
 
-async function pollTrimStatus() {
-	if (trimPollInFlight) return;
-	trimPollInFlight = true;
-	try {
-		await checkDiskStats();
+// Derive local trim state from the shared disk-stats data
+function deriveTrimState() {
+	const act = trimActivity.value;
+	if (!act) {
+		checkingDiskStats.value = false;
+		return;
+	}
+	// Inline setTrimActivity (synchronous — computed refs already updated)
+	act.isActive = isTrimActive.value;
+	act.isPaused = isTrimSuspended.value;
+	act.isFinished = isTrimFinished.value;
+	act.isCanceled = isTrimCanceled.value;
 
-		const act = trimActivity.value;
-		if (!act) {
+	switch (checkActivityState(act)) {
+		case "active":
+			checkingDiskStats.value = true;
+			break;
+		case "paused":
+		case "canceled":
+		case "finished":
 			checkingDiskStats.value = false;
-			return;
-		}
-
-		await setTrimActivity(act);
-
-		switch (checkActivityState(act)) {
-			case "active":
-				checkingDiskStats.value = true;
-				break;
-			case "paused":
-			case "canceled":
-			case "finished":
-				checkingDiskStats.value = false;
-				break;
-			default:
-				break;
-		}
-	} finally {
-		trimPollInFlight = false;
+			break;
+		default:
+			break;
 	}
 }
 
-function subscribeTrimInterval() {
+// React to shared disk-stats updates (provider refreshes poolDiskStats periodically)
+watch(poolDisks, deriveTrimState, { deep: true });
+
+// One-shot refresh for exposed callers (e.g. after starting a trim)
+async function pollTrimStatus() {
+	await checkDiskStats();
+	deriveTrimState();
+}
+
+function subscribeTrim() {
 	if (trimSubscribed) return;
 	trimSubscribed = true;
 	trimSubscribers.value++;
-	if (trimSubscribers.value === 1) {
-		diskStatsIntervalID.value = setInterval(pollTrimStatus, 3000);
-	}
 }
 
-function unsubscribeTrimInterval() {
+function unsubscribeTrim() {
 	if (!trimSubscribed) return;
 	trimSubscribed = false;
-	trimSubscribers.value--;
-	if (trimSubscribers.value <= 0) {
-		trimSubscribers.value = 0;
-		if (diskStatsIntervalID.value) {
-			clearInterval(diskStatsIntervalID.value);
-			diskStatsIntervalID.value = null;
-		}
-	}
+	trimSubscribers.value = Math.max(0, trimSubscribers.value - 1);
 }
 
 watch(
 	checkingDiskStats,
 	() => {
-		if (checkingDiskStats.value) subscribeTrimInterval();
-		else unsubscribeTrimInterval();
+		if (checkingDiskStats.value) subscribeTrim();
+		else unsubscribeTrim();
 	},
 	{ immediate: true }
 );
@@ -685,13 +671,14 @@ function trimProgressBarClass(disk: any) {
 }
 
 onMounted(() => {
-	pollScanStatus();
-	pollTrimStatus();
+	// Derive initial state from data already loaded by ZFS.vue initialLoad
+	deriveScanState();
+	deriveTrimState();
 });
 
 onBeforeUnmount(() => {
-	unsubscribeScanInterval();
-	unsubscribeTrimInterval();
+	unsubscribeScan();
+	unsubscribeTrim();
 });
 
 defineExpose({

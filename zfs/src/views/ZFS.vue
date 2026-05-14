@@ -18,7 +18,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, Ref, provide, watchEffect, onMounted, onBeforeUnmount } from 'vue';
+import { ref, Ref, provide, watchEffect, watch, onMounted, onBeforeUnmount } from 'vue';
 import { getUserCaps } from "../auth/capabilities";
 import { loadDisksThenPools, loadDatasets, loadScanObjectGroup, loadDiskStats, loadSnapshots } from '../composables/loadData';
 import { loadScanActivities, loadTrimActivities } from '../composables/helpers';
@@ -173,6 +173,40 @@ async function scanNow() {
 async function checkDiskStats() {
 	await loadDiskStats(poolDiskStats);
 }
+
+// Shared scan polling — one interval for all Status instances
+let scanPollInFlight = false;
+async function sharedScanPoll() {
+	if (scanPollInFlight) return;
+	scanPollInFlight = true;
+	try { await scanNow(); } finally { scanPollInFlight = false; }
+}
+
+watch(scanSubscribers, (count) => {
+	if (count > 0 && !scanIntervalID.value) {
+		scanIntervalID.value = setInterval(sharedScanPoll, 3000);
+	} else if (count <= 0 && scanIntervalID.value) {
+		clearInterval(scanIntervalID.value);
+		scanIntervalID.value = null;
+	}
+});
+
+// Shared trim polling — one interval for all Status instances
+let trimPollInFlight = false;
+async function sharedTrimPoll() {
+	if (trimPollInFlight) return;
+	trimPollInFlight = true;
+	try { await checkDiskStats(); } finally { trimPollInFlight = false; }
+}
+
+watch(trimSubscribers, (count) => {
+	if (count > 0 && !diskStatsIntervalID.value) {
+		diskStatsIntervalID.value = setInterval(sharedTrimPoll, 3000);
+	} else if (count <= 0 && diskStatsIntervalID.value) {
+		clearInterval(diskStatsIntervalID.value);
+		diskStatsIntervalID.value = null;
+	}
+});
 
 /////////////////////////////////////////////////////
 const dashboardComponent = ref();
