@@ -85,10 +85,11 @@ let houstonProxy: any = null;
 let isUnmounted = false;
 
 async function setUpMessageHandler(handler) {
+    let client: ReturnType<typeof cockpit.dbus> | null = null;
     try {
         console.log("Setting up ZFS Notification DBus message handler...");
 
-        const client = cockpit.dbus("org._45drives.Houston");
+        client = cockpit.dbus("org._45drives.Houston");
         const proxy = await client.proxy("org._45drives.Houston", "/org/_45drives/Houston");
 
         // If the component was unmounted while we were awaiting the proxy,
@@ -111,6 +112,11 @@ async function setUpMessageHandler(handler) {
 
         console.log("ZFS Notification DBus message handler successfully set up.");
     } catch (error) {
+        // Close the local client if it was opened but never assigned to
+        // houstonDbusClient (e.g. client.proxy() rejected).
+        if (client && client !== houstonDbusClient) {
+            try { client.close(); } catch {}
+        }
         console.error("Error setting up ZFS Notification DBus message handler:", error);
     }
 }

@@ -323,10 +323,9 @@ async function pollScanStatus() {
 }
 
 function startScanInterval() {
-	if (!scanIntervalID.value) {
-		ownScanIntervalId = setInterval(pollScanStatus, 3000);
-		scanIntervalID.value = ownScanIntervalId;
-	}
+	if (ownScanIntervalId) return; // this instance already polling
+	ownScanIntervalId = setInterval(pollScanStatus, 3000);
+	scanIntervalID.value = ownScanIntervalId;
 }
 
 function stopScanInterval() {
@@ -549,10 +548,9 @@ async function pollTrimStatus() {
 }
 
 function startDiskStatsInterval() {
-	if (!diskStatsIntervalID.value) {
-		ownTrimIntervalId = setInterval(pollTrimStatus, 3000);
-		diskStatsIntervalID.value = ownTrimIntervalId;
-	}
+	if (ownTrimIntervalId) return; // this instance already polling
+	ownTrimIntervalId = setInterval(pollTrimStatus, 3000);
+	diskStatsIntervalID.value = ownTrimIntervalId;
 }
 
 function stopDiskStatsInterval() {
