@@ -18,7 +18,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, Ref, provide, watchEffect, onMounted } from 'vue';
+import { ref, Ref, provide, watchEffect, onMounted, onBeforeUnmount } from 'vue';
 import { getUserCaps } from "../auth/capabilities";
 import { loadDisksThenPools, loadDatasets, loadScanObjectGroup, loadDiskStats, loadSnapshots } from '../composables/loadData';
 import { loadScanActivities, loadTrimActivities } from '../composables/helpers';
@@ -78,19 +78,25 @@ async function initialLoad(disks, pools, datasets, snapshots) {
     });
 }
 
+// D-Bus message handler state — stored so we can clean up on unmount
+let houstonDbusClient: ReturnType<typeof cockpit.dbus> | null = null;
+let houstonMessageHandler: ((event: any, message: any) => void) | null = null;
+let houstonProxy: any = null;
+
 async function setUpMessageHandler(handler) {
     try {
         console.log("Setting up ZFS Notification DBus message handler...");
 
-        const client = cockpit.dbus("org._45drives.Houston");
-        const houston = await client.proxy("org._45drives.Houston", "/org/_45drives/Houston");
+        houstonDbusClient = cockpit.dbus("org._45drives.Houston");
+        houstonProxy = await houstonDbusClient.proxy("org._45drives.Houston", "/org/_45drives/Houston");
 
         console.log("Connected to ZFS Notification DBus. Subscribing to Message signal...");
 
-        houston.addEventListener("Message", (_, message) => {
+        houstonMessageHandler = (_, message) => {
 			notificationStore.addNotification(message);
             handler(message);
-        });
+        };
+        houstonProxy.addEventListener("Message", houstonMessageHandler);
 
         console.log("ZFS Notification DBus message handler successfully set up.");
     } catch (error) {
@@ -102,7 +108,32 @@ async function setUpMessageHandler(handler) {
 //     console.log("hello")
 // })
 
-initialLoad(disks, pools, datasets, snapshots);
+onMounted(() => {
+	initialLoad(disks, pools, datasets, snapshots);
+});
+
+onBeforeUnmount(() => {
+	// Clean up D-Bus listener + connection
+	if (houstonProxy && houstonMessageHandler) {
+		try { houstonProxy.removeEventListener("Message", houstonMessageHandler); } catch {}
+	}
+	if (houstonDbusClient) {
+		try { houstonDbusClient.close(); } catch {}
+		houstonDbusClient = null;
+	}
+	houstonProxy = null;
+	houstonMessageHandler = null;
+
+	// Clean up any leaked Status.vue intervals
+	if (scanIntervalID.value) {
+		clearInterval(scanIntervalID.value);
+		scanIntervalID.value = null;
+	}
+	if (diskStatsIntervalID.value) {
+		clearInterval(diskStatsIntervalID.value);
+		diskStatsIntervalID.value = null;
+	}
+});
 
 
 /////////////////////////////////////////////////////
