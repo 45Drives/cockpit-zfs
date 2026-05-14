@@ -291,8 +291,8 @@ async function setScanActivity(activity: Activity) {
 
 const scanning = ref(false);
 let scanPollInFlight = false;
-// Per-instance handle so we only clear the shared ref if WE own it
-let ownScanIntervalId: ReturnType<typeof setInterval> | null = null;
+const scanSubscribers = inject<Ref<number>>('scan-subscribers')!;
+let scanSubscribed = false;
 
 async function scanNow() {
 	await loadScanObjectGroup(scanObjectGroup);
@@ -322,28 +322,35 @@ async function pollScanStatus() {
 	}
 }
 
-function startScanInterval() {
-	if (ownScanIntervalId) return; // this instance already polling
-	ownScanIntervalId = setInterval(pollScanStatus, 3000);
-	scanIntervalID.value = ownScanIntervalId;
+function subscribeScanInterval() {
+	if (scanSubscribed) return;
+	scanSubscribed = true;
+	scanSubscribers.value++;
+	if (scanSubscribers.value === 1) {
+		// First subscriber starts the single shared interval
+		scanIntervalID.value = setInterval(pollScanStatus, 3000);
+	}
 }
 
-function stopScanInterval() {
-	// Only clear the shared ref if this instance owns it
-	if (ownScanIntervalId) {
-		clearInterval(ownScanIntervalId);
-		if (scanIntervalID.value === ownScanIntervalId) {
+function unsubscribeScanInterval() {
+	if (!scanSubscribed) return;
+	scanSubscribed = false;
+	scanSubscribers.value--;
+	if (scanSubscribers.value <= 0) {
+		// Last subscriber stops the shared interval
+		scanSubscribers.value = 0;
+		if (scanIntervalID.value) {
+			clearInterval(scanIntervalID.value);
 			scanIntervalID.value = null;
 		}
-		ownScanIntervalId = null;
 	}
 }
 
 watch(
 	scanning,
 	() => {
-		if (scanning.value) startScanInterval();
-		else stopScanInterval();
+		if (scanning.value) subscribeScanInterval();
+		else unsubscribeScanInterval();
 	},
 	{ immediate: true }
 );
@@ -501,8 +508,8 @@ async function setTrimActivity(activity: Activity) {
 
 const checkingDiskStats = ref(false);
 let trimPollInFlight = false;
-// Per-instance handle so we only clear the shared ref if WE own it
-let ownTrimIntervalId: ReturnType<typeof setInterval> | null = null;
+const trimSubscribers = inject<Ref<number>>('trim-subscribers')!;
+let trimSubscribed = false;
 
 async function checkDiskStats() {
 	await loadDiskStats(poolDiskStats);
@@ -547,28 +554,33 @@ async function pollTrimStatus() {
 	}
 }
 
-function startDiskStatsInterval() {
-	if (ownTrimIntervalId) return; // this instance already polling
-	ownTrimIntervalId = setInterval(pollTrimStatus, 3000);
-	diskStatsIntervalID.value = ownTrimIntervalId;
+function subscribeTrimInterval() {
+	if (trimSubscribed) return;
+	trimSubscribed = true;
+	trimSubscribers.value++;
+	if (trimSubscribers.value === 1) {
+		diskStatsIntervalID.value = setInterval(pollTrimStatus, 3000);
+	}
 }
 
-function stopDiskStatsInterval() {
-	// Only clear the shared ref if this instance owns it
-	if (ownTrimIntervalId) {
-		clearInterval(ownTrimIntervalId);
-		if (diskStatsIntervalID.value === ownTrimIntervalId) {
+function unsubscribeTrimInterval() {
+	if (!trimSubscribed) return;
+	trimSubscribed = false;
+	trimSubscribers.value--;
+	if (trimSubscribers.value <= 0) {
+		trimSubscribers.value = 0;
+		if (diskStatsIntervalID.value) {
+			clearInterval(diskStatsIntervalID.value);
 			diskStatsIntervalID.value = null;
 		}
-		ownTrimIntervalId = null;
 	}
 }
 
 watch(
 	checkingDiskStats,
 	() => {
-		if (checkingDiskStats.value) startDiskStatsInterval();
-		else stopDiskStatsInterval();
+		if (checkingDiskStats.value) subscribeTrimInterval();
+		else unsubscribeTrimInterval();
 	},
 	{ immediate: true }
 );
@@ -678,8 +690,8 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
-	stopScanInterval();
-	stopDiskStatsInterval();
+	unsubscribeScanInterval();
+	unsubscribeTrimInterval();
 });
 
 defineExpose({

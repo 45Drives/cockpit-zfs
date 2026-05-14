@@ -51,23 +51,31 @@ const clearLabels = ref(false);
 const scanActivities = ref<Map<string, Ref<Activity>>>(new Map());
 const scanObjectGroup = ref<PoolScanObjectGroup>({});
 const scanIntervalID = ref();
+const scanSubscribers = ref(0);
 
 const trimActivities = ref<Map<string, Ref<Activity>>>(new Map());
 const poolDiskStats = ref<PoolDiskStats>({});
 const diskStatsIntervalID = ref();
+const trimSubscribers = ref(0);
 
 async function initialLoad(disks, pools, datasets, snapshots) {
 	disksLoaded.value = false;
 	poolsLoaded.value = false;
 	fileSystemsLoaded.value = false;
 	await loadDisksThenPools(disks, pools);
+	if (isUnmounted) return;
 	await loadDatasets(datasets);
+	if (isUnmounted) return;
 	//await loadSnapshots(snapshots);
 	
 	await scanNow();
+	if (isUnmounted) return;
 	await loadScanActivities(pools, scanActivities);
+	if (isUnmounted) return;
 	await checkDiskStats();
+	if (isUnmounted) return;
 	await loadTrimActivities(pools, trimActivities);
+	if (isUnmounted) return;
 	disksLoaded.value = true;
 	poolsLoaded.value = true;
 	fileSystemsLoaded.value = true;
@@ -221,7 +229,9 @@ provide("snapshots", snapshots);
 provide('scan-object-group', scanObjectGroup);
 provide('pool-disk-stats', poolDiskStats);
 provide('scan-interval', scanIntervalID);
+provide('scan-subscribers', scanSubscribers);
 provide('disk-stats-interval', diskStatsIntervalID);
+provide('trim-subscribers', trimSubscribers);
 provide('scan-activities', scanActivities);
 provide('trim-activities', trimActivities);
 </script>
