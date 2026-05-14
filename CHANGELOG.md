@@ -1,3 +1,3 @@
-## zfs module 1.2.27-1
+## zfs module 1.2.27-2
 
-* Testing package for dbus leaks fix
+* Updating testing package

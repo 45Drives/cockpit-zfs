@@ -1,3 +1,9 @@
+cockpit-zfs (1.2.27-2bookworm) bookworm; urgency=medium
+
+  * Updating testing package
+
+ -- Jordan Keough <jkeough@45drives.com>  Thu, 14 May 2026 10:35:16 -0300
+
 cockpit-zfs (1.2.27-1bookworm) bookworm; urgency=medium
 
   * Testing package for dbus leaks fix
