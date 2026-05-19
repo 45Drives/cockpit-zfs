@@ -205,11 +205,12 @@ export function parseZfsMetadata(target: StorageTarget): ZfsTargetMetadata | nul
 
 // ─── Deep-link helpers ──────────────────────────────────────────────────────
 
-const ENCRYPTION_MODULE_PATH = '/storage-encryption-test';
+const ENCRYPTION_MODULE_PATH = '/storage-encryption';
 
-/** Build a deep-link URL to the cockpit-storage-encryption module */
+/** Build a full URL to the encryption manager on the current host */
 export function encryptionManagerUrl(targetId?: string, action?: string): string {
-  let url = `/cockpit/@localhost${ENCRYPTION_MODULE_PATH}/index.html`;
+  const origin = window.top?.location.origin ?? window.location.origin;
+  let url = `${origin}${ENCRYPTION_MODULE_PATH}`;
   const params: string[] = [];
   if (targetId) params.push(`target=${encodeURIComponent(targetId)}`);
   if (action) params.push(`action=${encodeURIComponent(action)}`);
@@ -217,10 +218,9 @@ export function encryptionManagerUrl(targetId?: string, action?: string): string
   return url;
 }
 
-/** Navigate to the encryption manager within the Cockpit shell */
+/** Navigate to the encryption manager */
 export function navigateToEncryptionManager(targetId?: string, action?: string): void {
   const url = encryptionManagerUrl(targetId, action);
-  // Cockpit modules run in iframes; navigate the top-level shell
   if (window.top) {
     window.top.location.href = url;
   } else {

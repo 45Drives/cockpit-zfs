@@ -240,15 +240,6 @@
 																			:class="[active ? 'bg-default text-default' : 'text-muted', 'block px-4 py-2 text-sm']">Change
 																			Passphrase</a>
 																		</MenuItem>
-																		<!-- KMS: Rotate Key (replaces Change Passphrase) -->
-																		<MenuItem as="div"
-																			v-if="allDatasets[datasetIdx].encrypted && isKmsManaged(allDatasets[datasetIdx])"
-																			v-slot="{ active }">
-																		<a href="#"
-																			@click.prevent="navigateToEncryptionManager(getDatasetTargetId(allDatasets[datasetIdx]), 'rotate')"
-																			:class="[active ? 'bg-default text-default' : 'text-muted', 'block px-4 py-2 text-sm']">Rotate
-																			KMS Key ↗</a>
-																		</MenuItem>
 																		<!-- KMS: View in Encryption Manager -->
 																		<MenuItem as="div"
 																			v-if="controlPlane?.available?.value && getDatasetTargetId(allDatasets[datasetIdx])"
