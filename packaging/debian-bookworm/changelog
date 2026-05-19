@@ -1,3 +1,9 @@
+cockpit-zfs (1.2.27-3bookworm) bookworm; urgency=medium
+
+  * New package with backend dbus leaks fixed
+
+ -- Jordan Keough <jkeough@45drives.com>  Tue, 19 May 2026 12:48:26 -0300
+
 cockpit-zfs (1.2.27-2bookworm) bookworm; urgency=medium
 
   * Updating testing package
