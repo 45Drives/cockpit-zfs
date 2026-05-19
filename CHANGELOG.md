@@ -1,3 +1,3 @@
-## zfs module 1.2.26-1
+## zfs module 1.2.27-2
 
-* Updates Notification UI with full support for Cockpit-Alerts redirect
+* Updating testing package
