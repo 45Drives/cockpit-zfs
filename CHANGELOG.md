@@ -1,3 +1,3 @@
-## zfs module 1.2.19-3
+## zfs module 1.2.27-2
 
-* kms storage encryption
+* Updating testing package

@@ -23,6 +23,10 @@
 						<p class="text-danger" v-if="isProperReplicationFeedback">{{ isProperReplicationFeedback }}</p>
 						<p class="text-danger" v-if="vDevFeedback">{{ vDevFeedback }}</p>
 					</div>
+
+					<div v-if="navTag == 'file-system'" class="justify-self-center mt-2">
+						<p class="text-danger" v-if="zvolFeedback">{{ zvolFeedback }}</p>
+					</div>
 				</div>
 
 				<div class="button-group-row w-full justify-between row-start-2">
@@ -97,6 +101,8 @@ const creatingPool = ref(false);
 const poolCreated = ref(false);
 const creatingFilesystem = ref(false);
 const filesystemCreated = ref(false);
+const datasetCreationType = ref<'none' | 'filesystem' | 'zvol'>('filesystem');
+const zvolConfigData = ref({ name: '', sizeValue: 1, sizeUnit: 'G', volblocksize: '', compression: 'off', dedup: 'off' });
 
 const showWizard = inject<Ref<boolean>>('show-wizard')!;
 
@@ -109,6 +115,8 @@ const diskFeedback = ref('');
 const diskSizeFeedback = ref('');
 const diskBelongsFeedback = ref('');
 const isProperReplicationFeedback = ref('');
+
+const zvolFeedback = computed(() => poolConfiguration.value?.zvolFeedback ?? '');
 
 //injecting provided disk and pools rray
 const disks = inject<Ref<VDevDisk[]>>('disks')!;
@@ -301,6 +309,11 @@ async function finishBtn(newPoolData) {
 		if (newPoolFound) setRefreservation(newPoolFound, newPoolData.refreservationPercent);
 
 		// Only create filesystem if the pool creation actually succeeded
+		datasetCreationType.value = poolConfiguration.value.getDatasetCreationType();
+		if (poolConfiguration.value.getDatasetCreationType() === 'zvol') {
+			const zc = poolConfiguration.value.getZvolConfig();
+			zvolConfigData.value = { ...zc };
+		}
 		await newFS();
 
 		showWizard.value = false;
@@ -318,14 +331,21 @@ async function finishBtn(newPoolData) {
 }
 
 async function newFS() {
-	if (poolConfig.value.createFileSystem!) {
+	const dsType = poolConfiguration.value.getDatasetCreationType();
+	if (dsType === 'filesystem') {
 		creatingFilesystem.value = true;
 		console.log('creating File System...');
-		// console.log('poolConfiguration', poolConfiguration.value);
 		await poolConfiguration.value.createNewFileSystem();
 		creatingFilesystem.value = false;
 		filesystemCreated.value = true;
 		console.log('File System created.');
+	} else if (dsType === 'zvol') {
+		creatingFilesystem.value = true;
+		console.log('creating Zvol...');
+		await poolConfiguration.value.createNewZvol(poolConfig.value.name);
+		creatingFilesystem.value = false;
+		filesystemCreated.value = true;
+		console.log('Zvol created.');
 	}
 }
 
@@ -370,17 +390,8 @@ const navigationCallback: StepNavigationCallback = (item: StepsNavigationItem) =
 		}
 	} else if (currentTag === 'file-system') {
 		if(item.tag === 'name-entry' || item.tag === 'virtual-devices' || item.tag === 'pool-settings') {
-			if (poolConfig.value.createFileSystem!) {
-				if (poolConfiguration.value.validateAndProceed('file-system')) {
-					navTag.value = item.tag;
-					tabError.value = false;
-				} else {
-					console.log(`Validation failed for ${navTag.value} tab. Cannot proceed to the ${item.tag} tab.`);
-				}
-			} else {
-				navTag.value = item.tag;
-				tabError.value = false;
-			}
+			navTag.value = item.tag;
+			tabError.value = false;
 			
 		} else if (item.tag === 'review') {
 			navTag.value = item.tag;
@@ -434,16 +445,11 @@ const next = () => {
 		navTag.value = nextItem.tag;
 		tabError.value = false;
 	} else if (currentItem!.tag === 'file-system') {
-		if (poolConfig.value.createFileSystem!) {
-			if (poolConfiguration.value.validateAndProceed('file-system')) {
-				navTag.value = nextItem.tag;
-				tabError.value = false;
-			} else {
-			console.log(`Validation failed for ${navTag.value} tab. Cannot proceed to the ${nextItem.tag} tab.`);
-			}
-		}  else {
+		if (poolConfiguration.value.validateAndProceed('file-system')) {
 			navTag.value = nextItem.tag;
 			tabError.value = false;
+		} else {
+			console.log(`Validation failed for ${navTag.value} tab. Cannot proceed to the ${nextItem.tag} tab.`);
 		}
 	} 
 };
@@ -469,7 +475,7 @@ const navigation = reactive<StepsNavigationItem[]>([
 	{ name: 'Name', id: '01', tag: 'name-entry', current: computed(() => navTag.value == 'name-entry') as unknown as boolean, status: 'current', show: true, } ,
 	{ name: 'Virtual Devices', id: '02', tag: 'virtual-devices', current: computed(() => navTag.value == 'virtual-devices') as unknown as boolean, status: 'upcoming', show: true,},
 	{ name: 'Pool Settings', id: '03', tag: 'pool-settings', current: computed(() => navTag.value == 'pool-settings') as unknown as boolean, status: 'upcoming', show: true, },
-	{ name: 'File System', id: '04', tag: 'file-system', current: computed(() => navTag.value == 'file-system') as unknown as boolean, status: 'upcoming', show: true, },
+	{ name: 'Dataset', id: '04', tag: 'file-system', current: computed(() => navTag.value == 'file-system') as unknown as boolean, status: 'upcoming', show: true, },
 	{ name: 'Summary', id: '05',tag: 'review', current: computed(() => navTag.value == 'review') as unknown as boolean, status: 'upcoming', show: true, },
 ].filter(item => item.show));
 
@@ -494,7 +500,17 @@ const updateStatus = () => {
 	}
 };
 
-watch(navTag, updateStatus);
+watch(navTag, (newTag) => {
+	updateStatus();
+	// Sync dataset creation type and zvol config when navigating to review tab
+	if (newTag === 'review' && poolConfiguration.value) {
+		datasetCreationType.value = poolConfiguration.value.getDatasetCreationType();
+		if (datasetCreationType.value === 'zvol') {
+			const zc = poolConfiguration.value.getZvolConfig();
+			zvolConfigData.value = { ...zc };
+		}
+	}
+});
 
 onMounted(() => {
 	updateStatus();
@@ -516,4 +532,6 @@ provide('creating-pool', creatingPool);
 provide('pool-created', poolCreated);
 provide('creating-filesystem', creatingFilesystem);
 provide('filesystem-created', filesystemCreated);
+provide('dataset-creation-type', datasetCreationType);
+provide('zvol-config-data', zvolConfigData);
 </script>

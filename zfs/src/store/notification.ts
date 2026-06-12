@@ -1,13 +1,50 @@
 import { reactive } from "vue";
 import { Notification } from "../types";
 
+// Shared D-Bus singleton — reused across all store methods to avoid leaking connections
+let _dbus: ReturnType<typeof cockpit.dbus> | null = null;
+function getHoustonDbus() {
+  if (!_dbus) {
+    const dbus = cockpit.dbus("org._45drives.Houston", { bus: "system" });
+    dbus.addEventListener("close", () => {
+      if (_dbus === dbus) {
+        _dbus = null;
+      }
+    });
+    _dbus = dbus;
+  }
+  return _dbus;
+}
+
+// Event types that belong to the ZFS module
+const ZFS_EVENTS = [
+  "scrub_finish",
+  "storage_threshold",
+  "snapshot_created",
+  "snapshot_failed",
+  "zfs_replication_success",
+  "zfs_replication_failed",
+  "vdev_attach",
+  "resilver_finish",
+  "vdev_clear",
+  "pool_import",
+  "statechange",
+  "data",
+];
+
+const ZFS_EVENTS_JSON = JSON.stringify(ZFS_EVENTS);
+
+function isZfsEvent(event: string | undefined): boolean {
+  return !!event && ZFS_EVENTS.includes(event);
+}
+
 // Define the reactive notification store
 export const notificationStore = reactive<{
   notifications: Notification[];
   addNotification: (message: string) => void;
   removeNotification: (id: number) => void;
   removeAllNotifications: () => void;
-  fetchMissedNotifications: (limit, offset) => Promise<void>;
+  fetchMissedNotifications: (limit: number, offset: number) => Promise<number>;
   markNotificationAsRead: (id: number) => Promise<void>;
   clearAllNotifications: () => Promise<void>;
   countMissedNotifications: () => void;
@@ -16,7 +53,7 @@ export const notificationStore = reactive<{
   notifications: [],
   notificationsCount: 0,
 
-  // Add notification to the list
+  // Add notification to the list (only ZFS-related events)
   addNotification(message: string) {
     try {
       const parsedMessage = JSON.parse(message) as {
@@ -33,7 +70,9 @@ export const notificationStore = reactive<{
         snapShot?: string;
         replicationDestination?: string
       };
-      // console.log("message id recieved in adddnotification: ", parsedMessage.id)
+
+      // Ignore events that don't belong to the ZFS module
+      if (!isZfsEvent(parsedMessage.event)) return;
   
       // Find existing notification by ID
       const existingNotification = notificationStore.notifications.find(
@@ -94,16 +133,13 @@ export const notificationStore = reactive<{
 
   async fetchMissedNotifications(limit = 50, offset = 0) {
     try {
-        // console.log("Fetching missed notifications via D-Bus...");
+        const dbus = getHoustonDbus();
 
-        const dbus = cockpit.dbus("org._45drives.Houston");
-
-        // Call GetMissedNotifications with correct object path & interface
         const response = await dbus.call(
-          "/org/_45drives/Houston",       
-          "org._45drives.Houston",       
-          "GetMissedNotifications",      
-          [limit, offset]                
+          "/org/_45drives/Houston",
+          "org._45drives.Houston",
+          "GetMissedNotificationsByEvents",
+          [ZFS_EVENTS_JSON, limit, offset]
         );
         if (!response) throw new Error("No response received from Houston D-Bus.");
 
@@ -132,6 +168,7 @@ export const notificationStore = reactive<{
         //console.log("Missed notifications fetched successfully.");
     } catch (error) {
         console.error("Error fetching missed notifications via D-Bus:", error);
+        return 0;
     }
 },
 
@@ -140,7 +177,7 @@ export const notificationStore = reactive<{
     try {
         // console.log(`Marking notification ${notificationId} as read via D-Bus...`);
 
-        const dbus = cockpit.dbus("org._45drives.Houston");
+        const dbus = getHoustonDbus();
 
         // Call the D-Bus method instead of FastAPI
         const response = await dbus.call(
@@ -167,21 +204,19 @@ export const notificationStore = reactive<{
 
   async clearAllNotifications() {
     try {
-        // console.log("Marking all notifications as read via D-Bus...");
+        const dbus = getHoustonDbus();
 
-        const dbus = cockpit.dbus("org._45drives.Houston");
-
-        // Call the new D-Bus method
-        const response = await dbus.call(
-            "/org/_45drives/Houston",  // Object path
-            "org._45drives.Houston",   // Interface
-            "MarkAllNotificationsAsRead"  // Method name
+        // Mark only ZFS-scoped notifications as read (not global)
+        await dbus.call(
+            "/org/_45drives/Houston",
+            "org._45drives.Houston",
+            "MarkAllNotificationsByEventsAsRead",
+            [ZFS_EVENTS_JSON]
         );
-
-        // console.log(`D-Bus Response: ${response}`);
 
         // Clear UI notifications
         notificationStore.notifications = [];
+        this.notificationsCount = 0;
 
         sideBarNotification();
     } catch (error) {
@@ -190,17 +225,17 @@ export const notificationStore = reactive<{
   },
 
   async countMissedNotifications(){
-    const dbus = cockpit.dbus("org._45drives.Houston");
+    const dbus = getHoustonDbus();
     const result = await dbus.call(
       "/org/_45drives/Houston",
       "org._45drives.Houston",
-      "GetNotificationCount"
+      "GetNotificationCountByEvents",
+      [ZFS_EVENTS_JSON]
     );
-    const count = result[0]; // Extract the count
+    const count = result[0];
     this.notificationsCount = count;
-    // console.log("Total missed notifications:", count);
 
-    return parseInt(result); // result is returned as a string
+    return parseInt(result);
   }
 
 
@@ -211,24 +246,28 @@ export const notificationStore = reactive<{
 async function sideBarNotification(): Promise<void> {
   const count: number = notificationStore.notificationsCount;
 
-  const dbus = cockpit.dbus("org._45drives.Houston");
+  const dbus = getHoustonDbus();
 
   try {
-    const [highestSeverity] = await dbus.call(
-      "/org/_45drives/Houston",
-      "org._45drives.Houston",
-      "GetHighestMissedSeverity"
-    );
+    if (count > 0) {
+      const [highestSeverity] = await dbus.call(
+        "/org/_45drives/Houston",
+        "org._45drives.Houston",
+        "GetHighestMissedSeverityByEvents",
+        [ZFS_EVENTS_JSON]
+      );
 
-    const severityType = count > 0 ? highestSeverity : null;
-    // console.log("severityType:", severityType);
-
-    (cockpit.transport as any).control("notify", {
-      page_status: {
-        type: severityType,
-        title: cockpit.gettext(`${count} Notifications available`)
-      }
-    });
+      (cockpit.transport as any).control("notify", {
+        page_status: {
+          type: highestSeverity,
+          title: cockpit.gettext(`${count} Notifications available`)
+        }
+      });
+    } else {
+      (cockpit.transport as any).control("notify", {
+        page_status: null
+      });
+    }
   } catch (error) {
     console.error("Failed to fetch highest severity:", error);
   }

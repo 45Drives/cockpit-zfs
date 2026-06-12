@@ -1,16 +1,16 @@
 # Automatic Houston Plugin Makefile
 # Copyright (C) 2022 Josh Boudreau <jboudreau@45drives.com>
-# 
+#
 # Automatic Houston Plugin Makefile is free software: you can redistribute it and/or modify it under the terms
 # of the GNU General Public License as published by the Free Software Foundation, either version 3
 # of the License, or (at your option) any later version.
-# 
+#
 # Automatic Houston Plugin Makefile is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
 # without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License along with Automatic Houston Plugin Makefile.
-# If not, see <https://www.gnu.org/licenses/>. 
+# If not, see <https://www.gnu.org/licenses/>.
 
 # PLUGIN_SRCS is space-delimited list of subdirectories containg a plugin project.
 PLUGIN_SRCS=zfs
@@ -113,7 +113,7 @@ plugin-install-% plugin-install-local-% plugin-install-remote-%:
 	@echo
 	@echo Copying files
 	@if test -z "$(SSH)"; then \
-		cp -af $*/dist/* $(DESTDIR)$(INSTALL_PREFIX)/$*$(INSTALL_SUFFIX); else \
+		cp -rf --no-preserve=context $*/dist/* $(DESTDIR)$(INSTALL_PREFIX)/$*$(INSTALL_SUFFIX); else \
 		rsync -avh $*/dist/* $(REMOTE_TEST_USER)@$(REMOTE_TEST_HOST):$(DESTDIR)$(INSTALL_PREFIX)/$*$(INSTALL_SUFFIX); \
 	fi
 	@echo -e $(call greentext,Done installing $*)
@@ -130,10 +130,10 @@ plugin-install-remote-% : SSH=ssh $(REMOTE_TEST_USER)@$(REMOTE_TEST_HOST)
 plugin-install-remote-% : REMOTE_TEST_HOME=$(shell ssh $(REMOTE_TEST_USER)@$(REMOTE_TEST_HOST) 'echo $$HOME')
 
 system-files-install:
-	-cp -af system_files/* $(DESTDIR)/
+	-cp -rf --no-preserve=context system_files/* $(DESTDIR)/
 
 system-files-install-local:
-	-cp -af system_files/* $(DESTDIR)/
+	-cp -rf --no-preserve=context system_files/* $(DESTDIR)/
 
 system-files-install-remote:
 	-rsync -avh system_files/* $(REMOTE_TEST_USER)@$(REMOTE_TEST_HOST):$(DESTDIR)/
@@ -161,7 +161,7 @@ help:
 	@echo '    make'
 	@echo
 	@echo 'installation:'
-	@echo '    make install [RESTART_COCKPIT=1]' 
+	@echo '    make install [RESTART_COCKPIT=1]'
 	@echo
 	@echo 'testing:'
 	@echo '    make install-local [RESTART_COCKPIT=1]'

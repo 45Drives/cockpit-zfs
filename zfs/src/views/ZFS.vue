@@ -18,7 +18,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, Ref, provide, watchEffect, onMounted } from 'vue';
+import { ref, Ref, provide, watchEffect, watch, onMounted, onBeforeUnmount } from 'vue';
 import { getUserCaps } from "../auth/capabilities";
 import { loadDisksThenPools, loadDatasets, loadScanObjectGroup, loadDiskStats, loadSnapshots } from '../composables/loadData';
 import { loadScanActivities, loadTrimActivities } from '../composables/helpers';
@@ -55,23 +55,31 @@ const clearLabels = ref(false);
 const scanActivities = ref<Map<string, Ref<Activity>>>(new Map());
 const scanObjectGroup = ref<PoolScanObjectGroup>({});
 const scanIntervalID = ref();
+const scanSubscribers = ref(0);
 
 const trimActivities = ref<Map<string, Ref<Activity>>>(new Map());
 const poolDiskStats = ref<PoolDiskStats>({});
 const diskStatsIntervalID = ref();
+const trimSubscribers = ref(0);
 
 async function initialLoad(disks, pools, datasets, snapshots) {
 	disksLoaded.value = false;
 	poolsLoaded.value = false;
 	fileSystemsLoaded.value = false;
 	await loadDisksThenPools(disks, pools);
+	if (isUnmounted) return;
 	await loadDatasets(datasets);
+	if (isUnmounted) return;
 	//await loadSnapshots(snapshots);
 	
 	await scanNow();
+	if (isUnmounted) return;
 	await loadScanActivities(pools, scanActivities);
+	if (isUnmounted) return;
 	await checkDiskStats();
+	if (isUnmounted) return;
 	await loadTrimActivities(pools, trimActivities);
+	if (isUnmounted) return;
 	disksLoaded.value = true;
 	poolsLoaded.value = true;
 	fileSystemsLoaded.value = true;
@@ -84,22 +92,45 @@ async function initialLoad(disks, pools, datasets, snapshots) {
     });
 }
 
+// D-Bus message handler state — stored so we can clean up on unmount
+let houstonDbusClient: ReturnType<typeof cockpit.dbus> | null = null;
+let houstonMessageHandler: ((event: any, message: any) => void) | null = null;
+let houstonProxy: any = null;
+let isUnmounted = false;
+
 async function setUpMessageHandler(handler) {
+    let client: ReturnType<typeof cockpit.dbus> | null = null;
     try {
         console.log("Setting up ZFS Notification DBus message handler...");
 
-        const client = cockpit.dbus("org._45drives.Houston");
-        const houston = await client.proxy("org._45drives.Houston", "/org/_45drives/Houston");
+        client = cockpit.dbus("org._45drives.Houston");
+        const proxy = await client.proxy("org._45drives.Houston", "/org/_45drives/Houston");
+
+        // If the component was unmounted while we were awaiting the proxy,
+        // close immediately and bail out.
+        if (isUnmounted) {
+            try { client.close(); } catch {}
+            return;
+        }
+
+        houstonDbusClient = client;
+        houstonProxy = proxy;
 
         console.log("Connected to ZFS Notification DBus. Subscribing to Message signal...");
 
-        houston.addEventListener("Message", (_, message) => {
+        houstonMessageHandler = (_, message) => {
 			notificationStore.addNotification(message);
             handler(message);
-        });
+        };
+        houstonProxy.addEventListener("Message", houstonMessageHandler);
 
         console.log("ZFS Notification DBus message handler successfully set up.");
     } catch (error) {
+        // Close the local client if it was opened but never assigned to
+        // houstonDbusClient (e.g. client.proxy() rejected).
+        if (client && client !== houstonDbusClient) {
+            try { client.close(); } catch {}
+        }
         console.error("Error setting up ZFS Notification DBus message handler:", error);
     }
 }
@@ -108,7 +139,35 @@ async function setUpMessageHandler(handler) {
 //     console.log("hello")
 // })
 
-initialLoad(disks, pools, datasets, snapshots);
+onMounted(() => {
+	isUnmounted = false;
+	initialLoad(disks, pools, datasets, snapshots);
+});
+
+onBeforeUnmount(() => {
+	isUnmounted = true;
+
+	// Clean up D-Bus listener + connection
+	if (houstonProxy && houstonMessageHandler) {
+		try { houstonProxy.removeEventListener("Message", houstonMessageHandler); } catch {}
+	}
+	if (houstonDbusClient) {
+		try { houstonDbusClient.close(); } catch {}
+		houstonDbusClient = null;
+	}
+	houstonProxy = null;
+	houstonMessageHandler = null;
+
+	// Clean up any leaked Status.vue intervals
+	if (scanIntervalID.value) {
+		clearInterval(scanIntervalID.value);
+		scanIntervalID.value = null;
+	}
+	if (diskStatsIntervalID.value) {
+		clearInterval(diskStatsIntervalID.value);
+		diskStatsIntervalID.value = null;
+	}
+});
 
 
 /////////////////////////////////////////////////////
@@ -120,6 +179,40 @@ async function scanNow() {
 async function checkDiskStats() {
 	await loadDiskStats(poolDiskStats);
 }
+
+// Shared scan polling — one interval for all Status instances
+let scanPollInFlight = false;
+async function sharedScanPoll() {
+	if (scanPollInFlight) return;
+	scanPollInFlight = true;
+	try { await scanNow(); } finally { scanPollInFlight = false; }
+}
+
+watch(scanSubscribers, (count) => {
+	if (count > 0 && !scanIntervalID.value) {
+		scanIntervalID.value = setInterval(sharedScanPoll, 3000);
+	} else if (count <= 0 && scanIntervalID.value) {
+		clearInterval(scanIntervalID.value);
+		scanIntervalID.value = null;
+	}
+});
+
+// Shared trim polling — one interval for all Status instances
+let trimPollInFlight = false;
+async function sharedTrimPoll() {
+	if (trimPollInFlight) return;
+	trimPollInFlight = true;
+	try { await checkDiskStats(); } finally { trimPollInFlight = false; }
+}
+
+watch(trimSubscribers, (count) => {
+	if (count > 0 && !diskStatsIntervalID.value) {
+		diskStatsIntervalID.value = setInterval(sharedTrimPoll, 3000);
+	} else if (count <= 0 && diskStatsIntervalID.value) {
+		clearInterval(diskStatsIntervalID.value);
+		diskStatsIntervalID.value = null;
+	}
+});
 
 /////////////////////////////////////////////////////
 const dashboardComponent = ref();
@@ -176,7 +269,9 @@ provide("snapshots", snapshots);
 provide('scan-object-group', scanObjectGroup);
 provide('pool-disk-stats', poolDiskStats);
 provide('scan-interval', scanIntervalID);
+provide('scan-subscribers', scanSubscribers);
 provide('disk-stats-interval', diskStatsIntervalID);
+provide('trim-subscribers', trimSubscribers);
 provide('scan-activities', scanActivities);
 provide('trim-activities', trimActivities);
 provide('controlplane', controlPlane);

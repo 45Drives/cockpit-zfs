@@ -17,13 +17,22 @@ def main():
         z_datasets = []
 
         for p in zfs.datasets:
-            dataset = p.asdict()
+            try:
+                dataset = p.asdict()
 
-            dataset['properties']['creation']['parsed'] = str(dataset['properties']['creation']['parsed'])
+                # Only include filesystems and volumes (zvols)
+                if dataset.get('type') not in ('FILESYSTEM', 'VOLUME'):
+                    continue
 
-            dataset['children'] = basic_typed_children(dataset['children'])
+                dataset['properties']['creation']['parsed'] = str(dataset['properties']['creation']['parsed'])
 
-            z_datasets.append(dataset)
+                dataset['children'] = basic_typed_children(dataset['children'])
+
+                z_datasets.append(dataset)
+            except Exception as e:
+                import sys
+                print(f"Warning: skipping dataset: {e}", file=sys.stderr)
+                continue
 
     print(json.dumps(z_datasets, indent=4))
 if __name__ == '__main__':
