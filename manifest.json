@@ -85,13 +85,8 @@
     ],
     "changelog": {
         "urgency": "medium",
-<<<<<<< HEAD
-        "version": "1.2.19",
-        "build_number": "3",
-=======
         "version": "1.2.27",
         "build_number": "2",
->>>>>>> main
         "date": null,
         "packager": "Jordan Keough <jkeough@45drives.com>",
         "changes": []
