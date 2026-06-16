@@ -392,7 +392,7 @@ export async function loadDatasets(datasets) {
 			}
 		}
 
-		console.log("loaded Datasets:", datasets);
+		console.log(`loaded Datasets: ${datasets.value.length} of ${parsedJSON.length} parsed`, datasets.value.map(d => d.name));
 
 
 	} catch (error) {

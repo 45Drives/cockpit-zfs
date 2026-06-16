@@ -1,0 +1,287 @@
+====== Encryption User Guide ======
+
+Cockpit ZFS Manager provides native ZFS encryption support for file systems, allowing you to protect your data at rest. This guide covers how to create encrypted file systems, manage encryption keys, and perform common encryption operations.
+
+===== Table of Contents =====
+
+  * [[#overview|Overview]]
+  * [[#creating_an_encrypted_file_system|Creating an Encrypted File System]]
+    * [[#passphrase-based_encryption|Passphrase-Based Encryption]]
+    * [[#kms-managed_encryption|KMS-Managed Encryption]]
+  * [[#unlocking_an_encrypted_file_system|Unlocking an Encrypted File System]]
+  * [[#locking_an_encrypted_file_system|Locking an Encrypted File System]]
+  * [[#changing_your_passphrase|Changing Your Passphrase]]
+  * [[#encryption_status_indicators|Encryption Status Indicators]]
+  * [[#encryption_governance_dashboard|Encryption Governance Dashboard]]
+  * [[#troubleshooting|Troubleshooting]]
+
+----
+
+===== Overview =====
+
+ZFS encryption operates at the file system (dataset) level. When you create an encrypted file system, all data written to it is encrypted on disk and can only be accessed after the encryption key is loaded.
+
+There are two key management approaches:
+
+^ Approach ^ Description ^ Best For ^
+| **Passphrase** | You provide and manage a passphrase manually | Single systems, simple setups |
+| **KMS Key Policy** | Keys are managed automatically by an external Key Management System | Enterprise environments, policy-driven key rotation |
+
+==== Supported Ciphers ====
+
+^ Cipher ^ Notes ^
+| AES-128-CCM | |
+| AES-192-CCM | |
+| AES-256-CCM | |
+| AES-128-GCM | |
+| AES-192-GCM | |
+| AES-256-GCM | Recommended; auto-selected for KMS |
+
+----
+
+===== Creating an Encrypted File System =====
+
+Encryption is configured during file system creation through the Pool Creation Wizard.
+
+==== Passphrase-Based Encryption ====
+
+  - Open the **Pool Creation Wizard** and navigate to the **File System** tab.
+  - Toggle the **Encryption** switch to **on**.
+  - If a KMS provider is available, you will see a **Key Source** selector. Choose **Passphrase**. (If no KMS is available, passphrase mode is selected automatically.)
+  - Select a **Cipher** algorithm from the dropdown. AES-256-GCM is recommended for a good balance of security and performance.
+  - Enter a **Passphrase** (minimum 8 characters). Use the eye icon to toggle visibility.
+  - Re-enter the passphrase in the **Confirm** field.
+  - Review the warning:
+
+<WRAP center round important>
+**Important:** Please note your passphrase carefully. If it is lost, it cannot be retrieved or reset.
+</WRAP>
+
+  - Click **Create** to create the encrypted file system.
+
+{{:images/create-fs-encryption-enabled.png?direct&800|Encryption toggle enabled in the Create File System wizard}}
+
+After enabling encryption, the Key Source selector and passphrase fields appear:
+
+{{:images/passphrase-mode.png?direct&800|Passphrase mode with cipher selection and passphrase entry fields}}
+
+After creation, the file system is encrypted and its key is loaded. You will need to re-enter the passphrase to unlock it after a reboot or after manually locking the file system.
+
+==== KMS-Managed Encryption ====
+
+<WRAP center round tip>
+**Prerequisites:** The cockpit-storage-encryption control plane module must be installed and a KMS provider (e.g., HashiCorp Vault) must be configured with at least one key policy.
+</WRAP>
+
+  - Open the **Pool Creation Wizard** and navigate to the **File System** tab.
+  - Toggle the **Encryption** switch to **on**.
+  - In the **Key Source** selector, choose **KMS Key Policy**.
+  - Select a **Key Policy** from the dropdown. Each policy displays its name and algorithm. The cipher is automatically set to AES-256-GCM.
+  - Click **Create**.
+
+{{:images/key-source-selector.png?direct&800|Key Source selector showing Passphrase and KMS Key Policy options}}
+
+After selecting KMS Key Policy, a policy dropdown appears:
+
+{{:images/kms-policy-selected.png?direct&800|KMS Key Policy mode with policy selector dropdown}}
+
+The control plane generates a Data Encryption Key (DEK) via the KMS provider, creates the file system with that key, and establishes a policy binding between the file system and the key policy. Key rotation and lifecycle management are handled automatically by the KMS.
+
+----
+
+===== Unlocking an Encrypted File System =====
+
+Encrypted file systems are locked after a system reboot or after being manually locked. A locked file system cannot be mounted or accessed until its key is loaded.
+
+==== Passphrase-Based Unlock ====
+
+  - In the **File Systems** list, click the vertical ... on dataset to show menu options.
+  - Then select **Unlock File System**.
+  - In the dialog, enter your **Passphrase**.
+  - Optionally toggle **Mount File System** to automatically mount the file system after unlocking.
+  - Optionally toggle **Forcefully Mount File System** if a forced mount is needed.
+  - Click **Unlock**.
+
+{{:images/context-menu-locked.png?direct&800|Context menu for a locked encrypted file system showing Unlock File System option}}
+
+The unlock dialog prompts for your passphrase:
+
+{{:images/unlock-dialog.png?direct&800|Unlock File System dialog with passphrase entry and mount options}}
+
+If the passphrase is incorrect, an error message will be displayed. Re-enter the correct passphrase and try again.
+
+==== KMS-Managed Unlock ====
+
+  - In the **File Systems** list, click the vertical ... on dataset to show menu options.
+  - Select **Unlock File System**.
+  - The dialog will indicate: //"This dataset is managed by KMS. The encryption key will be fetched from the key management system automatically."//
+  - Optionally toggle **Mount File System** and **Forcefully Mount File System**.
+  - Click **Unlock**.
+
+The system contacts the KMS provider to retrieve and load the encryption key automatically. No passphrase entry is needed.
+
+----
+
+===== Locking an Encrypted File System =====
+
+Locking a file system unloads its encryption key from memory, making the data inaccessible until it is unlocked again. The data remains safely encrypted on disk.
+
+  - In the **File Systems** list, click the vertical ... on dataset to show menu options.
+  - Select **Unmount File System**.
+  - A confirmation dialog asks: //"Unmount Filesystem"//
+  - Click **Lock file system**.
+  - Click "Unmount" to confirm.
+
+{{:images/unmount-lock-dialog.png?direct&800|Unmount File System confirmation dialog with Lock file system option}}
+
+The file system is immediately locked and its key is removed from memory.
+
+----
+
+===== Changing Your Passphrase =====
+
+
+**Note:** This is only available for passphrase-based encrypted file systems. For KMS-managed file systems, key rotation is handled through the Encryption Manager.
+
+
+The file system must be unlocked (key loaded) before you can change the passphrase.
+
+  - In the **File Systems** list, click the vertical … on dataset to show menu options.
+  - Select **Change Passphrase**.
+  - Enter a **New Passphrase** (minimum 8 characters).
+  - Re-enter it in the **Confirm New Passphrase** field.
+  - Review the warning:
+
+
+**Important:** Please note your passphrase carefully. If it is lost, it cannot be retrieved or reset.
+
+
+  - Click **Change**.
+
+{{:images/change-passphrase-dialog.png?direct&800|Change Passphrase dialog with new passphrase and confirmation fields}}
+
+A success notification confirms the passphrase has been updated. Future unlock operations will require the new passphrase.
+
+==== Passphrase Requirements ====
+
+  * Must not be empty
+  * Minimum 8 characters
+  * Passphrase and confirmation must match
+
+----
+
+===== Encryption Status Indicators =====
+
+The **File Systems** list displays encryption status for each file system:
+
+{{:images/datasets-list-encryption.png?direct&800|Datasets list showing encryption status indicators (lock icons and KMS column)}}
+
+^ Icon ^ State ^ Meaning ^
+| Open lock | Encrypted & Unlocked | Key is loaded; data is accessible |
+| Closed lock | Encrypted & Locked | Key is not loaded; data is inaccessible |
+| No icon | Not Encrypted | File system has no encryption |
+
+==== KMS Governance Badges ====
+
+When KMS integration is active, file systems may also display a governance badge:
+
+^ Badge ^ Color ^ Meaning ^
+| KMS (checkmark) | Green | Policy binding verified with KMS |
+| KMS | Blue | Policy assigned, binding active |
+| Pending | Yellow | Key binding in progress |
+| Error | Red | Binding verification failed |
+
+==== Viewing Encryption Details ====
+
+Right-click a file system and select **Configure File System** to view its encryption properties:
+
+  * **Encryption Cipher** — the algorithm in use (e.g., AES-256-GCM)
+  * **Key Format** — how the key is stored (e.g., passphrase)
+  * **Key Location** — where the key is sourced from
+
+For KMS-managed file systems, additional details are shown:
+
+  * **KMS Policy** — the policy managing this file system
+  * **Binding State** — current status of the policy binding (verified, active, pending, error)
+  * **DEK Version** — current Data Encryption Key version
+  * **Last Verified** — when the binding was last verified
+  * **FIPS Mode** — FIPS status if enabled
+
+----
+
+===== Encryption Governance Dashboard =====
+
+If the KMS control plane is available, the main dashboard displays an **Encryption Governance** card summarizing the encryption posture of all file systems:
+
+{{:images/encryption-governance-card.png?direct&800|Encryption Governance card showing dataset counts and posture bar}}
+
+  * **Total Datasets** — total number of file systems
+  * **Encrypted** — file systems with encryption enabled
+  * **KMS Managed** — encrypted file systems with an active KMS policy binding
+  * **Unmanaged** — encrypted file systems without a KMS policy
+
+A color-coded posture bar provides a visual summary:
+
+  * **Green** — Verified: policy binding confirmed with KMS
+  * **Blue** — Managed: policy assigned, binding active
+  * **Yellow** — Encrypted only: encrypted but no KMS policy
+  * **Gray** — Unencrypted: no encryption
+
+The card also shows the active **KMS Provider** and **FIPS Status**.
+
+The full dashboard view with the Encryption Governance section:
+
+{{:images/dashboard-encryption-governance.png?direct&800|Full dashboard showing pool status and Encryption Governance section}}
+
+----
+
+===== Context Menu Actions Summary =====
+
+The actions available when right-clicking a file system depend on its encryption state:
+
+==== Locked Encrypted File System ====
+
+{{:images/context-menu-locked-full.png?direct&800|Context menu for a locked encrypted file system}}
+
+  * **Unlock File System** — load the encryption key and optionally mount
+  * **Migrate to KMS Encryption** — transition to KMS-managed encryption (when KMS is available)
+
+==== Unlocked Encrypted File System (Passphrase) ====
+
+{{:images/context-menu-unlocked.png?direct&800|Context menu for an unlocked passphrase-encrypted file system}}
+
+  * **Lock File System** — unload the encryption key
+  * **Change Passphrase** — update the encryption passphrase
+
+==== Unlocked Encrypted File System (KMS) ====
+
+{{:images/encrypted-dataset-context-menu.png?direct&800|Context menu for an encrypted file system with KMS options}}
+
+  * **Lock File System** — unload the encryption key
+  * **Rotate KMS Key** — opens the Encryption Manager for key rotation
+  * **View in Encryption Manager** — opens the external control plane UI
+  * **Verify Key Assignment** — tests KMS round-trip key verification
+
+==== Passphrase File Systems (when KMS is available) ====
+
+  * **Migrate to KMS Encryption** — transition the file system from passphrase-based to KMS-managed encryption
+
+----
+
+===== Troubleshooting =====
+
+^ Problem ^ Cause ^ Solution ^
+| "Passphrase does not match" | Confirmation field doesn't match the passphrase | Re-enter both fields carefully |
+| "Passphrase requires a minimum of 8 characters" | Passphrase is too short | Use a passphrase with 8 or more characters |
+| "Passphrase cannot be empty" | No passphrase was entered | Enter a passphrase |
+| Cannot unlock — wrong passphrase | Incorrect passphrase entered | Verify and re-enter the correct passphrase |
+| KMS unlock fails | KMS provider is unreachable or misconfigured | Check KMS connectivity and contact your administrator |
+| KMS verification failed | Policy binding issue | Click **Verify Key Assignment** to re-verify, or check the Encryption Manager |
+| File system won't mount after unlock | Mountpoint conflict or corruption | Toggle **Forcefully Mount File System** or check mountpoint configuration |
+
+==== Important Reminders ====
+
+  * **Passphrases cannot be recovered.** If you lose your passphrase and do not have a KMS backup, the encrypted data is permanently inaccessible.
+  * **Encryption is set at creation time.** You cannot encrypt an existing unencrypted file system in place. You must create a new encrypted file system and migrate data to it (or use KMS migration if available).
+  * **Locked file systems cannot be mounted.** Always unlock the file system before attempting to access or share its data.
+  * **After a reboot**, all encrypted file systems will be locked and need to be unlocked again before use.

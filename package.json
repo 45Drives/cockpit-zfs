@@ -10,5 +10,5 @@
     "prepare-deb": "chmod +x packaging/debian/DEBIAN/postinst",
     "package": "yarn build && yarn prepare-deb && dpkg-deb --build packaging/debian"
   },
-  "packageManager": "yarn@4.6.0"
+  "packageManager": "yarn@4.13.0"
 }

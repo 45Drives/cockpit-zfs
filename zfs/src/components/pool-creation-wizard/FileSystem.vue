@@ -52,8 +52,40 @@
 			</div>
 
 			<div v-if="fileSystemConfig.encrypted">
+				<!-- Key Source selector (only when KMS is available) -->
+				<div v-if="kmsAvailable" class="my-2">
+					<label class="block text-sm font-medium leading-6 text-default">Key Source</label>
+					<div class="mt-1 flex gap-2">
+						<button
+							@click="keySource = 'passphrase'"
+							:class="[keySource === 'passphrase' ? 'btn btn-primary' : 'btn btn-secondary', 'text-sm flex-1']">
+							Passphrase
+						</button>
+						<button
+							@click="keySource = 'kms'"
+							:class="[keySource === 'kms' ? 'btn btn-primary' : 'btn btn-secondary', 'text-sm flex-1']">
+							🔑 KMS Key Policy
+						</button>
+					</div>
+				</div>
+
+				<!-- KMS Policy selector -->
+				<div v-if="keySource === 'kms' && kmsAvailable" class="my-2">
+					<label class="block text-sm font-medium leading-6 text-default">Key Policy</label>
+					<select v-model="selectedPolicyId" class="mt-1 block w-full input-textlike bg-default">
+						<option value="" disabled>Select a key policy...</option>
+						<option v-for="p in controlPlane.policies.value" :key="p.id" :value="p.id">
+							{{ p.name }} ({{ p.algorithm }})
+						</option>
+					</select>
+					<p class="text-xs text-muted mt-1">
+						The dataset will be encrypted with a KMS-generated key managed by this policy.
+						Cipher will be AES-256-GCM.
+					</p>
+				</div>
+
 				<!-- Passphrase (Text) -->
-				<div class="w-full">
+				<div v-if="keySource === 'passphrase'" class="w-full">
 					<div class="justify-between text-center items-center grid grid-cols-3 my-2">
 						<div class="col-span-2 grid grid-cols-3 justify-between gap-4 text-left items-center">
 							<div class="col-span-1 flex flex-row items-center">
@@ -121,8 +153,8 @@
 							be retrieved or reset.</p>
 					</div>
 				</div>
-				<!-- Cipher (Select) -->
-				<div>
+				<!-- Cipher (Select) — hidden when KMS -->
+				<div v-if="keySource === 'passphrase'">
 					<label :for="getIdKey('cipher')"
 						class="block text-sm font-medium leading-6 text-default">Cipher</label>
 					<select :id="getIdKey('cipher')" name="cipher" v-model="fileSystemConfig.properties.encryption"
@@ -396,7 +428,40 @@
 				</div>
 
 				<div v-if="newFileSystemConfig.encrypted">
-					<div class="w-full">
+					<!-- Key Source selector (only when KMS is available) -->
+					<div v-if="kmsAvailable" class="my-2">
+						<label class="block text-sm font-medium leading-6 text-default">Key Source</label>
+						<div class="mt-1 flex gap-2">
+							<button
+								@click="keySource = 'passphrase'"
+								:class="[keySource === 'passphrase' ? 'btn btn-primary' : 'btn btn-secondary', 'text-sm flex-1']">
+								Passphrase
+							</button>
+							<button
+								@click="keySource = 'kms'"
+								:class="[keySource === 'kms' ? 'btn btn-primary' : 'btn btn-secondary', 'text-sm flex-1']">
+								🔑 KMS Key Policy
+							</button>
+						</div>
+					</div>
+
+					<!-- KMS Policy selector -->
+					<div v-if="keySource === 'kms' && kmsAvailable" class="my-2">
+						<label class="block text-sm font-medium leading-6 text-default">Key Policy</label>
+						<select v-model="selectedPolicyId" class="mt-1 block w-full input-textlike bg-default">
+							<option value="" disabled>Select a key policy...</option>
+							<option v-for="p in controlPlane.policies.value" :key="p.id" :value="p.id">
+								{{ p.name }} ({{ p.algorithm }})
+							</option>
+						</select>
+						<p class="text-xs text-muted mt-1">
+							The dataset will be encrypted with a KMS-generated key managed by this policy.
+							Cipher will be AES-256-GCM.
+						</p>
+					</div>
+
+					<!-- Passphrase fields (only when passphrase key source) -->
+					<div v-if="keySource === 'passphrase'" class="w-full">
 						<!-- Passphrase (Text) -->
 						<div class="justify-between text-center items-center grid grid-cols-3 my-2">
 							<div class="col-span-2 grid grid-cols-3 justify-between text-left items-center">
@@ -467,8 +532,8 @@
 								be retrieved or reset.</p>
 						</div>
 					</div>
-					<!-- Cipher (Select) -->
-					<div>
+					<!-- Cipher (Select) — hidden when KMS (always aes-256-gcm) -->
+					<div v-if="keySource === 'passphrase'">
 						<label :for="getIdKey('cipher')"
 							class="block text-sm font-medium leading-6 text-default">Cipher</label>
 						<select :id="getIdKey('cipher')" name="cipher"
@@ -724,6 +789,7 @@ import OldModal from '../common/OldModal.vue';
 import { loadDatasets } from '../../composables/loadData';
 import { InformationCircleIcon } from '@heroicons/vue/24/solid';
 import { pushNotification, Notification } from '@45drives/houston-common-ui';
+import type { ControlPlaneState } from '../../composables/useControlPlane';
 
 interface FileSystemProps {
 	idKey: string;
@@ -758,6 +824,12 @@ const showPassword = ref(false);
 const showPasswordConfirm = ref(false);
 
 const quotaFeedback = ref('');
+
+// KMS key source for encryption
+const controlPlane = inject<ControlPlaneState>('controlplane', undefined as any);
+const keySource = ref<'passphrase' | 'kms'>('passphrase');
+const selectedPolicyId = ref('');
+const kmsAvailable = computed(() => controlPlane?.available?.value && (controlPlane?.policies?.value?.length ?? 0) > 0);
 
 const saving = ref(false);
 
@@ -1019,7 +1091,51 @@ async function fsCreateBtn(fileSystem : ZFSFileSystemInfo) {
 			if (nameCheck(fileSystem)) {
 				// console.log('nameCheck passed');
 				if (fileSystem.encrypted) {
-					if (encryptPasswordCheck(fileSystem)) {
+					if (keySource.value === 'kms' && kmsAvailable.value && selectedPolicyId.value) {
+						// KMS-backed encrypted dataset creation
+						if (checkQuota(fileSystem)) {
+							getInheritedProperties();
+							fillDatasetData();
+							saving.value = true;
+							confirmCreateFS.value = false;
+							try {
+								// Build properties for the backend
+								const zfsProps: Record<string, string> = {};
+								if (newDataset.value.compression && newDataset.value.compression !== 'inherited') zfsProps.compression = newDataset.value.compression;
+								if (newDataset.value.atime && newDataset.value.atime !== 'inherited') zfsProps.atime = newDataset.value.atime;
+								if (newDataset.value.recordsize && newDataset.value.recordsize !== 'inherited') zfsProps.recordsize = newDataset.value.recordsize;
+								if (Number(newDataset.value.quota) > 0) zfsProps.quota = newDataset.value.quota!;
+
+								const result = await controlPlane!.createEncryptedDatasetWithKms(
+									newDataset.value.parent,
+									newDataset.value.name,
+									selectedPolicyId.value,
+									Object.keys(zfsProps).length > 0 ? zfsProps : undefined,
+								);
+
+								if (!result || !result.success) {
+									saving.value = false;
+									pushNotification(new Notification('Error Creating Dataset', result?.message ?? 'KMS dataset creation failed', 'error', 5000));
+								} else {
+									fileSystemsLoaded.value = false;
+									datasets.value = [];
+									await loadDatasets(datasets);
+									showFSWizard.value = false;
+									saving.value = false;
+									fileSystemsLoaded.value = true;
+									pushNotification(new Notification('File System Created!', `Created KMS-encrypted dataset ${result.dataset}.`, 'success', 5000));
+									confirmCreateFS.value = true;
+									// Refresh control plane data to pick up new target + binding
+									controlPlane!.refresh().catch(() => {});
+								}
+							} catch (error: any) {
+								saving.value = false;
+								const msg = error instanceof Error ? error.message : String(error);
+								pushNotification(new Notification('Error Creating Dataset', msg, 'error', 5000));
+								console.error(error);
+							}
+						}
+					} else if (encryptPasswordCheck(fileSystem)) {
 						if (checkQuota(fileSystem)) {
 							getInheritedProperties();
 							fillDatasetData();
@@ -1119,7 +1235,48 @@ async function newFileSystemInPoolWizard() {
 			if (nameCheck(fileSystem.value)) {
 				// console.log('nameCheck passed');
 				if (fileSystem.value.encrypted) {
-					if (encryptPasswordCheck(fileSystem.value)) {
+					if (keySource.value === 'kms' && kmsAvailable.value && selectedPolicyId.value) {
+						// KMS-backed encrypted dataset creation (pool wizard)
+						if (checkQuota(fileSystem.value)) {
+							getInheritedProperties();
+							fillDatasetData();
+							saving.value = true;
+							confirmCreateFS.value = false;
+							try {
+								const zfsProps: Record<string, string> = {};
+								if (newDataset.value.compression && newDataset.value.compression !== 'inherited') zfsProps.compression = newDataset.value.compression;
+								if (newDataset.value.atime && newDataset.value.atime !== 'inherited') zfsProps.atime = newDataset.value.atime;
+								if (newDataset.value.recordsize && newDataset.value.recordsize !== 'inherited') zfsProps.recordsize = newDataset.value.recordsize;
+								if (Number(newDataset.value.quota) > 0) zfsProps.quota = newDataset.value.quota!;
+
+								const result = await controlPlane!.createEncryptedDatasetWithKms(
+									newDataset.value.parent,
+									newDataset.value.name,
+									selectedPolicyId.value,
+									Object.keys(zfsProps).length > 0 ? zfsProps : undefined,
+								);
+
+								if (!result || !result.success) {
+									saving.value = false;
+									pushNotification(new Notification('Error Creating Dataset', result?.message ?? 'KMS dataset creation failed', 'error', 5000));
+								} else {
+									fileSystemsLoaded.value = false;
+									datasets.value = [];
+									await loadDatasets(datasets);
+									saving.value = false;
+									fileSystemsLoaded.value = true;
+									pushNotification(new Notification('File System Created!', `Created KMS-encrypted dataset ${result.dataset}.`, 'success', 5000));
+									confirmCreateFS.value = true;
+									controlPlane!.refresh().catch(() => {});
+								}
+							} catch (error: any) {
+								saving.value = false;
+								const msg = error instanceof Error ? error.message : String(error);
+								pushNotification(new Notification('Error Creating Dataset', msg, 'error', 5000));
+								console.error(error);
+							}
+						}
+					} else if (encryptPasswordCheck(fileSystem.value)) {
 						if (checkQuota(fileSystem.value)) {
 							// console.log('checkQuota passed');
 							getInheritedProperties();
