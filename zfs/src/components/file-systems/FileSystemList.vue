@@ -391,15 +391,6 @@
 																			:class="[active ? 'bg-default text-default' : 'text-muted', 'block px-4 py-2 text-sm']">Verify
 																			Key Assignment</a>
 																		</MenuItem>
-																		<!-- KMS: Migrate to KMS (for passphrase-only encrypted) -->
-																		<MenuItem as="div"
-																			v-if="allDatasets[datasetIdx].encrypted && !isKmsManaged(allDatasets[datasetIdx]) && controlPlane?.available?.value"
-																			v-slot="{ active }">
-																		<a href="#"
-																			@click.prevent="navigateToEncryptionManager(getDatasetTargetId(allDatasets[datasetIdx]), 'migrate')"
-																			:class="[active ? 'bg-default text-default' : 'text-muted', 'block px-4 py-2 text-sm']">Migrate
-																			to KMS Encryption ↗</a>
-																		</MenuItem>
 																		<MenuItem as="div" v-slot="{ active }">
 																		<a href="#"
 																			@click="createSnapshotBtn(allDatasets[datasetIdx])"
