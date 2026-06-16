@@ -1,3 +1,11 @@
+cockpit-zfs (1.2.28-1jammy) jammy; urgency=medium
+
+  * Added KMS storage encryption support via cockpit-storage-encryption control plane
+  * Added encryption documentation, test plan, and video walkthrough
+  * Removed Migrate to KMS Encryption menu item from dataset context menu
+
+ -- Jordan Keough <jkeough@45drives.com>  Tue, 16 Jun 2026 13:23:55 -0300
+
 cockpit-zfs (1.2.27-3jammy) jammy; urgency=medium
 
   * New package with backend dbus leaks fixed
