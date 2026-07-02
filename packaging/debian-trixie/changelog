@@ -1,0 +1,634 @@
+cockpit-zfs (1.2.27-2trixie) trixie; urgency=medium
+
+  * Updating testing package
+
+ -- Jordan Keough <jkeough@45drives.com>  Thu, 14 May 2026 10:35:16 -0300
+
+cockpit-zfs (1.2.27-1trixie) trixie; urgency=medium
+
+  * Testing package for dbus leaks fix
+
+ -- Jordan Keough <jkeough@45drives.com>  Thu, 14 May 2026 07:01:18 -0300
+
+cockpit-zfs (1.2.26-1trixie) trixie; urgency=medium
+
+  * Updates Notification UI with full support for Cockpit-Alerts redirect
+
+ -- Jordan Keough <jkeough@45drives.com>  Thu, 30 Apr 2026 10:54:09 -0300
+
+cockpit-zfs (1.2.25-1trixie) trixie; urgency=medium
+
+  * Fixes issue with cockpit-alerts file still existing in cockpit-zfs
+  * Fixes issue with cockpit-alerts file still existing in cockpit-zfs
+
+ -- Jordan Keough <jkeough@45drives.com>  Mon, 27 Apr 2026 07:06:58 -0300
+
+cockpit-zfs (1.2.24-1trixie) trixie; urgency=medium
+
+  * Merges in disk path/temp fixes/improvements into latest build
+
+ -- Jordan Keough <jkeough@45drives.com>  Thu, 23 Apr 2026 12:16:26 -0300
+
+cockpit-zfs (1.2.23-3trixie) trixie; urgency=medium
+
+  * Uses Cockpit-Alerts as dependency for notification and email alerts
+
+ -- Jordan Keough <jkeough@45drives.com>  Thu, 23 Apr 2026 08:52:20 -0300
+
+cockpit-zfs (1.2.23-1trixie) trixie; urgency=medium
+
+  * Uses Cockpit-Alerts as dependency for notification/email alerts
+
+ -- Jordan Keough <jkeough@45drives.com>  Thu, 23 Apr 2026 08:51:09 -0300
+
+cockpit-zfs (1.2.22-2trixie) trixie; urgency=medium
+
+  * build pacakge
+
+ -- Rachit Hans <rhans@45drives.com>  Wed, 22 Apr 2026 13:03:39 -0300
+
+cockpit-zfs (1.2.22-1trixie) trixie; urgency=medium
+
+  * building test package
+
+ -- Rachit Hans <rhans@45drives.com>  Wed, 22 Apr 2026 07:24:48 -0300
+
+cockpit-zfs (1.2.21-3trixie) trixie; urgency=medium
+
+  * making a release for zvol
+
+ -- Rachit Hans <rhans@45drives.com>  Wed, 01 Apr 2026 07:45:17 -0300
+
+cockpit-zfs (1.2.21-2trixie) trixie; urgency=medium
+
+  * building test package with ui fix for zvol
+
+ -- Rachit Hans <rhans@45drives.com>  Tue, 31 Mar 2026 08:47:19 -0300
+
+cockpit-zfs (1.2.21-1trixie) trixie; urgency=medium
+
+  * added functionality of creating zvol
+
+ -- Rachit Hans <rhans@45drives.com>  Tue, 31 Mar 2026 07:15:29 -0300
+
+cockpit-zfs (1.2.20-2trixie) trixie; urgency=medium
+
+  * fix: wrap emailFromOAuth in array to prevent .join() error on recieversEmail
+
+
+ -- Rachit Hans <rhans@45drives.com>  Mon, 30 Mar 2026 13:06:09 -0300
+
+cockpit-zfs (1.2.20-1trixie) trixie; urgency=medium
+
+  * fix: wrap emailFromOAuth in array to prevent .join() error on recieversEmail
+
+
+ -- Rachit Hans <rhans@45drives.com>  Mon, 30 Mar 2026 13:01:26 -0300
+
+cockpit-zfs (1.2.19-2trixie) trixie; urgency=medium
+
+  * fix: wrap emailFromOAuth in array to prevent .join() error on recieversEmail
+
+
+ -- Rachit Hans <rhans@45drives.com>  Mon, 30 Mar 2026 12:38:47 -0300
+
+cockpit-zfs (1.2.19-1trixie) trixie; urgency=medium
+
+  * Fixes a race condition in admin priv check
+
+ -- Jordan Keough <jkeough@45drives.com>  Wed, 25 Mar 2026 13:17:19 -0300
+
+cockpit-zfs (1.2.18-4trixie) trixie; urgency=medium
+
+  * fix
+
+ -- Jordan Keough <jkeough@45drives.com>  Mon, 23 Mar 2026 08:45:14 -0300
+
+cockpit-zfs (1.2.18-3trixie) trixie; urgency=medium
+
+  * fixed main.spec for el8
+
+ -- Jordan Keough <jkeough@45drives.com>  Mon, 23 Mar 2026 08:38:51 -0300
+
+cockpit-zfs (1.2.18-2trixie) trixie; urgency=medium
+
+  * fixed files list in main.spec
+
+ -- Jordan Keough <jkeough@45drives.com>  Mon, 23 Mar 2026 08:31:28 -0300
+
+cockpit-zfs (1.2.18-1trixie) trixie; urgency=medium
+
+  * Rebuilding without cockpit-alerts dependency, package not in stable as of yet
+
+ -- Jordan Keough <jkeough@45drives.com>  Mon, 23 Mar 2026 08:18:56 -0300
+
+cockpit-zfs (1.2.17-1trixie) trixie; urgency=medium
+
+  * Updates documentation + fixes some issues from GitHub issues + merges in testing
+    package changes
+
+ -- Jordan Keough <jkeough@45drives.com>  Fri, 20 Mar 2026 11:35:16 -0300
+
+cockpit-zfs (1.2.16-1trixie) trixie; urgency=medium
+
+  * Building new testing package with dependsNAlerts changes as well as NCR405799
+    changes
+
+ -- Jordan Keough <jkeough@45drives.com>  Wed, 11 Mar 2026 09:15:29 -0300
+
+cockpit-zfs (1.2.15-1trixie) trixie; urgency=medium
+
+  * cockpit alerts added as deb
+
+ -- Jordan Keough <jkeough@45drives.com>  Tue, 10 Mar 2026 08:51:57 -0300
+
+cockpit-zfs (1.2.14-3trixie) trixie; urgency=medium
+
+  * forgot to add github permission write to build-pkg.yml
+
+ -- Jordan Keough <jkeough@45drives.com>  Mon, 09 Mar 2026 06:23:59 -0300
+
+cockpit-zfs (1.2.14-1trixie) trixie; urgency=medium
+
+  * Fixes some disk data retrieval bugs
+
+ -- Jordan Keough <jkeough@45drives.com>  Mon, 09 Mar 2026 05:58:20 -0300
+
+cockpit-zfs (1.2.14-2trixie) trixie; urgency=medium
+
+  * fixed the build.yml file
+
+ -- Rachit Hans <rhans@45drives.com>  Tue, 03 Mar 2026 06:57:55 -0400
+
+cockpit-zfs (1.2.14-1trixie) trixie; urgency=medium
+
+  * fixed modal bugs
+
+ -- Rachit Hans <rhans@45drives.com>  Tue, 03 Mar 2026 06:14:58 -0400
+
+cockpit-zfs (1.2.13-2trixie) trixie; urgency=medium
+
+  * Adds missing debian tag in arch dict
+
+ -- Jordan Keough <jkeough@45drives.com>  Wed, 07 Jan 2026 04:20:18 -0400
+
+cockpit-zfs (1.2.13-1trixie) trixie; urgency=medium
+
+  * Updates refreshing logic + error handling to avoid potential UI flickering when
+    unhandled errors occur
+
+ -- Jordan Keough <jkeough@45drives.com>  Tue, 06 Jan 2026 11:46:30 -0400
+
+cockpit-zfs (1.2.12-2trixie) trixie; urgency=medium
+
+  * Updates bulk snapshot deletion to show progress
+
+ -- Jordan Keough <jkeough@45drives.com>  Mon, 24 Nov 2025 05:13:48 -0400
+
+cockpit-zfs (1.2.12-1trixie) trixie; urgency=medium
+
+  * Adds snapshot deletion progress to UI when using bulk snapshot delete
+
+ -- Jordan Keough <jkeough@45drives.com>  Wed, 19 Nov 2025 09:02:42 -0400
+
+cockpit-zfs (1.2.11-1trixie) trixie; urgency=medium
+
+  * Removes unused python3-oauth dependencies and fixes a ref destructuring bug in
+    helpers>matchDiskByVdevOrPath func resulting in the error 'Disks.find is not
+    a function'
+
+ -- Jordan Keough <jkeough@45drives.com>  Thu, 09 Oct 2025 06:20:10 -0300
+
+cockpit-zfs (1.2.10-1trixie) trixie; urgency=medium
+
+  * Fixes malformed cockpit object in getUserCaps which caused root permissions to
+    not be recognized
+
+ -- Jordan Keough <jkeough@45drives.com>  Thu, 25 Sep 2025 08:33:47 -0300
+
+cockpit-zfs (1.2.9-2trixie) trixie; urgency=medium
+
+  * Fixes numerous issues relating to Disk population/data display and non-priv user
+    access
+
+ -- Jordan Keough <jkeough@45drives.com>  Mon, 22 Sep 2025 06:03:03 -0300
+
+cockpit-zfs (1.2.9-1trixie) trixie; urgency=medium
+
+  * Fixes Bugs: Drive slots 1-10+ would show with disk in 1-1 instead, fixes snapshot
+    list rendering breaking with excessive amount of snaps, layout issues in filesystems
+    tab, among other minor issues.
+
+ -- Jordan Keough <jkeough@45drives.com>  Fri, 19 Sep 2025 11:16:35 -0300
+
+cockpit-zfs (1.2.8-1trixie) trixie; urgency=medium
+
+  * Adds support for non-privledged users -> hides/disables any destructive actions
+    (module is read-only with exception for creating datasets)
+
+ -- Jordan Keough <jkeough@45drives.com>  Fri, 29 Aug 2025 12:18:28 -0300
+
+cockpit-zfs (1.2.7-1trixie) trixie; urgency=medium
+
+  * fixes bug where pool creation failure would not notify and stay in endless loading
+    state
+
+ -- Jordan Keough <jkeough@45drives.com>  Thu, 14 Aug 2025 13:24:44 -0300
+
+cockpit-zfs (1.2.6-1trixie) trixie; urgency=medium
+
+  * Fixes destroyPool error
+
+ -- Jordan Keough <jkeough@45drives.com>  Mon, 04 Aug 2025 10:18:12 -0300
+
+cockpit-zfs (1.2.5-1trixie) trixie; urgency=medium
+
+  * Updated debian dependency for proper sqlite package name
+
+ -- Jordan Keough <jkeough@45drives.com>  Tue, 24 Jun 2025 05:25:42 -0300
+
+cockpit-zfs (1.2.4-13trixie) trixie; urgency=medium
+
+  * manup
+  * fix email notification modal not showing connected as button
+  * manup
+  * manup
+
+ -- Rachit Hans <rhans@45drives.com>  Fri, 25 Apr 2025 09:31:21 -0300
+
+cockpit-zfs (1.2.4-12trixie) trixie; urgency=medium
+
+  * manup
+  * fixing smtp bug not allowing to send email through different port + fix error
+    message + building package
+  * manup
+
+ -- Rachit Hans <rhans@45drives.com>  Thu, 24 Apr 2025 12:48:55 -0300
+
+cockpit-zfs (1.2.4-11trixie) trixie; urgency=medium
+
+  * manup
+  * fixing ubuntu postinst to install googleauth package
+  * manup
+
+ -- Rachit Hans <rhans@45drives.com>  Thu, 24 Apr 2025 10:23:02 -0300
+
+cockpit-zfs (1.2.4-10trixie) trixie; urgency=medium
+
+  * build pakcage and changed heading of modal
+
+ -- Rachit Hans <rhans@45drives.com>  Wed, 16 Apr 2025 13:28:13 -0300
+
+cockpit-zfs (1.2.4-9trixie) trixie; urgency=medium
+
+  * fixed duplication notification and build package
+
+ -- Rachit Hans <rhans@45drives.com>  Wed, 16 Apr 2025 12:04:32 -0300
+
+cockpit-zfs (1.2.4-8trixie) trixie; urgency=medium
+
+  * build package for rocky linux 
+  * build package for rocky and ubuntu  linux 
+
+ -- Rachit Hans <rhans@45drives.com>  Wed, 16 Apr 2025 10:57:08 -0300
+
+cockpit-zfs (1.2.4-7trixie) trixie; urgency=medium
+
+  * build package and fixing email validation 
+
+ -- Rachit Hans <rhans@45drives.com>  Wed, 16 Apr 2025 10:31:07 -0300
+
+cockpit-zfs (1.2.4-6trixie) trixie; urgency=medium
+
+  * build package and dependencies install from manifest
+
+ -- Rachit Hans <rhans@45drives.com>  Wed, 16 Apr 2025 08:42:20 -0300
+
+cockpit-zfs (1.2.4-4trixie) trixie; urgency=medium
+
+  * added zfs-storage-check bash file
+
+ -- Rachit Hans <rhans@45drives.com>  Wed, 16 Apr 2025 07:49:46 -0300
+
+cockpit-zfs (1.2.4-1.2.3trixie) trixie; urgency=medium
+
+  * updated notification dropdown and postinst files for email
+
+ -- Rachit Hans <rhans@45drives.com>  Tue, 15 Apr 2025 12:56:58 -0300
+
+cockpit-zfs (1.2.3-2trixie) trixie; urgency=medium
+
+  * Fixes replacing disk issue where pools/disks were failing to show in UI during
+    replacement
+
+ -- Jordan Keough <jkeough@45drives.com>  Thu, 10 Apr 2025 08:23:24 -0300
+
+cockpit-zfs (1.2.2-6trixie) trixie; urgency=medium
+
+  * build packag + fix UI and email issues
+
+ -- Rachit Hans <rhans@45drives.com>  Tue, 08 Apr 2025 09:08:23 -0300
+
+cockpit-zfs (1.2.2-5trixie) trixie; urgency=medium
+
+  * fixing ubuntu posinst script
+
+ -- Rachit Hans <rhans@45drives.com>  Tue, 08 Apr 2025 08:04:21 -0300
+
+cockpit-zfs (1.2.2-4trixie) trixie; urgency=medium
+
+  * fixing ubuntu posinst script
+
+ -- Rachit Hans <rhans@45drives.com>  Tue, 08 Apr 2025 07:42:44 -0300
+
+cockpit-zfs (1.2.2-3trixie) trixie; urgency=medium
+
+  * build package to install msmtp
+
+ -- Rachit Hans <rhans@45drives.com>  Mon, 07 Apr 2025 14:07:36 -0300
+
+cockpit-zfs (1.2.2-2trixie) trixie; urgency=medium
+
+  * build package to checkup if new builds will have new method of installing msmtp
+
+ -- Rachit Hans <rhans@45drives.com>  Mon, 07 Apr 2025 12:51:54 -0300
+
+cockpit-zfs (1.2.2-1trixie) trixie; urgency=medium
+
+  * building package + added email functionality in zfs notifications
+
+ -- Rachit Hans <rhans@45drives.com>  Fri, 04 Apr 2025 09:52:56 -0300
+
+cockpit-zfs (1.2.1-1trixie) trixie; urgency=medium
+
+  * Updates Build Number + Added zfs alerts bell
+
+ -- Rachit Hans <rhans@45drives.com>  Tue, 01 Apr 2025 08:30:56 -0300
+
+cockpit-zfs (1.1.17-1trixie) trixie; urgency=medium
+
+  * Updates get_disks.py script to handle lsblk command to account for flag difference
+    in versions, and skips boot drives when returning disks via lsblk
+
+ -- Jordan Keough <jkeough@45drives.com>  Fri, 07 Mar 2025 07:32:16 -0400
+
+cockpit-zfs (1.1.16-1trixie) trixie; urgency=medium
+
+  * Fixes a bug with RaidZ error handling not working when creating pool or adding
+    vdev
+
+ -- Jordan Keough <jkeough@45drives.com>  Thu, 06 Mar 2025 12:26:59 -0400
+
+cockpit-zfs (1.1.15-6trixie) trixie; urgency=medium
+
+  * fix snapshot list/notification bugs
+
+ -- Jordan Keough <jkeough@45drives.com>  Tue, 25 Feb 2025 07:43:36 -0400
+
+cockpit-zfs (1.1.15-5trixie) trixie; urgency=medium
+
+  * build attempt again with submodule checkout
+
+ -- Jordan Keough <jkeough@45drives.com>  Fri, 21 Feb 2025 07:26:29 -0400
+
+cockpit-zfs (1.1.15-4trixie) trixie; urgency=medium
+
+  * build
+
+ -- Jordan Keough <jkeough@45drives.com>  Fri, 21 Feb 2025 07:20:07 -0400
+
+cockpit-zfs (1.1.15-3trixie) trixie; urgency=medium
+
+  * build
+
+ -- Jordan Keough <jkeough@45drives.com>  Fri, 21 Feb 2025 07:10:09 -0400
+
+cockpit-zfs (1.1.15-2trixie) trixie; urgency=medium
+
+  * building again with diff git url as build failed
+
+ -- Jordan Keough <jkeough@45drives.com>  Fri, 21 Feb 2025 07:00:03 -0400
+
+cockpit-zfs (1.1.15-1trixie) trixie; urgency=medium
+
+  * Re-implements common-library and fixes bugs relating to nvme disks, ui layouts
+    and datatypes
+
+ -- Jordan Keough <jkeough@45drives.com>  Fri, 21 Feb 2025 06:54:49 -0400
+
+cockpit-zfs (1.1.14-4trixie) trixie; urgency=medium
+
+  * trying to build again
+
+ -- Jordan Keough <jkeough@45drives.com>  Wed, 19 Feb 2025 11:48:49 -0400
+
+cockpit-zfs (1.1.14-3trixie) trixie; urgency=medium
+
+  * trying to build debs
+
+ -- Jordan Keough <jkeough@45drives.com>  Wed, 19 Feb 2025 11:44:26 -0400
+
+cockpit-zfs (1.1.14-2trixie) trixie; urgency=medium
+
+  * Trying to build package again after cleaning remnants of common lib
+
+ -- Jordan Keough <jkeough@45drives.com>  Wed, 19 Feb 2025 11:36:32 -0400
+
+cockpit-zfs (1.1.14-1trixie) trixie; urgency=medium
+
+  * Rolls back previous Houston-Common-Library updates due to some bugs that came
+    up during usage. Bugfixes pushed during common lib implementation should all
+    be retained, but removed common library usage for the time being to work out
+    those issues.
+
+ -- Jordan Keough <jkeough@45drives.com>  Wed, 19 Feb 2025 11:28:57 -0400
+
+cockpit-zfs (1.1.13-2trixie) trixie; urgency=medium
+
+  * Fixes RaidZ levels' minimum disk quantity
+
+ -- Jordan Keough <jkeough@45drives.com>  Thu, 13 Feb 2025 10:53:50 -0400
+
+cockpit-zfs (1.1.13-1trixie) trixie; urgency=medium
+
+  * Fixed an issue with houston-common import not getting correct types
+
+ -- Jordan Keough <jkeough@45drives.com>  Thu, 13 Feb 2025 10:14:01 -0400
+
+cockpit-zfs (1.1.12-7trixie) trixie; urgency=medium
+
+  * build pkg
+
+ -- Jordan Keough <jkeough@45drives.com>  Mon, 10 Feb 2025 11:42:04 -0400
+
+cockpit-zfs (1.1.12-6trixie) trixie; urgency=medium
+
+  * rebuilding again
+
+ -- Jordan Keough <jkeough@45drives.com>  Mon, 10 Feb 2025 11:34:24 -0400
+
+cockpit-zfs (1.1.12-5trixie) trixie; urgency=medium
+
+  * updating build
+
+ -- Jordan Keough <jkeough@45drives.com>  Mon, 10 Feb 2025 11:29:39 -0400
+
+cockpit-zfs (1.1.12-4trixie) trixie; urgency=medium
+
+  * retrying build
+
+ -- Jordan Keough <jkeough@45drives.com>  Mon, 10 Feb 2025 11:25:34 -0400
+
+cockpit-zfs (1.1.12-3trixie) trixie; urgency=medium
+
+  * removed module test from makefile to fix build error
+
+ -- Jordan Keough <jkeough@45drives.com>  Mon, 10 Feb 2025 11:20:39 -0400
+
+cockpit-zfs (1.1.12-2trixie) trixie; urgency=medium
+
+  * rebuilding package
+
+ -- Jordan Keough <jkeough@45drives.com>  Mon, 10 Feb 2025 11:18:44 -0400
+
+cockpit-zfs (1.1.12-1trixie) trixie; urgency=medium
+
+  * Implements some common-library refactoring and some UI improvements
+
+ -- Jordan Keough <jkeough@45drives.com>  Mon, 10 Feb 2025 10:45:30 -0400
+
+cockpit-zfs (1.1.11-1trixie) trixie; urgency=medium
+
+  * Fixed UI and refactored UI code
+
+ -- Rachit Hans <rhans@45drives.com>  Fri, 17 Jan 2025 06:50:13 -0400
+
+cockpit-zfs (1.1.10-1trixie) trixie; urgency=medium
+
+  * Fixes package number
+
+ -- Jordan Keough <jkeough@45drives.com>  Tue, 07 Jan 2025 07:15:40 -0400
+
+cockpit-zfs (1.1.20-1trixie) trixie; urgency=medium
+
+  * Fixes binary size bug
+
+ -- Jordan Keough <jkeough@45drives.com>  Tue, 07 Jan 2025 07:11:56 -0400
+
+cockpit-zfs (1.1.9-1trixie) trixie; urgency=medium
+
+  * Adds block device name to disk name for better UX, fixes available disk selection
+    issue where in-use disks shown as available
+
+ -- Jordan Keough <jkeough@45drives.com>  Tue, 07 Jan 2025 06:52:20 -0400
+
+cockpit-zfs (1.1.8-1trixie) trixie; urgency=medium
+
+  * Updates readme and fixes get-importable-pools functionality.
+
+ -- Jordan Keough <jkeough@45drives.com>  Mon, 16 Dec 2024 06:11:33 -0400
+
+cockpit-zfs (1.1.7-2trixie) trixie; urgency=medium
+
+  * Testing capacity bugfix for non-aliased disks
+
+ -- Jordan Keough <jkeough@45drives.com>  Mon, 09 Dec 2024 11:26:54 -0400
+
+cockpit-zfs (1.1.7-1trixie) trixie; urgency=medium
+
+  * Adjusts disk capacity strings and removes accidental double conversion of binary
+    size values where applicable
+
+ -- Jordan Keough <jkeough@45drives.com>  Mon, 09 Dec 2024 05:30:51 -0400
+
+cockpit-zfs (1.1.6-1trixie) trixie; urgency=medium
+
+  * Fixes issue with convertSizeToBytes function, which would give errors when creating
+    vdevs with same size disks (incorrectly flagging as different sizes)
+
+ -- Jordan Keough <jkeough@45drives.com>  Fri, 06 Dec 2024 10:30:15 -0400
+
+cockpit-zfs (1.1.5-1trixie) trixie; urgency=medium
+
+  * Updated Datatypes
+
+ -- Rachit Hans <rhans@45drives.com>  Thu, 05 Dec 2024 08:13:49 -0400
+
+cockpit-zfs (1.1.4-1trixie) trixie; urgency=medium
+
+  * Fixes some notification bugs (errorString formatting issues)
+
+ -- Jordan Keough <jkeough@45drives.com>  Thu, 28 Nov 2024 13:05:54 -0400
+
+cockpit-zfs (1.1.3-1trixie) trixie; urgency=medium
+
+  * FIXED VERSION NUMBER - Adds log files for getDisks and getPools scripts
+
+ -- Jordan Keough <jkeough@45drives.com>  Thu, 21 Nov 2024 06:28:40 -0400
+
+cockpit-zfs (1.2.3-1trixie) trixie; urgency=medium
+
+  * Adds log files for getDisks and getPools script execution for better debugging
+
+ -- Jordan Keough <jkeough@45drives.com>  Thu, 21 Nov 2024 06:26:56 -0400
+
+cockpit-zfs (1.1.2-1trixie) trixie; urgency=medium
+
+  * Reworked bytes conversion function to fix mismatched disk size bug
+
+ -- Jordan Keough <jkeough@45drives.com>  Mon, 18 Nov 2024 04:01:54 -0400
+
+cockpit-zfs (1.1.1-1trixie) trixie; urgency=medium
+
+  * Updates disk data retrieval using lsdev with a fallback to lsblk data if lsdev
+    is not available (on VMs or non-aliased third party hardware)
+
+ -- Jordan Keough <jkeough@45drives.com>  Wed, 06 Nov 2024 09:17:48 -0400
+
+cockpit-zfs (1.1.0-1trixie) trixie; urgency=medium
+
+  * Stable Release
+
+ -- Jordan Keough <jkeough@45drives.com>  Mon, 04 Nov 2024 06:32:17 -0400
+
+cockpit-zfs (1.0.4-3trixie) trixie; urgency=medium
+
+  * Rebuilding
+
+ -- Jordan Keough <jkeough@45drives.com>  Wed, 23 Oct 2024 07:37:57 -0300
+
+cockpit-zfs (1.0.4-2trixie) trixie; urgency=medium
+
+  * Rebuilding
+
+ -- Jordan Keough <jkeough@45drives.com>  Wed, 23 Oct 2024 07:33:36 -0300
+
+cockpit-zfs (1.0.4-1trixie) trixie; urgency=medium
+
+  * Adds upgrade pool feature for pools made in legacy zfs version
+
+ -- Jordan Keough <jkeough@45drives.com>  Wed, 23 Oct 2024 07:17:25 -0300
+
+cockpit-zfs (1.0.3-1trixie) trixie; urgency=medium
+
+  * Bug fixes and some minor updates
+
+ -- Jordan Keough <jkeough@45drives.com>  Mon, 21 Oct 2024 12:53:49 -0300
+
+cockpit-zfs (1.0.2-3trixie) trixie; urgency=medium
+
+  * Fixes rendering issue with status bar in Pools list
+
+ -- Jordan Keough <jkeough@45drives.com>  Tue, 24 Sep 2024 06:03:50 -0300
+
+cockpit-zfs (1.0.2-2trixie) trixie; urgency=medium
+
+  * Building for trixie
+
+ -- Jordan Keough <jkeough@45drives.com>  Tue, 28 May 2024 07:48:45 -0300
+
+cockpit-zfs (0.1.0-1trixie) trixie; urgency=medium
+
+  * initial release
+
+ -- Jordan Keough <jkeough@45drives.com>  Fri, 08 Mar 2024 09:23:59 -0400

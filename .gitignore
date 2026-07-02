@@ -13,7 +13,6 @@ dist-ssr
 *.local
 node_modules/
 .yarn/
-.yarnrc.yml
 
 # Editor directories and files
 .vscode/*
