@@ -205,6 +205,46 @@
                     <label :for="getIdKey('fs-config-encryption')" name="fs-config-encryption" class="bg-default block text-base leading-6 text-default">Encryption</label>
                     <p class="mt-1 block w-full bg-default">{{ props.filesystem.properties.encryption.toUpperCase() }}</p>
                 </div>
+
+                <!-- Encryption Governance (control plane) -->
+                <div v-if="cpInfo" class="mt-4 border-t border-default pt-4">
+                    <h3 class="text-sm font-semibold text-default mb-2">Encryption Governance</h3>
+                    <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                        <span class="text-muted">KMS Policy</span>
+                        <span class="text-default">{{ cpInfo.policy?.name ?? 'None' }}</span>
+
+                        <span class="text-muted">Binding State</span>
+                        <span class="text-default">{{ cpInfo.binding?.state ?? 'Unbound' }}</span>
+
+                        <span class="text-muted">Encryption State</span>
+                        <span class="text-default">{{ cpInfo.binding?.encryption_state ?? 'N/A' }}</span>
+
+                        <span class="text-muted">Algorithm</span>
+                        <span class="text-default">{{ cpInfo.metadata?.encryption ?? props.filesystem.properties.encryption }}</span>
+
+                        <span class="text-muted">DEK Version</span>
+                        <span class="text-default">{{ cpInfo.binding?.dek_key_version ?? 'N/A' }}</span>
+
+                        <span class="text-muted">Last Verified</span>
+                        <span class="text-default">{{ cpInfo.binding?.last_verified ?? 'Never' }}</span>
+
+                        <span class="text-muted">Key Format</span>
+                        <span class="text-default">{{ cpInfo.metadata?.keyFormat ?? 'N/A' }}</span>
+
+                        <span class="text-muted">Key Location</span>
+                        <span class="text-default">{{ cpInfo.metadata?.keyLocation ?? 'N/A' }}</span>
+
+                        <template v-if="controlPlane?.fipsStatus?.value?.fipsEnabled">
+                            <span class="text-muted">FIPS Mode</span>
+                            <span class="text-default">{{ controlPlane.fipsStatus.value.fipsMode }}</span>
+                        </template>
+                    </div>
+                    <div class="mt-2">
+                        <button class="text-xs text-primary hover:underline cursor-pointer" @click.prevent="openEncryptionManager">
+                            View in Encryption Manager →
+                        </button>
+                    </div>
+                </div>
             </div>
 
         </template>
@@ -234,7 +274,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, Ref, inject } from 'vue';
+import { ref, Ref, inject, computed } from 'vue';
 import { onOffToBool, isBoolOnOff, upperCaseWord, convertBytesToSize, convertSizeToBytes, getSizeNumberFromString, getSizeUnitFromString, getQuotaRefreservUnit } from '../../composables/helpers';
 import { configureDataset } from '../../composables/datasets';
 import { Switch } from '@headlessui/vue';
@@ -243,6 +283,8 @@ import { loadDatasets } from '../../composables/loadData';
 import { ZFSFileSystemInfo, ZPool } from '@45drives/houston-common-lib';
 import { pushNotification, Notification } from '@45drives/houston-common-ui';
 import { FileSystemEditConfig } from '../../types';
+import type { ControlPlaneState } from '../../composables/useControlPlane';
+import { navigateToEncryptionManager } from '../../controlplane/controlplane-client';
 
 
 interface FileSystemConfigModalProps {
@@ -256,6 +298,16 @@ const showFSConfig = inject<Ref<boolean>>('show-fs-config')!;
 const datasets = inject<Ref<ZFSFileSystemInfo[]>>('datasets')!;
 
 const pools = inject<Ref<ZPool[]>>('pools')!;
+
+const controlPlane = inject<ControlPlaneState>('controlplane', undefined as any);
+const cpInfo = computed(() => {
+	if (!controlPlane?.available?.value) return null;
+	return controlPlane.getInfoForDataset(props.filesystem.name);
+});
+function openEncryptionManager() {
+	const targetId = cpInfo.value?.target?.id;
+	navigateToEncryptionManager(targetId);
+}
 
 const quotaFeedback = ref('');
 const refreservationFeedback = ref('');

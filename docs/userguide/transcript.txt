@@ -1,0 +1,41 @@
+Encryption User Guide - Video Walkthrough Transcript
+====================================================
+
+Section 1: Introduction (0:00 - 0:20)
+Welcome to the ZFS Encryption Management guide. This video demonstrates how to configure and manage encryption for file systems using the Cockpit ZFS plugin. We'll cover creating encrypted datasets, unlocking and locking operations, changing passphrases, and KMS integration.
+
+Section 2: Dashboard - Encryption Governance (0:20 - 0:40)
+The dashboard provides an Encryption Governance card that shows the overall encryption posture of your storage. This includes a summary of encrypted versus unencrypted datasets, their lock status, and any KMS-managed policies. The posture bar gives you a quick visual indicator of your encryption coverage.
+
+Section 3: Datasets List (0:40 - 1:00)
+The Datasets tab shows all file systems with their encryption status indicated by lock icons. An open lock means the dataset is encrypted and unlocked, with the key loaded. A closed lock means encrypted but locked. Datasets without encryption show a no-entry icon in the encryption column.
+
+Section 4: Creating an Encrypted File System (1:00 - 1:15)
+To create an encrypted file system, click the Create File System button. Select the parent pool, give the dataset a name, and then enable the encryption toggle. This reveals the encryption configuration options below.
+
+Section 5: Passphrase Encryption Mode (1:15 - 1:34)
+In passphrase mode, select the cipher algorithm, which defaults to AES 256 GCM for strong security. Enter a passphrase and confirm it. The passphrase must meet minimum complexity requirements. Click Create to provision the encrypted file system.
+
+Section 6: KMS Encryption Mode (1:34 - 2:06)
+For enterprise key management, select the KMS Key Policy button instead of Passphrase. This reveals the Key Policy selector where you choose from configured encryption policies. Each policy defines the algorithm and key rotation schedule managed by the 45Drives Encryption Manager. When KMS is selected, the cipher is automatically set to AES 256 GCM, and keys are managed centrally rather than requiring manual passphrase entry.
+
+Section 7: Locked Dataset Menu (2:06 - 2:22)
+When a dataset is locked, the context menu shows the Unlock File System option. The lock icon in the list confirms the key is not loaded. While locked, the dataset's data is inaccessible and fully encrypted at rest.
+
+Section 8: Unlock Dialog (2:22 - 2:39)
+Clicking Unlock File System opens the unlock dialog. Enter the passphrase used when the dataset was created. You can toggle Mount File System to automatically mount after unlocking, and optionally force mount if the standard mount encounters issues.
+
+Section 9: Unlocked Dataset Menu (2:39 - 2:55)
+Once unlocked, the context menu shows additional options including Change Passphrase and Unmount File System. The open lock icon confirms the key is loaded. The dataset is now accessible for read and write operations.
+
+Section 10: Change Passphrase (2:55 - 3:12)
+The Change Passphrase dialog requires entering the new passphrase and confirming it. This rotates the encryption key wrapping without re-encrypting the data. The change takes effect immediately and future unlock operations require the new passphrase.
+
+Section 11: Unmount and Lock (3:12 - 3:31)
+To secure a dataset, click Unmount File System from the context menu. In the unmount dialog, enable the Lock File System toggle. This unmounts the filesystem and unloads the encryption key in one operation, returning the dataset to its fully secured state.
+
+Section 12: KMS Workflow (3:31 - 3:52)
+For KMS-managed datasets, the context menu shows View in Encryption Manager which opens the centralized key management interface. KMS datasets unlock automatically using policy-based key retrieval, eliminating the need for manual passphrase entry while maintaining enterprise-grade security.
+
+Section 13: Conclusion (3:52 - 4:13)
+That concludes the ZFS encryption management walkthrough. Key takeaways: enable encryption during file system creation, choose between passphrase and KMS key management, use the lock and unlock operations to control data accessibility, and monitor your encryption posture through the governance dashboard.

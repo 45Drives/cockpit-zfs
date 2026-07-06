@@ -5,7 +5,56 @@
         </template>
         <template v-slot:content>
             <div class="grid grid-flow-row mt-3 text-center">
-                <div v-if="props.mode == 'unlock'" class="w-full grid grid-cols-3">
+                <div v-if="props.mode == 'unlock' && isKmsManaged" class="w-full grid grid-cols-3">
+                    <div class="col-span-3 flex flex-row">
+                        <label :class="truncateText" :title="props.filesystem.name" class="mt-1 block text-sm font-medium leading-6 text-default">Name: <span :class="truncateText" :title="props.filesystem.name" class="font-normal">{{ props.filesystem.name }}</span></label>
+                    </div>
+                    <div class="col-span-3 mt-2">
+                        <p class="text-sm text-muted">This dataset is managed by KMS. The encryption key will be fetched from the key management system automatically.</p>
+                    </div>
+                    <div class="col-span-3 flex flex-row">
+                        <p class="text-danger mt-1">{{ passFeedback }}</p>
+                    </div>
+                    <div class="grid grid-rows-2 col-span-3">
+                        <div class="flex flex-row justify-between">
+                            <label :for="getIdKey('mount-switch')" class="mt-3 mr-2 block text-sm font-medium text-default whitespace-nowrap">Mount File System</label>
+                            <Switch v-model="mountFS" :id="getIdKey('mount-file-system')" :class="[mountFS ? 'bg-primary' : 'bg-accent', 'mt-2 relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-slate-600 focus:ring-offset-2']">
+                                <span class="sr-only">Use setting</span>
+                                <span :class="[mountFS ? 'translate-x-5' : 'translate-x-0', 'pointer-events-none relative inline-block h-5 w-5 transform rounded-full bg-default shadow ring-0 transition duration-200 ease-in-out']">
+                                    <span :class="[mountFS ? 'opacity-0 duration-100 ease-out' : 'opacity-100 duration-200 ease-in', 'absolute inset-0 flex h-full w-full items-center justify-center transition-opacity']" aria-hidden="true">
+                                        <svg class="h-3 w-3 text-muted" fill="none" viewBox="0 0 12 12">
+                                            <path d="M4 8l2-2m0 0l2-2M6 6L4 4m2 2l2 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                        </svg>
+                                    </span>
+                                    <span :class="[mountFS ? 'opacity-100 duration-200 ease-in' : 'opacity-0 duration-100 ease-out', 'absolute inset-0 flex h-full w-full items-center justify-center transition-opacity']" aria-hidden="true">
+                                        <svg class="h-3 w-3 text-primary" fill="currentColor" viewBox="0 0 12 12">
+                                            <path d="M3.707 5.293a1 1 0 00-1.414 1.414l1.414-1.414zM5 8l-.707.707a1 1 0 001.414 0L5 8zm4.707-3.293a1 1 0 00-1.414-1.414l1.414 1.414zm-7.414 2l2 2 1.414-1.414-2-2-1.414 1.414zm3.414 2l4-4-1.414-1.414-4 4 1.414 1.414z" />
+                                        </svg>
+                                    </span>
+                                </span>
+                            </Switch>
+                        </div>
+                        <div class="flex flex-row justify-between">
+                            <label :for="getIdKey('force-mount-switch')" class="mt-3 mr-2 block text-sm font-medium text-default whitespace-nowrap">Forcefully Mount File System</label>
+                            <Switch v-model="forceMountFS" :id="getIdKey('force-mount-file-system')" :class="[forceMountFS ? 'bg-primary' : 'bg-accent', 'mt-2 relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-slate-600 focus:ring-offset-2']">
+                                <span class="sr-only">Use setting</span>
+                                <span :class="[forceMountFS ? 'translate-x-5' : 'translate-x-0', 'pointer-events-none relative inline-block h-5 w-5 transform rounded-full bg-default shadow ring-0 transition duration-200 ease-in-out']">
+                                    <span :class="[forceMountFS ? 'opacity-0 duration-100 ease-out' : 'opacity-100 duration-200 ease-in', 'absolute inset-0 flex h-full w-full items-center justify-center transition-opacity']" aria-hidden="true">
+                                        <svg class="h-3 w-3 text-muted" fill="none" viewBox="0 0 12 12">
+                                            <path d="M4 8l2-2m0 0l2-2M6 6L4 4m2 2l2 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                        </svg>
+                                    </span>
+                                    <span :class="[forceMountFS ? 'opacity-100 duration-200 ease-in' : 'opacity-0 duration-100 ease-out', 'absolute inset-0 flex h-full w-full items-center justify-center transition-opacity']" aria-hidden="true">
+                                        <svg class="h-3 w-3 text-primary" fill="currentColor" viewBox="0 0 12 12">
+                                            <path d="M3.707 5.293a1 1 0 00-1.414 1.414l1.414-1.414zM5 8l-.707.707a1 1 0 001.414 0L5 8zm4.707-3.293a1 1 0 00-1.414-1.414l1.414 1.414zm-7.414 2l2 2 1.414-1.414-2-2-1.414 1.414zm3.414 2l4-4-1.414-1.414-4 4 1.414 1.414z" />
+                                        </svg>
+                                    </span>
+                                </span>
+                            </Switch>
+                        </div>
+                    </div>
+                </div>
+                <div v-else-if="props.mode == 'unlock'" class="w-full grid grid-cols-3">
                     <div class="col-span-3 flex flex-row">
                         <label :for="getIdKey('filesystem-name')" :class="truncateText" :title="props.filesystem.name" class="mt-1 block text-sm font-medium leading-6 text-default">Name: <span :class="truncateText" :title="props.filesystem.name" class="font-normal">{{ props.filesystem.name }}</span></label>
                     </div>
@@ -92,7 +141,7 @@
     </OldModal>
 </template>
 <script setup lang="ts">
-import { Ref, inject, ref } from 'vue';
+import { Ref, inject, ref, computed } from 'vue';
 import { Switch } from '@headlessui/vue';
 import { EyeIcon, EyeSlashIcon } from '@heroicons/vue/24/outline';
 import { upperCaseWord } from '../../composables/helpers';
@@ -100,6 +149,7 @@ import { lockFileSystem, mountFileSystem, unlockFileSystem, isPassphraseValid } 
 import OldModal from '../common/OldModal.vue';
 import { pushNotification, Notification } from '@45drives/houston-common-ui';
 import { ZFSFileSystemInfo } from '@45drives/houston-common-lib';
+import type { ControlPlaneState } from '../../composables/useControlPlane';
 
 interface LockUnlockFileSystemProps {
     idKey: string;
@@ -118,6 +168,14 @@ const showPassword = ref(false);
 const doingThing = inject<Ref<boolean>>('locking-or-unlocking')!;
 const showLockUnlockModal = inject<Ref<boolean>>('show-lock-unlock-modal')!;
 const confirmLockOrUnlock = inject<Ref<boolean>>('confirm-lock-or-unlock')!;
+
+const controlPlane = inject<ControlPlaneState>('controlplane', undefined as any);
+const isKmsManaged = computed(() => {
+    if (!controlPlane?.available?.value) return false;
+    const info = controlPlane.getInfoForDataset(props.filesystem.name);
+    if (!info?.metadata) return false;
+    return info.metadata.keyLocation?.startsWith('file://') ?? false;
+});
 
 const updateShowFlag = () => {
     if (props.showFlag !== showFlag.value) {
@@ -156,6 +214,44 @@ async function confirmBtn() {
         }
         
     } else if (props.mode == 'unlock') {
+        if (isKmsManaged.value && controlPlane) {
+            // KMS-managed: fetch key from control plane, then mount
+            doingThing.value = true;
+            passFeedback.value = '';
+            try {
+                const fetchResult = await controlPlane.fetchAndLoadKey(props.filesystem.name);
+                if (!fetchResult || !fetchResult.success) {
+                    const errorMessage = fetchResult?.message || 'Failed to fetch KMS key';
+                    doingThing.value = false;
+                    passFeedback.value = errorMessage;
+                    pushNotification(new Notification('KMS Unlock Failed', `Failed to unlock ${props.filesystem.name}: ${errorMessage}`, 'error', 5000));
+                    return;
+                }
+                // Key loaded successfully via control plane
+                if (mountFS.value) {
+                    try {
+                        const mountOutput: any = await mountFileSystem(props.filesystem, forceMountFS.value);
+                        if (mountOutput == null || mountOutput.error) {
+                            const errorMessage = mountOutput?.error || 'Unknown error';
+                            pushNotification(new Notification('Mount Dataset Failed', `${props.filesystem.name} was not mounted: ${errorMessage}`, 'error', 5000));
+                        } else {
+                            pushNotification(new Notification('File System Mounted', props.filesystem.name + " mounted.", 'success', 5000));
+                        }
+                    } catch (error) {
+                        console.error(error);
+                    }
+                }
+                pushNotification(new Notification('Dataset Unlocked', `Successfully unlocked ${props.filesystem.name} via KMS.`, 'success', 5000));
+                doingThing.value = false;
+                confirmLockOrUnlock.value = true;
+                showLockUnlockModal.value = false;
+            } catch (error) {
+                console.error(error);
+                doingThing.value = false;
+                passFeedback.value = 'KMS key fetch failed: ' + String(error);
+            }
+        } else {
+        // Passphrase-based unlock
         passValid.value = await isPassphraseValid(props.filesystem.name, passphrase.value);
    
         if (passValid.value) {
@@ -198,6 +294,7 @@ async function confirmBtn() {
         } else {
             passFeedback.value = 'Passphrase is invalid.';
         }
+        } // end else (passphrase-based unlock)
     } 
 }
 
