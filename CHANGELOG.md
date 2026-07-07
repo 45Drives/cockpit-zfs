@@ -1,3 +1,3 @@
-## zfs module 1.2.29-1
+## zfs module 1.2.29-2
 
-* Add storage encryption support
+* Fixed yarnrc build issue. Updating build # for tagging package
