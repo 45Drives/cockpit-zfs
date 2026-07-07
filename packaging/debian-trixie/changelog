@@ -1,3 +1,9 @@
+cockpit-zfs (1.2.29-1trixie) trixie; urgency=medium
+
+  * Add storage encryption support
+
+ -- Jordan Keough <jkeough@45drives.com>  Tue, 07 Jul 2026 06:33:44 -0300
+
 cockpit-zfs (1.2.27-2trixie) trixie; urgency=medium
 
   * Updating testing package

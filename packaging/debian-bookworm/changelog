@@ -1,3 +1,9 @@
+cockpit-zfs (1.2.29-1bookworm) bookworm; urgency=medium
+
+  * Add storage encryption support
+
+ -- Jordan Keough <jkeough@45drives.com>  Tue, 07 Jul 2026 06:33:44 -0300
+
 cockpit-zfs (1.2.28-1bookworm) bookworm; urgency=medium
 
   * Added KMS storage encryption support via cockpit-storage-encryption control plane
