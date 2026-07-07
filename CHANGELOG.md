@@ -1,3 +1,4 @@
-## zfs module 1.2.29-2
+## zfs module 1.2.30-1
 
-* Fixed yarnrc build issue. Updating build # for tagging package
+* Add encryption docs, test plan, and video walkthrough
+* Remove Migrate to KMS menu item

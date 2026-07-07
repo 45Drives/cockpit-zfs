@@ -1,3 +1,10 @@
+cockpit-zfs (1.2.30-1jammy) jammy; urgency=medium
+
+  * Add encryption docs, test plan, and video walkthrough
+  * Remove Migrate to KMS menu item
+
+ -- Jordan Keough <jkeough@45drives.com>  Tue, 07 Jul 2026 13:25:49 -0300
+
 cockpit-zfs (1.2.29-2jammy) jammy; urgency=medium
 
   * Fixed yarnrc build issue. Updating build # for tagging package
