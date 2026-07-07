@@ -2,7 +2,7 @@
 # Manual changes might be lost - proceed with caution!
 
 __metadata:
-  version: 8
+  version: 10
   cacheKey: 10c0
 
 "@45drives/houston-common-css@workspace:^, @45drives/houston-common-css@workspace:houston-common/houston-common-css":

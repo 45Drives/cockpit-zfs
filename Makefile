@@ -67,16 +67,17 @@ all: default
 
 .PHONY: default all install clean help install-local install-remote install houston-common bootstrap-yarn
 
-bootstrap-yarn: .yarnrc.yml
+bootstrap-yarn: .yarn-bootstrap-stamp
 
-.yarnrc.yml:
+.yarn-bootstrap-stamp:
 	./bootstrap.sh
+	touch $@
 
 houston-common/Makefile:
 	git submodule update --init
 
 houston-common: houston-common/Makefile bootstrap-yarn
-	find houston-common -maxdepth 2 -name package.json -not -path "*/node_modules/*" -exec sh -c 'jq "del(.packageManager)" "$$1" | sponge "$$1"' _ {} \;
+	find houston-common -maxdepth 2 -name package.json -not -path "*/node_modules/*" -exec sh -c 'jq --tab "del(.packageManager)" "$$1" | sponge "$$1"' _ {} \;
 	$(MAKE) -C houston-common
 
 houston-common-%:
@@ -152,7 +153,7 @@ clean: FORCE
 	rm $(dir $(OUTPUTS)) -rf
 
 clean-all: clean FORCE
-	rm .yarnrc.yml .yarn/ -rf
+	rm .yarnrc.yml .yarn/ .yarn-bootstrap-stamp -rf
 	find . -name node_modules -type d -exec rm -rf {} \; -prune
 
 help:

@@ -13,6 +13,8 @@ dist-ssr
 *.local
 node_modules/
 .yarn/
+.yarnrc.yml
+.yarn-bootstrap-stamp
 
 # Editor directories and files
 .vscode/*
