@@ -1,3 +1,9 @@
+cockpit-zfs (1.2.31-1jammy) jammy; urgency=medium
+
+  * fix: use explicit cockpit deps for debian to avoid network-manager
+
+ -- Rachit Hans <rhans@45drives.com>  Wed, 08 Jul 2026 19:41:18 -0300
+
 cockpit-zfs (1.2.30-1jammy) jammy; urgency=medium
 
   * Add encryption docs, test plan, and video walkthrough

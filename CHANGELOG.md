@@ -1,4 +1,3 @@
-## zfs module 1.2.30-1
+## zfs module 1.2.31-1
 
-* Add encryption docs, test plan, and video walkthrough
-* Remove Migrate to KMS menu item
+* fix: use explicit cockpit deps for debian to avoid network-manager
