@@ -172,28 +172,42 @@ export function convertRawTimestampToString(rawTimestamp) {
     return timestamp.substring(0, 19);
 }
 
-export function convertTimestampToLocal(timestamp) {
-    // Check if the timestamp already has a space between date and time
-    const hasSpace = timestamp.includes(' ');
+export function convertTimestampToLocal(
+    timestamp: string | number | null | undefined,
+): string {
+    if (timestamp === null || timestamp === undefined) return "N/A";
 
-    // If it has a space, use it directly; otherwise, convert to the desired format
-    const utcTimestamp = hasSpace ? timestamp.replace(' ', 'T') + 'Z' : timestamp;
+    let date: Date;
+    if (typeof timestamp === "number") {
+        const milliseconds = Math.abs(timestamp) < 1e12 ? timestamp * 1000 : timestamp;
+        date = new Date(milliseconds);
+    } else {
+        const raw = timestamp.trim();
+        if (!raw) return "N/A";
+        const separated = raw.includes(" ") ? raw.replace(" ", "T") : raw;
+        const hasZone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(separated);
+        const normalized = hasZone ? separated : `${separated}Z`;
+        date = new Date(normalized);
+    }
 
-    const localTimestamp = new Date(utcTimestamp).toLocaleString('en-US', {
-        year: 'numeric', month: '2-digit', day: '2-digit',
-        hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
-    });
+    if (Number.isNaN(date.getTime())) return "N/A";
 
-    const rearrangedTimestamp = localTimestamp.replace(/\//g, '-').replace(',', '');
+    const parts = Object.fromEntries(
+        new Intl.DateTimeFormat("en-CA", {
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+            hourCycle: "h23",
+        })
+            .formatToParts(date)
+            .filter(({ type }) => type !== "literal")
+            .map(({ type, value }) => [type, value]),
+    );
 
-    const [date, time] = rearrangedTimestamp.split(' ');
-
-    const [month, day, year] = date.split('-');
-    const rearrangedDate = `${year}-${month}-${day}`;
-
-    const finalTimestamp = `${rearrangedDate} ${time}`;
-
-    return finalTimestamp;
+    return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}:${parts.second}`;
 }
 
 export function convertTimestampFormat(timestamp) {
