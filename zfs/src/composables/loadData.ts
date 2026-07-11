@@ -487,11 +487,9 @@ export async function loadDisksExtraData(disks, pools) {
 						selectedDisk.stats = statsObject;
 						// console.log('selectedDisk loading data', selectedDisk);
 
-						// Clean the usedDisk.path and compare it with sd_path, phy_path, and vdev_path
-						// Find the index of the original disk in the disks array
-						const index = disks.findIndex(disk =>
-							[normalizeDiskPath(disk.sd_path), normalizeDiskPath(disk.phy_path), normalizeDiskPath(disk.vdev_path)].includes(cleanedUsedDiskPath)
-						);
+						// matchDiskByVdevOrPath returns the original object from this array,
+						// including when it matched through an alternate by-id alias.
+						const index = disks.indexOf(selectedDisk);
 
 						// Check if the original disk is found in the disks array
 						if (index !== -1) {
