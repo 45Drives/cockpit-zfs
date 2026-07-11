@@ -53,6 +53,39 @@ export const convertBytesToSize = (bytes: number, precision: number = 2): string
 	return `${convertedSize} ${binarySizes[i]}`;
 };
 
+export function normalizeScanProgress(scan: any): {
+	percentage: number;
+	processedBytes: number;
+	totalBytes: number;
+} {
+	const safeNumber = (value: unknown): number | undefined => {
+		const parsed = Number(value);
+		return Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined;
+	};
+
+	const processed = safeNumber(scan?.bytes_processed)
+		?? safeNumber(scan?.bytes_issued)
+		?? 0;
+	const total = safeNumber(scan?.bytes_to_process)
+		?? safeNumber(scan?.bytes_processed)
+		?? processed;
+
+	if (scan?.state === "FINISHED") {
+		const finishedTotal = Math.max(total, processed);
+		return {
+			percentage: 100,
+			processedBytes: finishedTotal,
+			totalBytes: finishedTotal,
+		};
+	}
+
+	return {
+		percentage: Math.min(100, Math.max(0, safeNumber(scan?.percentage) ?? 0)),
+		processedBytes: Math.min(processed, total),
+		totalBytes: total,
+	};
+}
+
 
 // Convert readable binary data size to raw bytes
 export const convertSizeToBytes = (size: string): number => {

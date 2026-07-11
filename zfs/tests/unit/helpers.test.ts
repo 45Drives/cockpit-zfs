@@ -5,6 +5,7 @@ vi.mock("@45drives/houston-common-lib", () => ({ legacy: {} }));
 import {
   convertTimestampToLocal,
   matchDiskByVdevOrPath,
+  normalizeScanProgress,
 } from "../../src/composables/helpers";
 
 describe("matchDiskByVdevOrPath", () => {
@@ -43,4 +44,39 @@ describe("convertTimestampToLocal", () => {
     "returns N/A for invalid input %p",
     (value) => expect(convertTimestampToLocal(value as any)).toBe("N/A"),
   );
+});
+
+describe("normalizeScanProgress", () => {
+  it("renders the observed finished scrub as 100 percent with equal counters", () => {
+    expect(normalizeScanProgress({
+      state: "FINISHED",
+      percentage: 89.44723606109619,
+      bytes_to_process: 7_335_936,
+      bytes_processed: 7_335_936,
+      bytes_issued: 6_561_792,
+    })).toEqual({
+      percentage: 100,
+      processedBytes: 7_335_936,
+      totalBytes: 7_335_936,
+    });
+  });
+
+  it("uses processed and total counters for an active scrub", () => {
+    expect(normalizeScanProgress({
+      state: "SCANNING",
+      percentage: 37.5,
+      bytes_to_process: 800,
+      bytes_processed: 300,
+      bytes_issued: 250,
+    })).toEqual({ percentage: 37.5, processedBytes: 300, totalBytes: 800 });
+  });
+
+  it("clamps malformed percentage and counters", () => {
+    expect(normalizeScanProgress({
+      state: "SCANNING",
+      percentage: 140,
+      bytes_to_process: 100,
+      bytes_processed: 120,
+    })).toEqual({ percentage: 100, processedBytes: 100, totalBytes: 100 });
+  });
 });
