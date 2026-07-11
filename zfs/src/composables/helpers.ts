@@ -630,6 +630,26 @@ export function getDiskIDName(disks: VDevDisk[], diskIdentifier: string, selecte
 
 
 // One canonical matcher. Works with reactive arrays (pass disks.value) or plain arrays.
+export function normalizeDiskPath(path?: string): string {
+	if (!path) return "";
+	return path
+		.replace(/(\/nvme\d+n\d+)p\d+$/, "$1")
+		.replace(/(\/mmcblk\d+)p\d+$/, "$1")
+		.replace(/(\/sd[a-z]+)\d+$/, "$1")
+		.replace(/-part\d+$/, "")
+		.replace(/(-ata-\d+)\.0(?=$|-)/, "$1");
+}
+
+export function getDiskPathCandidates(disk: any): string[] {
+	const scalarKeys = [
+		"sd_path", "phy_path", "vdev_path", "id_path", "label_path",
+		"part_label_path", "part_uuid", "uuid",
+	];
+	const scalarPaths = scalarKeys.map((key) => disk?.[key]);
+	const aliasPaths = Array.isArray(disk?.id_paths) ? disk.id_paths : [];
+	return [...new Set([...scalarPaths, ...aliasPaths].filter(Boolean))] as string[];
+}
+
 export function matchDiskByVdevOrPath(
 	disksLike: MaybeRef<VDevDisk[]>,
 	vdevPathOrAnyPath: string
@@ -649,17 +669,6 @@ export function matchDiskByVdevOrPath(
 		if (hit) return hit;
 	}
 
-	const clean = (p?: string) => {
-		if (!p) return "";
-		p = p.replace(/(\/nvme\d+n\d+)p\d+$/, "$1");
-		p = p.replace(/(\/mmcblk\d+)p\d+$/, "$1");
-		p = p.replace(/(\/sd[a-z]+)\d+$/, "$1");
-		p = p.replace(/-part\d+$/, "");
-		// Normalize ATA SCSI target suffixes: ata-3.0 ↔ ata-3
-		p = p.replace(/(-ata-\d+)\.0(?=$|-)/, "$1");
-		return p;
-	};
-
 	const sameOrStartsWith = (a: string, b: string) => {
 		if (!a || !b) return false;
 		if (a === b) return true;
@@ -672,21 +681,23 @@ export function matchDiskByVdevOrPath(
 	};
 
 	const want = vdevPathOrAnyPath;
-	const wantBase = clean(want);
+	const wantBase = normalizeDiskPath(want);
 
-	const candidates = ["sd_path", "phy_path", "vdev_path", "id_path", "label_path", "part_label_path", "part_uuid", "uuid"];
+	let disk = disks.find((candidate) =>
+		getDiskPathCandidates(candidate).some(
+			(path) => path === want || normalizeDiskPath(path) === wantBase,
+		),
+	);
+	if (disk) return disk;
 
-	let d = disks.find(dd => candidates.some(k => {
-		const v = (dd as any)?.[k] as string | undefined;
-		return v === want || clean(v) === wantBase;
-	}));
-	if (d) return d;
-
-	d = disks.find(dd => candidates.some(k => {
-		const v = ((dd as any)?.[k] as string | undefined) ?? "";
-		return sameOrStartsWith(v, want) || sameOrStartsWith(clean(v), wantBase);
-	}));
-	return d;
+	disk = disks.find((candidate) =>
+		getDiskPathCandidates(candidate).some(
+			(path) =>
+				sameOrStartsWith(path, want)
+				|| sameOrStartsWith(normalizeDiskPath(path), wantBase),
+		),
+	);
+	return disk;
 }
 
 
