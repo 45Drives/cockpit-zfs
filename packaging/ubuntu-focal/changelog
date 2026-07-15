@@ -1,3 +1,48 @@
+cockpit-zfs (1.2.32-1focal) focal; urgency=medium
+
+  * fix: change debian source format from 3.0 (native) to 1.0 for build compatibility
+
+ -- Rachit Hans <rhans@45drives.com>  Tue, 14 Jul 2026 19:59:56 -0300
+
+cockpit-zfs (1.2.31-1focal) focal; urgency=medium
+
+  * fix: use explicit cockpit deps for debian to avoid network-manager
+
+ -- Rachit Hans <rhans@45drives.com>  Wed, 08 Jul 2026 19:41:18 -0300
+
+cockpit-zfs (1.2.30-1focal) focal; urgency=medium
+
+  * Add encryption docs, test plan, and video walkthrough
+  * Remove Migrate to KMS menu item
+
+ -- Jordan Keough <jkeough@45drives.com>  Tue, 07 Jul 2026 13:25:49 -0300
+
+cockpit-zfs (1.2.29-2focal) focal; urgency=medium
+
+  * Fixed yarnrc build issue. Updating build # for tagging package
+
+ -- Jordan Keough <jkeough@45drives.com>  Tue, 07 Jul 2026 12:48:30 -0300
+
+cockpit-zfs (1.2.29-1focal) focal; urgency=medium
+
+  * Add storage encryption support
+
+ -- Jordan Keough <jkeough@45drives.com>  Tue, 07 Jul 2026 06:33:44 -0300
+
+cockpit-zfs (1.2.28-1focal) focal; urgency=medium
+
+  * Added KMS storage encryption support via cockpit-storage-encryption control plane
+  * Added encryption documentation, test plan, and video walkthrough
+  * Removed Migrate to KMS Encryption menu item from dataset context menu
+
+ -- Jordan Keough <jkeough@45drives.com>  Tue, 16 Jun 2026 13:23:55 -0300
+
+cockpit-zfs (1.2.27-3focal) focal; urgency=medium
+
+  * New package with backend dbus leaks fixed
+
+ -- Jordan Keough <jkeough@45drives.com>  Tue, 19 May 2026 12:48:26 -0300
+
 cockpit-zfs (1.2.27-2focal) focal; urgency=medium
 
   * Updating testing package

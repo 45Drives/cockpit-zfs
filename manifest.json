@@ -2,9 +2,9 @@
     "schema_version": "45D_AP_V2.0",
     "name": "cockpit-zfs",
     "title": "zfs module",
-    "stable": false,
-    "version": "1.2.27",
-    "build_number": "2",
+    "stable": true,
+    "version": "1.2.32",
+    "build_number": "1",
     "author": "Jordan Keough <jkeough@45drives.com>",
     "git_url": "https://github.com/45Drives/cockpit-zfs-45d",
     "license": "GPL-3.0+",
@@ -50,6 +50,21 @@
             "msmtp",
             "python3-dateutil",
             "cockpit-alerts"
+        ],
+        "debian_common": [
+            "cockpit-ws",
+            "cockpit-bridge",
+            "cockpit-system",
+            "cockpit-storaged",
+            "cockpit-packagekit",
+            "python3",
+            "python3-libzfs",
+            "python3-pip",
+            "sqlite3",
+            "jq",
+            "msmtp",
+            "python3-dateutil",
+            "cockpit-alerts"
         ]
     },
     "builds": [
@@ -77,6 +92,11 @@
             "group": "debian",
             "os_name": "debian-bookworm",
             "image": "ci.cr.45d.io/ci/simple/ubuntu-jammy:1"
+        },
+        {
+            "group": "debian",
+            "os_name": "debian-trixie",
+            "image": "ci.cr.45d.io/ci/simple/debian-trixie:1"
         }
     ],
     "repos": [
@@ -85,8 +105,8 @@
     ],
     "changelog": {
         "urgency": "medium",
-        "version": "1.2.27",
-        "build_number": "2",
+        "version": "1.2.32",
+        "build_number": "1",
         "date": null,
         "packager": "Jordan Keough <jkeough@45drives.com>",
         "changes": []

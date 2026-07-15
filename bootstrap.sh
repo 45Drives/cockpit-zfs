@@ -7,6 +7,8 @@ set -x
 command -v sponge >/dev/null || { echo "Missing 'sponge'. Please install moreutils." >&2 ; exit 1 ; }
 command -v yarn >/dev/null || { echo "Missing 'yarn'. Please install yarn." >&2 ; exit 1 ; }
 
+export COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+
 jq 'del(.packageManager)' ./package.json | sponge ./package.json
 
 rm .yarnrc.yml .yarn -rf
@@ -14,3 +16,4 @@ rm .yarnrc.yml .yarn -rf
 yarn set version stable
 
 yarn config set nodeLinker node-modules
+yarn config set enableScripts true
