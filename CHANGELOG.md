@@ -1,3 +1,3 @@
-## zfs module 1.2.31-1
+## zfs module 1.2.32-1
 
-* fix: use explicit cockpit deps for debian to avoid network-manager
+* fix: change debian source format from 3.0 (native) to 1.0 for build compatibility

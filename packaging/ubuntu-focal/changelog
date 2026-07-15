@@ -1,3 +1,9 @@
+cockpit-zfs (1.2.32-1focal) focal; urgency=medium
+
+  * fix: change debian source format from 3.0 (native) to 1.0 for build compatibility
+
+ -- Rachit Hans <rhans@45drives.com>  Tue, 14 Jul 2026 19:59:56 -0300
+
 cockpit-zfs (1.2.31-1focal) focal; urgency=medium
 
   * fix: use explicit cockpit deps for debian to avoid network-manager
