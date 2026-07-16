@@ -1,3 +1,10 @@
+cockpit-zfs (1.2.33-1focal) focal; urgency=medium
+
+  * Fixes some disk data display issues, adds replace disk for removed disks, fixes
+    some notification rendering bugs
+
+ -- Jordan Keough <jkeough@45drives.com>  Thu, 16 Jul 2026 08:54:05 -0300
+
 cockpit-zfs (1.2.32-1focal) focal; urgency=medium
 
   * fix: change debian source format from 3.0 (native) to 1.0 for build compatibility
