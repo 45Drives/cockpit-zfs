@@ -68,7 +68,7 @@
 										Disk</a>
 									</MenuItem>
 									<MenuItem as="div" v-slot="{ active }" >
-									<a v-if="diskState !== 'REMOVED'" href="#"
+									<a href="#"
 										@click="replaceThisDisk(props.pool, props.vDev, props.disk)"
 										:class="[active ? 'bg-default text-default' : 'text-muted', 'block px-4 py-2 text-sm']">Replace
 										Disk</a>

@@ -303,6 +303,30 @@ def _get_boot_bases() -> Set[str]:
     # Pass 3: include disks that look bootable even if not currently mounted
     out |= _bootlike_bases_from_lsblk()
 
+    # Pass 4: include LVM VG siblings — if any disk already in `out` shares a
+    # volume group with another disk, that disk is also an OS disk.
+    # e.g. sda3 + sdb1 are both PVs in VG "rl" → sdb should be excluded too.
+    try:
+        r = subprocess.run(
+            ["pvs", "--noheadings", "-o", "pv_name,vg_name", "--separator", " "],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True
+        )
+        if r.returncode == 0:
+            # Build VG → set of base disks mapping
+            vg_to_disks: dict[str, Set[str]] = {}
+            for line in r.stdout.splitlines():
+                parts = line.split()
+                if len(parts) >= 2:
+                    pv, vg = parts[0], parts[1]
+                    base = _dev_base(pv)
+                    vg_to_disks.setdefault(vg, set()).add(base)
+            # If any disk in a VG is already known as boot, add all VG members
+            for vg, disks in vg_to_disks.items():
+                if disks & out:
+                    out |= disks
+    except Exception as e:
+        logger.warning(f"LVM VG sibling detection failed: {e}")
+
     logger.info(f"Boot ancestor/bootlike base devices: {sorted(out)}")
     return out
 
