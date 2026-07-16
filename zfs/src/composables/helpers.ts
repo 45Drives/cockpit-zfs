@@ -173,13 +173,30 @@ export function convertRawTimestampToString(rawTimestamp) {
 }
 
 export function convertTimestampToLocal(timestamp) {
-    // Check if the timestamp already has a space between date and time
-    const hasSpace = timestamp.includes(' ');
+    // Guard against null/undefined/"None" from Python
+    if (!timestamp || timestamp === 'None' || timestamp === 'null') {
+        return null;
+    }
 
-    // If it has a space, use it directly; otherwise, convert to the desired format
-    const utcTimestamp = hasSpace ? timestamp.replace(' ', 'T') + 'Z' : timestamp;
+    // If the timestamp already has a timezone offset (+00:00, -05:00, Z), use it directly
+    // Otherwise, assume UTC and append 'Z'
+    let isoTimestamp: string;
+    if (/[+-]\d{2}:\d{2}$/.test(timestamp) || timestamp.endsWith('Z')) {
+        // Already has timezone info — just ensure ISO format (T separator)
+        isoTimestamp = timestamp.replace(' ', 'T');
+    } else if (timestamp.includes(' ')) {
+        // No timezone, has space between date and time — assume UTC
+        isoTimestamp = timestamp.replace(' ', 'T') + 'Z';
+    } else {
+        isoTimestamp = timestamp;
+    }
 
-    const localTimestamp = new Date(utcTimestamp).toLocaleString('en-US', {
+    const parsed = new Date(isoTimestamp);
+    if (isNaN(parsed.getTime())) {
+        return null;
+    }
+
+    const localTimestamp = parsed.toLocaleString('en-US', {
         year: 'numeric', month: '2-digit', day: '2-digit',
         hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
     });
