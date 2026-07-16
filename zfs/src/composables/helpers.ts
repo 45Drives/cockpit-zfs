@@ -53,6 +53,39 @@ export const convertBytesToSize = (bytes: number, precision: number = 2): string
 	return `${convertedSize} ${binarySizes[i]}`;
 };
 
+export function normalizeScanProgress(scan: any): {
+	percentage: number;
+	processedBytes: number;
+	totalBytes: number;
+} {
+	const safeNumber = (value: unknown): number | undefined => {
+		const parsed = Number(value);
+		return Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined;
+	};
+
+	const processed = safeNumber(scan?.bytes_processed)
+		?? safeNumber(scan?.bytes_issued)
+		?? 0;
+	const total = safeNumber(scan?.bytes_to_process)
+		?? safeNumber(scan?.bytes_processed)
+		?? processed;
+
+	if (scan?.state === "FINISHED") {
+		const finishedTotal = Math.max(total, processed);
+		return {
+			percentage: 100,
+			processedBytes: finishedTotal,
+			totalBytes: finishedTotal,
+		};
+	}
+
+	return {
+		percentage: Math.min(100, Math.max(0, safeNumber(scan?.percentage) ?? 0)),
+		processedBytes: Math.min(processed, total),
+		totalBytes: total,
+	};
+}
+
 
 // Convert readable binary data size to raw bytes
 export const convertSizeToBytes = (size: string): number => {
@@ -172,28 +205,42 @@ export function convertRawTimestampToString(rawTimestamp) {
     return timestamp.substring(0, 19);
 }
 
-export function convertTimestampToLocal(timestamp) {
-    // Check if the timestamp already has a space between date and time
-    const hasSpace = timestamp.includes(' ');
+export function convertTimestampToLocal(
+    timestamp: string | number | null | undefined,
+): string {
+    if (timestamp === null || timestamp === undefined) return "N/A";
 
-    // If it has a space, use it directly; otherwise, convert to the desired format
-    const utcTimestamp = hasSpace ? timestamp.replace(' ', 'T') + 'Z' : timestamp;
+    let date: Date;
+    if (typeof timestamp === "number") {
+        const milliseconds = Math.abs(timestamp) < 1e12 ? timestamp * 1000 : timestamp;
+        date = new Date(milliseconds);
+    } else {
+        const raw = timestamp.trim();
+        if (!raw) return "N/A";
+        const separated = raw.includes(" ") ? raw.replace(" ", "T") : raw;
+        const hasZone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(separated);
+        const normalized = hasZone ? separated : `${separated}Z`;
+        date = new Date(normalized);
+    }
 
-    const localTimestamp = new Date(utcTimestamp).toLocaleString('en-US', {
-        year: 'numeric', month: '2-digit', day: '2-digit',
-        hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
-    });
+    if (Number.isNaN(date.getTime())) return "N/A";
 
-    const rearrangedTimestamp = localTimestamp.replace(/\//g, '-').replace(',', '');
+    const parts = Object.fromEntries(
+        new Intl.DateTimeFormat("en-CA", {
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+            hourCycle: "h23",
+        })
+            .formatToParts(date)
+            .filter(({ type }) => type !== "literal")
+            .map(({ type, value }) => [type, value]),
+    );
 
-    const [date, time] = rearrangedTimestamp.split(' ');
-
-    const [month, day, year] = date.split('-');
-    const rearrangedDate = `${year}-${month}-${day}`;
-
-    const finalTimestamp = `${rearrangedDate} ${time}`;
-
-    return finalTimestamp;
+    return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}:${parts.second}`;
 }
 
 export function convertTimestampFormat(timestamp) {
@@ -630,6 +677,26 @@ export function getDiskIDName(disks: VDevDisk[], diskIdentifier: string, selecte
 
 
 // One canonical matcher. Works with reactive arrays (pass disks.value) or plain arrays.
+export function normalizeDiskPath(path?: string): string {
+	if (!path) return "";
+	return path
+		.replace(/(\/nvme\d+n\d+)p\d+$/, "$1")
+		.replace(/(\/mmcblk\d+)p\d+$/, "$1")
+		.replace(/(\/sd[a-z]+)\d+$/, "$1")
+		.replace(/-part\d+$/, "")
+		.replace(/(-ata-\d+)\.0(?=$|-)/, "$1");
+}
+
+export function getDiskPathCandidates(disk: any): string[] {
+	const scalarKeys = [
+		"sd_path", "phy_path", "vdev_path", "id_path", "label_path",
+		"part_label_path", "part_uuid", "uuid",
+	];
+	const scalarPaths = scalarKeys.map((key) => disk?.[key]);
+	const aliasPaths = Array.isArray(disk?.id_paths) ? disk.id_paths : [];
+	return [...new Set([...scalarPaths, ...aliasPaths].filter(Boolean))] as string[];
+}
+
 export function matchDiskByVdevOrPath(
 	disksLike: MaybeRef<VDevDisk[]>,
 	vdevPathOrAnyPath: string
@@ -649,17 +716,6 @@ export function matchDiskByVdevOrPath(
 		if (hit) return hit;
 	}
 
-	const clean = (p?: string) => {
-		if (!p) return "";
-		p = p.replace(/(\/nvme\d+n\d+)p\d+$/, "$1");
-		p = p.replace(/(\/mmcblk\d+)p\d+$/, "$1");
-		p = p.replace(/(\/sd[a-z]+)\d+$/, "$1");
-		p = p.replace(/-part\d+$/, "");
-		// Normalize ATA SCSI target suffixes: ata-3.0 ↔ ata-3
-		p = p.replace(/(-ata-\d+)\.0(?=$|-)/, "$1");
-		return p;
-	};
-
 	const sameOrStartsWith = (a: string, b: string) => {
 		if (!a || !b) return false;
 		if (a === b) return true;
@@ -672,21 +728,23 @@ export function matchDiskByVdevOrPath(
 	};
 
 	const want = vdevPathOrAnyPath;
-	const wantBase = clean(want);
+	const wantBase = normalizeDiskPath(want);
 
-	const candidates = ["sd_path", "phy_path", "vdev_path", "id_path", "label_path", "part_label_path", "part_uuid", "uuid"];
+	let disk = disks.find((candidate) =>
+		getDiskPathCandidates(candidate).some(
+			(path) => path === want || normalizeDiskPath(path) === wantBase,
+		),
+	);
+	if (disk) return disk;
 
-	let d = disks.find(dd => candidates.some(k => {
-		const v = (dd as any)?.[k] as string | undefined;
-		return v === want || clean(v) === wantBase;
-	}));
-	if (d) return d;
-
-	d = disks.find(dd => candidates.some(k => {
-		const v = ((dd as any)?.[k] as string | undefined) ?? "";
-		return sameOrStartsWith(v, want) || sameOrStartsWith(clean(v), wantBase);
-	}));
-	return d;
+	disk = disks.find((candidate) =>
+		getDiskPathCandidates(candidate).some(
+			(path) =>
+				sameOrStartsWith(path, want)
+				|| sameOrStartsWith(normalizeDiskPath(path), wantBase),
+		),
+	);
+	return disk;
 }
 
 

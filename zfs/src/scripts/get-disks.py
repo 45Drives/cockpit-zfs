@@ -439,9 +439,10 @@ def _udev_alias_paths(base: str) -> dict:
             if line.startswith("DEVLINKS="):
                 devlinks_str = line.split("=", 1)[1].strip()
                 break
+        by_id_paths = []
         for p in devlinks_str.split():
-            if p.startswith("/dev/disk/by-id/") and "id_path" not in out:
-                out["id_path"] = p
+            if p.startswith("/dev/disk/by-id/"):
+                by_id_paths.append(p)
             elif p.startswith("/dev/disk/by-label/") and "label_path" not in out:
                 out["label_path"] = p
             elif p.startswith("/dev/disk/by-partlabel/") and "part_label_path" not in out:
@@ -450,6 +451,14 @@ def _udev_alias_paths(base: str) -> dict:
                 out["part_uuid"] = p
             elif p.startswith("/dev/disk/by-uuid/") and "uuid" not in out:
                 out["uuid"] = p
+
+        if by_id_paths:
+            ordered = sorted(set(by_id_paths))
+            out["id_paths"] = ordered
+            out["id_path"] = next(
+                (p for p in ordered if Path(p).name.startswith("ata-")),
+                ordered[0],
+            )
     except Exception:
         pass
     return out

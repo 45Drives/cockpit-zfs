@@ -194,7 +194,7 @@
 
 <script setup lang="ts">
 import { ref, inject, Ref, computed, ComputedRef, onMounted, onBeforeUnmount, watch } from "vue";
-import { convertBytesToSize, convertSecondsToString, convertRawTimestampToString, upperCaseWord, convertTimestampToLocal, findMatchingPoolDisk } from "../../composables/helpers";
+import { convertBytesToSize, convertSecondsToString, convertRawTimestampToString, upperCaseWord, convertTimestampToLocal, findMatchingPoolDisk, normalizeScanProgress } from "../../composables/helpers";
 import { loadScanObjectGroup, loadDiskStats } from "../../composables/loadData";
 import { ZPool, VDevDisk } from "@45drives/houston-common-lib";
 import { PoolScanObjectGroup, Activity, PoolDiskStats } from "../../types";
@@ -412,16 +412,15 @@ const displayMiniStateMsg = computed(() => {
 	return miniStateMsg.value;
 });
 
-const scanPercentage = computed(() => (poolScan.value as any)?.percentage ?? 0);
-
-const adjustedScanPercentage = computed(() => {
-	const pct = parseFloat(scanPercentage.value.toFixed(2));
-	if (isFinished.value && pct > 90) return 100;
-	return pct;
-});
-
-const amountProcessed = computed(() => convertBytesToSize((poolScan.value as any)?.bytes_issued ?? 0));
-const amountTotal = computed(() => convertBytesToSize((poolScan.value as any)?.bytes_processed ?? 0));
+const normalizedScanProgress = computed(() => normalizeScanProgress(poolScan.value));
+const scanPercentage = computed(() => normalizedScanProgress.value.percentage);
+const adjustedScanPercentage = computed(() => normalizedScanProgress.value.percentage);
+const amountProcessed = computed(() =>
+	convertBytesToSize(normalizedScanProgress.value.processedBytes),
+);
+const amountTotal = computed(() =>
+	convertBytesToSize(normalizedScanProgress.value.totalBytes),
+);
 const timeRemaining = computed(() => convertSecondsToString((poolScan.value as any)?.total_secs_left ?? 0));
 
 function stateMessageClass() {

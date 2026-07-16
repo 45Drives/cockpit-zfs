@@ -2,7 +2,7 @@ import { ref, Ref } from 'vue';
 import { getPools } from "./pools";
 import { getDisks } from "./disks";
 import { getDatasets } from "./datasets";
-import { matchDiskByVdevOrPath, convertBytesToSize, onOffToBool, getQuotaRefreservUnit, getSizeUnitFromString, getParentPath, convertTimestampToLocal, formatCapacityString, isCapacityPatternInvalid, changeUnitToBinary } from "./helpers";
+import { matchDiskByVdevOrPath, getDiskPathCandidates, normalizeDiskPath, convertBytesToSize, onOffToBool, getQuotaRefreservUnit, getSizeUnitFromString, getParentPath, convertTimestampToLocal, formatCapacityString, isCapacityPatternInvalid, changeUnitToBinary } from "./helpers";
 import { getSnapshots, getSnapshotsOfDataset, getSnapshotsOfPool } from './snapshots';
 import { getDiskStats, getScanGroup } from './scan';
 import { VDevDisk, ZFSFileSystemInfo, VDev } from "@45drives/houston-common-lib"
@@ -117,6 +117,7 @@ export async function loadDisksThenPools(disks, pools) {
 				errors: parsedJSON[i].health === 'POOR' ? ['SMART health: POOR'] : [],
 				hasPartitions: parsedJSON[i].has_partitions || false,
 				id_path: parsedJSON[i].id_path || '',
+				id_paths: parsedJSON[i].id_paths || [],
 				label_path: parsedJSON[i].label_path || '',
 				part_label_path: parsedJSON[i].part_label_path || '',
 				part_uuid: parsedJSON[i].part_uuid || '',
@@ -445,6 +446,7 @@ export async function loadDisks(disks) {
 				errors: parsedJSON[i].health === 'POOR' ? ['SMART health: POOR'] : [],
 				hasPartitions: parsedJSON[i].has_partitions || false,
 				id_path: parsedJSON[i].id_path || '',
+				id_paths: parsedJSON[i].id_paths || [],
 				label_path: parsedJSON[i].label_path || '',
 				part_label_path: parsedJSON[i].part_label_path || '',
 				part_uuid: parsedJSON[i].part_uuid || '',
@@ -462,44 +464,13 @@ export async function loadDisks(disks) {
 	}
 }
 
-// Helper function to clean disk paths by removing partition numbers but leaving the rest intact
-function cleanDiskPath(path) {
-	if (!path) return '';
-
-	let result = path;
-
-	// Remove partition numbers from standard disks (e.g., /dev/sda1 → /dev/sda, /dev/sdab1 → /dev/sdab)
-	if (/\/dev\/sd[a-z]+\d+$/.test(result)) {
-		result = result.replace(/\d+$/, '');
-	}
-	// Remove 'pN' from NVMe paths (e.g., /dev/nvme0n1p2 → /dev/nvme0n1)
-	else if (/\/dev\/nvme\d+n\d+p\d+$/.test(result)) {
-		result = result.replace(/p\d+$/, '');
-	}
-	// Remove 'pN' from mmcblk paths (e.g., /dev/mmcblk0p1 → /dev/mmcblk0)
-	else if (/\/dev\/mmcblk\d+p\d+$/.test(result)) {
-		result = result.replace(/p\d+$/, '');
-	}
-	// Remove '-partN' suffix (e.g., /dev/disk/by-vdev/1-1-part1, /dev/disk/by-id/...-part2, /dev/disk/by-path/...-part1)
-	else if (/-part\d+$/.test(result)) {
-		result = result.replace(/-part\d+$/, '');
-	}
-
-	// Normalize ATA SCSI target suffixes: ata-3.0 ↔ ata-3
-	// TrueNAS uses ata-X, Rocky/RHEL uses ata-X.0 — strip trailing .0 for consistent matching
-	// Applied AFTER partition stripping so both ata-3.0-part2 and ata-3.0 normalize to ata-3
-	result = result.replace(/(-ata-\d+)\.0(?=$|-)/, '$1');
-
-	return result;
-}
-
 export async function loadDisksExtraData(disks, pools) {
 	try {
 		pools.forEach((pool) => {
 			pool.vdevs.forEach((vDev) => {
 				vDev.disks.forEach((usedDisk) => {
 					// console.log('disk from vdev:', usedDisk);
-					const cleanedUsedDiskPath = cleanDiskPath(usedDisk.path);
+					const cleanedUsedDiskPath = normalizeDiskPath(usedDisk.path);
 					const selectedDisk = matchDiskByVdevOrPath(disks, cleanedUsedDiskPath);
 					let statsObject;
 
@@ -516,11 +487,9 @@ export async function loadDisksExtraData(disks, pools) {
 						selectedDisk.stats = statsObject;
 						// console.log('selectedDisk loading data', selectedDisk);
 
-						// Clean the usedDisk.path and compare it with sd_path, phy_path, and vdev_path
-						// Find the index of the original disk in the disks array
-						const index = disks.findIndex(disk =>
-							[cleanDiskPath(disk.sd_path), cleanDiskPath(disk.phy_path), cleanDiskPath(disk.vdev_path)].includes(cleanedUsedDiskPath)
-						);
+						// matchDiskByVdevOrPath returns the original object from this array,
+						// including when it matched through an alternate by-id alias.
+						const index = disks.indexOf(selectedDisk);
 
 						// Check if the original disk is found in the disks array
 						if (index !== -1) {
@@ -710,7 +679,7 @@ export function parseVDevData(vDev, poolName, disks, vDevType) {
 					if (result) {
 						const fullOldDisk = disks.value.find(d => d.name === oldDisk.name);
 						const shortSdPath = fullOldDisk?.sd_path?.replace(sdPathPrefix, "") ?? "";
-						result.replacingTargetLabel = `${oldDisk.name} (${cleanDiskPath(shortSdPath)})`;
+						result.replacingTargetLabel = `${oldDisk.name} (${normalizeDiskPath(shortSdPath)})`;
 
 						if (!vDevData.disks.some(d => d.guid === result.guid || d.path === result.path || d.name === result.name)) {
 							vDevData.disks.push(result);
@@ -747,41 +716,20 @@ function handleDiskChild(child, vDevData, disks, vDevName, poolName, vDevType) {
 		return null;
 	}
 
-	const cleanedChildPath = cleanDiskPath(child.path);
-
-	// exact match on base device paths only
-	let fullDiskData = disks.value.find(disk => {
-		const sdBase = cleanDiskPath(disk.sd_path);
-		const phyBase = cleanDiskPath(disk.phy_path);
-		const vdevBase = cleanDiskPath(disk.vdev_path);
-		const pathBase = cleanDiskPath(disk.path);
-		const idBase = cleanDiskPath(disk.id_path);
-		const labelBase = cleanDiskPath(disk.label_path);
-		const partLabelBase = cleanDiskPath(disk.part_label_path);
-
-		return (
-			sdBase === cleanedChildPath ||
-			phyBase === cleanedChildPath ||
-			vdevBase === cleanedChildPath ||
-			pathBase === cleanedChildPath ||
-			idBase === cleanedChildPath ||
-			labelBase === cleanedChildPath ||
-			partLabelBase === cleanedChildPath
+	const cleanedChildPath = normalizeDiskPath(child.path);
+	const matchesPath = (disk: any, target: string) =>
+		getDiskPathCandidates(disk).some(
+			(path) => normalizeDiskPath(path) === target,
 		);
-	});
+
+	let fullDiskData = disks.value.find((disk) =>
+		matchesPath(disk, cleanedChildPath),
+	);
 
 	// If fullDiskData is still null (child has a valid path), try to recover it
 	if (!fullDiskData) {
-		// 1) If the child path is a by-vdev partition, match its base by-vdev
 		const vdevBase = cleanedChildPath.replace(/-part\d+$/, '');
-		fullDiskData = disks.value.find(d =>
-			cleanDiskPath(d.vdev_path) === vdevBase ||
-			cleanDiskPath(d.sd_path) === vdevBase ||
-			cleanDiskPath(d.phy_path) === vdevBase ||
-			cleanDiskPath(d.id_path) === vdevBase ||
-			cleanDiskPath(d.label_path) === vdevBase ||
-			cleanDiskPath(d.part_label_path) === vdevBase
-		);
+		fullDiskData = disks.value.find((disk) => matchesPath(disk, vdevBase));
 
 		if (fullDiskData) {
 			console.warn(`Recovered disk via safety net using ${vdevBase}`);
@@ -857,9 +805,9 @@ function handleDiskChild(child, vDevData, disks, vDevName, poolName, vDevType) {
 	if (!fullDiskData) {
 		console.warn('No match for', child.path);
 	} else {
-		const exp = cleanDiskPath(child.path);
+		const exp = normalizeDiskPath(child.path);
 		const candidatePaths = [fullDiskData.vdev_path, fullDiskData.sd_path, fullDiskData.phy_path]
-			.map(p => cleanDiskPath(p))
+			.map(p => normalizeDiskPath(p))
 			.filter(p => p && p !== 'N/A' && p !== 'unknown');
 		if (candidatePaths.length > 0 && !candidatePaths.includes(exp)) {
 			console.warn('Mismatch:', { child: exp, matched: candidatePaths, matchedName: fullDiskData.name });
@@ -1032,7 +980,7 @@ function determineDiskType(vDev, disks): string {
 		// Try name match first, then path-based match via matchDiskByVdevOrPath
 		let disk = disks.value.find(d => d.name === child.name);
 		if (!disk && child.path) {
-			disk = matchDiskByVdevOrPath(disks, cleanDiskPath(child.path));
+			disk = matchDiskByVdevOrPath(disks, normalizeDiskPath(child.path));
 		}
 		return disk ? disk.type : 'Unknown';
 	});
