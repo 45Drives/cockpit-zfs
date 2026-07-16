@@ -26,6 +26,7 @@ import { ZPool, VDevDisk, ZFSFileSystemInfo } from '@45drives/houston-common-lib
 import { notificationStore } from "../store/notification";
 import { ImportablePoolData, Snapshot, Activity, PoolScanObjectGroup, PoolDiskStats } from '../types';
 import { useControlPlane } from '../composables/useControlPlane';
+import { useRefreshAllData } from '../composables/useRefreshAllData';
 
 interface ZFSProps {
   	tag: string;
@@ -62,6 +63,19 @@ const poolDiskStats = ref<PoolDiskStats>({});
 const diskStatsIntervalID = ref();
 const trimSubscribers = ref(0);
 
+const { refreshAllData } = useRefreshAllData({
+	poolData: pools,
+	diskData: disks,
+	filesystemData: datasets,
+	disksLoaded,
+	poolsLoaded,
+	fileSystemsLoaded,
+	scanObjectGroup,
+	poolDiskStats,
+	scanActivities,
+	trimActivities,
+});
+
 async function initialLoad(disks, pools, datasets, snapshots) {
 	disksLoaded.value = false;
 	poolsLoaded.value = false;
@@ -88,8 +102,23 @@ async function initialLoad(disks, pools, datasets, snapshots) {
 	// console.log('ZFS.vue scanActivities', scanActivities.value);
 	// console.log('ZFS.vue trimActivities', trimActivities.value);
 	setUpMessageHandler((message) => {
-        //console.log("Received DBus Message:", message);
-    });
+		try {
+			const parsed = JSON.parse(message);
+			const refreshEvents = [
+				'resilver_finish',
+				'scrub_finish',
+				'vdev_attach',
+				'vdev_clear',
+				'pool_import',
+				'statechange',
+			];
+			if (refreshEvents.includes(parsed.event)) {
+				refreshAllData();
+			}
+		} catch (e) {
+			// ignore malformed messages
+		}
+	});
 }
 
 // D-Bus message handler state — stored so we can clean up on unmount

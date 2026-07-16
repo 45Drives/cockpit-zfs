@@ -115,13 +115,11 @@ export const notificationStore = reactive<{
 
   // Remove notification by ID
   removeNotification(id: number) {
-    // console.log("remove Notivficatio id :", id )
     notificationStore.notifications = notificationStore.notifications.filter(
       (n) => n.id !== id
     );
+    this.notificationsCount = notificationStore.notifications.length;
     sideBarNotification();
-
-    
   },
     // Remove notification by ID
   removeAllNotifications() {
@@ -158,7 +156,9 @@ export const notificationStore = reactive<{
             notificationStore.notifications.push(notification);
           }
         });
-        
+
+        // Sync count to match actual notifications in the array
+        this.notificationsCount = notificationStore.notifications.length;
 
         // Update UI with new notifications
         sideBarNotification();
