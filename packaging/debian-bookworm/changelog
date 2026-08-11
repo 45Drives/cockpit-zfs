@@ -1,3 +1,9 @@
+cockpit-zfs (1.2.33-2bookworm) bookworm; urgency=medium
+
+  * Forcing rebuild with latest fix: timestamp display issue
+
+ -- Jordan Keough <jkeough@45drives.com>  Tue, 11 Aug 2026 05:25:20 -0300
+
 cockpit-zfs (1.2.33-1bookworm) bookworm; urgency=medium
 
   * Fixes some disk data display issues, adds replace disk for removed disks, fixes

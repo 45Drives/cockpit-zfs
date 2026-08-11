@@ -1,3 +1,3 @@
-## zfs module 1.2.33-1
+## zfs module 1.2.33-2
 
-* Fixes some disk data display issues, adds replace disk for removed disks, fixes some notification rendering bugs
+* Forcing rebuild with latest fix: timestamp display issue
