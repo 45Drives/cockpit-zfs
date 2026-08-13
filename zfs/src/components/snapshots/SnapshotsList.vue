@@ -352,7 +352,7 @@ import { ref, inject, Ref, provide, watch, onMounted, computed } from 'vue';
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/vue';
 import { EllipsisVerticalIcon, ChevronUpIcon, ChevronDownIcon } from '@heroicons/vue/24/outline';
 import { loadSnapshotsInPool, loadSnapshotsInDataset } from '../../composables/loadData';
-import { destroySnapshot, rollbackSnapshot } from '../../composables/snapshots';
+import { destroySnapshot, destroySnapshotsBulk, rollbackSnapshot } from '../../composables/snapshots';
 import LoadingSpinner from '../common/LoadingSpinner.vue';
 import { ZPool,ZFSFileSystemInfo} from "@45drives/houston-common-lib"
 import { pushNotification, Notification } from '@45drives/houston-common-ui';
@@ -544,6 +544,7 @@ const bulkSnapDestroyMode = inject<Map<string, boolean>>('bulk-destroy-snaps')!;
 const selectedForDestroy = ref<string[]>([]);
 const showDestroyBulkSnapshotModal = ref(false);
 const confirmBulkDestroy = ref(false);
+const cancelBulkDestroy = ref(false);
 const destroyBulkSnapshotComponent = ref();
 const loadDestroyBulkSnapshotsComponent = async () => {
 	const module = await import('../common/UniversalConfirmation.vue');
@@ -562,12 +563,16 @@ const confirmThisBulkDestroy : ConfirmationCallback = () => {
 }
 
 const updateShowDestroyBulkSnapshot = (newVal) => {
+	if (!newVal && operationRunning.value) {
+		// User is closing modal while operation is running - trigger cancellation
+		cancelBulkDestroy.value = true;
+	}
 	showDestroyBulkSnapshotModal.value = newVal;
 }
 
 watch(confirmBulkDestroy, async (newVal, oldVal) => {
 	const destroyedSnaps: string[] = [];
-	const failedToDestroySnaps: string[] = [];
+	const failedToDestroySnaps: Array<{ snapshot: string, error: string }> = [];
 
 	if (confirmBulkDestroy.value == true) {
 		operationRunning.value = true;
@@ -577,22 +582,36 @@ watch(confirmBulkDestroy, async (newVal, oldVal) => {
 		bulkDestroyCurrent.value = null;
 
 		try {
-			let errorMessage;
+			// Reset cancellation flag
+			cancelBulkDestroy.value = false;
 
-			for (const snapshot of selectedForDestroy.value) {
-				bulkDestroyCurrent.value = snapshot;        // <- currently working on this one
+			// Use optimized bulk destroy with range detection
+			// Pass sorted list to enable range detection for contiguous selections
+			const allSnapNames = sortedSnapshotsInFilesystem.value.map(s => s.name);
+			
+			const result = await destroySnapshotsBulk(
+				selectedForDestroy.value,
+				allSnapNames,
+				(current, total, currentSnapshot) => {
+					bulkDestroyProcessed.value = current;
+					bulkDestroyCurrent.value = currentSnapshot;
+				},
+				cancelBulkDestroy
+			);
 
-				const output: any = await destroySnapshot(snapshot, false, false);
-
-				if (output == null || output.error) {
-					errorMessage = output?.error || 'Unknown error';
-					failedToDestroySnaps.push(snapshot);
-				} else {
-					destroyedSnaps.push(snapshot);
-				}
-
-				bulkDestroyProcessed.value += 1;            // <- increment progress
+			if (result.cancelled) {
+				pushNotification(
+					new Notification(
+						'Operation Cancelled',
+						`Destroyed ${result.succeeded.length} of ${selectedForDestroy.value.length} snapshots before cancellation`,
+						'warning',
+						5000
+					)
+				);
 			}
+
+			destroyedSnaps.push(...result.succeeded);
+			failedToDestroySnaps.push(...result.failed);
 
 			await exitBulkDestroyMode();
 
@@ -604,10 +623,12 @@ watch(confirmBulkDestroy, async (newVal, oldVal) => {
 			bulkDestroyTotal.value = 0;
 
 			if (failedToDestroySnaps.length !== 0) {
+				const failedNames = failedToDestroySnaps.map(f => f.snapshot);
+				const errorSummary = failedToDestroySnaps[0]?.error || 'Unknown error';
 				pushNotification(
 					new Notification(
 						'Destroy Snapshots Failed',
-						`The folllowing snapshots were not destroyed: \n${failedToDestroySnaps.join(', ')}: ${errorMessage}`,
+						`${failedToDestroySnaps.length} snapshot(s) failed: ${errorSummary}`,
 						'error',
 						5000
 					)
@@ -648,8 +669,8 @@ const isSelectAllChecked = ref(false);
 
 function toggleSelectAll() {
 	if (isSelectAllChecked.value) {
-		// Select all snapshots
-		selectedForDestroy.value = snapshotsInFilesystem.value.map(snapshot => snapshot.name);
+		// Select all snapshots (use sorted list for contiguous range detection)
+		selectedForDestroy.value = sortedSnapshotsInFilesystem.value.map(snapshot => snapshot.name);
 	} else {
 		// Deselect all snapshots
 		selectedForDestroy.value = [];

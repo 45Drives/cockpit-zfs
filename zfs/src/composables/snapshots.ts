@@ -109,6 +109,226 @@ export async function destroySnapshot(snapshotName, destroyChildrenSameName, des
     }
 }
 
+/**
+ * Check if snapshots form a contiguous range within a dataset
+ * @param snapshotNames - Array of full snapshot names (pool/dataset@snap)
+ * @param allSnapshots - All snapshots in the dataset (sorted chronologically)
+ * @returns Range info if contiguous, null otherwise
+ */
+function detectSnapshotRange(
+    snapshotNames: string[], 
+    allSnapshots: string[]
+): { dataset: string, start: string, end: string } | null {
+    if (snapshotNames.length < 2) return null;
+
+    // Extract dataset and snap names
+    const parseSnapshot = (fullName: string) => {
+        const atIndex = fullName.lastIndexOf('@');
+        return {
+            dataset: fullName.substring(0, atIndex),
+            snap: fullName.substring(atIndex + 1)
+        };
+    };
+
+    const parsed = snapshotNames.map(parseSnapshot);
+    const dataset = parsed[0].dataset;
+
+    // Check all snapshots are from same dataset
+    if (!parsed.every(p => p.dataset === dataset)) return null;
+
+    // Get indices of selected snapshots in the full sorted list
+    const indices = snapshotNames
+        .map(name => allSnapshots.indexOf(name))
+        .filter(idx => idx !== -1)
+        .sort((a, b) => a - b);
+
+    if (indices.length !== snapshotNames.length) return null;
+
+    // Check if indices are contiguous
+    for (let i = 1; i < indices.length; i++) {
+        if (indices[i] !== indices[i - 1] + 1) return null;
+    }
+
+    // Return range
+    const startSnap = parseSnapshot(allSnapshots[indices[0]]).snap;
+    const endSnap = parseSnapshot(allSnapshots[indices[indices.length - 1]]).snap;
+
+    return { dataset, start: startSnap, end: endSnap };
+}
+
+/**
+ * Destroy multiple snapshots efficiently using ZFS native range syntax when possible
+ * @param snapshotNames - Array of snapshot names to destroy
+ * @param allSnapshots - All snapshots in dataset (for range detection, optional)
+ * @param onProgress - Optional callback for progress updates (current, total)
+ * @param cancelSignal - Ref to check if operation should be cancelled
+ * @returns Object with arrays of succeeded and failed snapshots and cancelled flag
+ */
+export async function destroySnapshotsBulk(
+    snapshotNames: string[], 
+    allSnapshots?: string[],
+    onProgress?: (current, total, currentSnapshot) => void,
+    cancelSignal?: { value: boolean }
+): Promise<{ succeeded: string[], failed: Array<{ snapshot: string, error: string }>, cancelled: boolean }> {
+    const succeeded: string[] = [];
+    const failed: Array<{ snapshot: string, error: string }> = [];
+    const total = snapshotNames.length;
+
+    try {
+        // Try to use native ZFS range syntax if snapshots are contiguous
+        const range = allSnapshots ? detectSnapshotRange(snapshotNames, allSnapshots) : null;
+
+        if (range) {
+            // Use native ZFS range deletion in batches for progress feedback
+            // Batch size: destroy this many snapshots per range command to show progress
+            const RANGE_BATCH_SIZE = 100;
+            console.log(`Using ZFS range deletion: ${range.dataset}@${range.start}%${range.end}`);
+            
+            if (snapshotNames.length <= RANGE_BATCH_SIZE) {
+                // Small enough to do in one shot
+                if (onProgress) {
+                    onProgress(0, total, `${range.dataset}@${range.start}%${range.end}`);
+                }
+
+                try {
+                    const cmdString = ['zfs', 'destroy', `${range.dataset}@${range.start}%${range.end}`];
+                    const state = useSpawn(cmdString);
+                    await state.promise();
+                    succeeded.push(...snapshotNames);
+                    
+                    if (onProgress) {
+                        onProgress(total, total, null);
+                    }
+                } catch (state: any) {
+                    const errorMessage = errorString(state);
+                    snapshotNames.forEach(snap => {
+                        failed.push({ snapshot: snap, error: errorMessage });
+                    });
+                }
+            } else {
+                // Large range - batch into smaller ranges for progress updates
+                console.log(`Batching ${snapshotNames.length} snapshots into ranges of ${RANGE_BATCH_SIZE}`);
+                let processed = 0;
+                
+                for (let i = 0; i < snapshotNames.length; i += RANGE_BATCH_SIZE) {
+                    // Check for cancellation
+                    if (cancelSignal?.value) {
+                        console.log('Bulk destroy cancelled by user');
+                        return { succeeded, failed, cancelled: true };
+                    }
+
+                    const batchSnaps = snapshotNames.slice(i, i + RANGE_BATCH_SIZE);
+                    const batchStart = batchSnaps[0].split('@')[1];
+                    const batchEnd = batchSnaps[batchSnaps.length - 1].split('@')[1];
+                    const rangeCmd = `${range.dataset}@${batchStart}%${batchEnd}`;
+                    
+                    if (onProgress) {
+                        onProgress(processed, total, rangeCmd);
+                    }
+
+                    try {
+                        const cmdString = ['zfs', 'destroy', rangeCmd];
+                        const state = useSpawn(cmdString);
+                        await state.promise();
+                        succeeded.push(...batchSnaps);
+                    } catch (state: any) {
+                        const errorMessage = errorString(state);
+                        batchSnaps.forEach(snap => {
+                            failed.push({ snapshot: snap, error: errorMessage });
+                        });
+                    }
+                    
+                    processed += batchSnaps.length;
+                }
+
+                if (onProgress) {
+                    onProgress(processed, total, null);
+                }
+            }
+        } else {
+            // Use xargs piping approach for non-contiguous snapshots
+            console.log(`Using xargs approach for ${snapshotNames.length} snapshots`);
+            
+            if (onProgress) {
+                onProgress(0, total, 'Starting bulk destroy...');
+            }
+
+            // Create a single piped command: echo snapshots | xargs -n1 -P10 zfs destroy
+            const snapshotList = snapshotNames.join('\n');
+            const cmdString = [
+                'bash', '-c',
+                `echo '${snapshotList}' | xargs -n1 -P10 zfs destroy`
+            ];
+
+            try {
+                // Show periodic progress updates during xargs execution
+                // Since we can't track individual completions, we'll estimate
+                let estimatedProgress = 0;
+                const progressInterval = setInterval(() => {
+                    if (estimatedProgress < total * 0.95) {
+                        estimatedProgress += Math.max(1, Math.floor(total / 20)); // ~5% increments
+                        if (onProgress) {
+                            onProgress(estimatedProgress, total, 'Processing...');
+                        }
+                    }
+                }, 500); // Update every 500ms
+
+                const state = useSpawn(cmdString);
+                await state.promise();
+                
+                clearInterval(progressInterval);
+                
+                // All succeeded
+                succeeded.push(...snapshotNames);
+                
+                if (onProgress) {
+                    onProgress(total, total, null);
+                }
+            } catch (state: any) {
+                // With xargs, if it fails we don't know which ones failed
+                // Fall back to individual deletion to get granular results
+                console.log('xargs failed, falling back to individual deletion');
+                let processed = 0;
+                
+                for (const snapshot of snapshotNames) {
+                    // Check for cancellation
+                    if (cancelSignal?.value) {
+                        console.log('Bulk destroy cancelled by user');
+                        return { succeeded, failed, cancelled: true };
+                    }
+
+                    if (onProgress) {
+                        onProgress(processed, total, snapshot);
+                    }
+
+                    try {
+                        const state = useSpawn(['zfs', 'destroy', snapshot]);
+                        await state.promise();
+                        succeeded.push(snapshot);
+                    } catch (state: any) {
+                        failed.push({ snapshot, error: errorString(state) });
+                    }
+                    
+                    processed++;
+                }
+
+                if (onProgress) {
+                    onProgress(processed, total, null);
+                }
+            }
+        }
+    } catch (error: any) {
+        // Unexpected error
+        snapshotNames.forEach(snap => {
+            if (!succeeded.includes(snap)) {
+                failed.push({ snapshot: snap, error: error.message || 'Unexpected error' });
+            }
+        });
+    }
+
+    return { succeeded, failed, cancelled: false };
+}
+
 export async function rollbackSnapshot(snapshot, destroyNewerSnaps, destroyAllNewer) {
     try {
         let cmdString = ['zfs', 'rollback'];

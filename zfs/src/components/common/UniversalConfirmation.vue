@@ -196,7 +196,10 @@
             <div class="w-full grid grid-rows-1">
                 <div class="button-group-row justify-between">
                     <button @click="closeModal" :id="getIdKey('confirm-no')" name="button-no"
-                        class="mt-1 btn btn-secondary object-left justify-start h-fit">Cancel</button>
+                        :class="operationRunning ? 'btn btn-danger' : 'btn btn-secondary'"
+                        class="mt-1 object-left justify-start h-fit">
+                        {{ operationRunning && props.item === 'snapshots' ? 'Stop' : 'Cancel' }}
+                    </button>
 
                     <!-- add a computed property to determine which buttons to render? -->
                     <button v-if="props.item == 'filesystem' && !operationRunning && !hasChildren"
