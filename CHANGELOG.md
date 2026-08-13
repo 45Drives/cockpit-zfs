@@ -1,3 +1,3 @@
-## zfs module 1.2.33-2
+## zfs module 1.3.0-1
 
-* Forcing rebuild with latest fix: timestamp display issue
+* Updates bulk destroy snapshot to run properly for maximum speed/efficiency

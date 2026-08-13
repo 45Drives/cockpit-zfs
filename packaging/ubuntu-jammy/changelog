@@ -1,3 +1,9 @@
+cockpit-zfs (1.3.0-1jammy) jammy; urgency=medium
+
+  * Updates bulk destroy snapshot to run properly for maximum speed/efficiency
+
+ -- Jordan Keough <jkeough@45drives.com>  Thu, 13 Aug 2026 12:33:10 -0300
+
 cockpit-zfs (1.2.33-2jammy) jammy; urgency=medium
 
   * Forcing rebuild with latest fix: timestamp display issue
