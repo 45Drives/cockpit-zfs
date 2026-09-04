@@ -693,7 +693,13 @@ export function parseVDevData(vDev, poolName, disks, vDevType) {
 				const shortSdPath = fullOldDisk?.sd_path?.replace(sdPathPrefix, "") ?? "";
 				result.replacingTargetLabel = `${vDev.children[0].name} (${shortSdPath})`;
 
-				if (!vDevData.disks.some(d => d.guid === result.guid || d.path === result.path || d.name === result.name)) {
+				if (!vDevData.disks.some(d =>
+                                                    (d.guid && d.guid !== '' && d.guid !== 'N/A' &&
+                                                     result.guid && result.guid !== '' && result.guid !== 'N/A' &&
+                                                     d.guid === result.guid) ||
+                                                    (d.path && result.path && d.path === result.path) ||
+                                                    (d.name && result.name && d.name === result.name)
+                                            )) {
 					vDevData.disks.push(result);
 				}
 			}
@@ -701,7 +707,16 @@ export function parseVDevData(vDev, poolName, disks, vDevType) {
 			vDev.children.forEach(child => {
 				if (child.type === "disk") {
 					const result = handleDiskChild(child, vDevData, disks, vDev.name, poolName, vDevType) as VDevDisk & { replacingTargetLabel?: string };
-					if (result && !vDevData.disks.some(d => d.guid === result.guid || d.path === result.path || d.name === result.name)) {
+					if (
+                                                result &&
+                                                !vDevData.disks.some(d =>
+                                                        (d.guid && d.guid !== '' && d.guid !== 'N/A' &&
+                                                         result.guid && result.guid !== '' && result.guid !== 'N/A' &&
+                                                         d.guid === result.guid) ||
+                                                        (d.path && result.path && d.path === result.path) ||
+                                                        (d.name && result.name && d.name === result.name)
+                                                )
+                                        ) {
 						vDevData.disks.push(result);
 					}
 				} else if (child.type === "replacing" && child.children?.length >= 2) {
@@ -712,7 +727,13 @@ export function parseVDevData(vDev, poolName, disks, vDevType) {
 						const shortSdPath = fullOldDisk?.sd_path?.replace(sdPathPrefix, "") ?? "";
 						result.replacingTargetLabel = `${oldDisk.name} (${cleanDiskPath(shortSdPath)})`;
 
-						if (!vDevData.disks.some(d => d.guid === result.guid || d.path === result.path || d.name === result.name)) {
+						if (!vDevData.disks.some(d =>
+                                                    (d.guid && d.guid !== '' && d.guid !== 'N/A' &&
+                                                     result.guid && result.guid !== '' && result.guid !== 'N/A' &&
+                                                     d.guid === result.guid) ||
+                                                    (d.path && result.path && d.path === result.path) ||
+                                                    (d.name && result.name && d.name === result.name)
+                                            )) {
 							vDevData.disks.push(result);
 						}
 					}
