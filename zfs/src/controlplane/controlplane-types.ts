@@ -44,6 +44,11 @@ export interface ZfsTargetMetadata {
   keyStatus: string;
   encryptionRoot: string;
   pbkdf2Iters: string;
+  poolDevices: string[];
+  luksMappings: string[];
+  luksCiphers: string[];
+  luksInvalidDevices: string[];
+  luksBacked: boolean;
 }
 
 /** Policy binding summary */
@@ -66,6 +71,21 @@ export interface HostFipsStatus {
   fipsEnabled: boolean;
   fipsMode: string;
   kernelFips: boolean;
+  profileId: string;
+  certifiedMetaInstalled: boolean;
+  certifiedProfile: boolean;
+}
+
+export interface LuksDeviceValidation {
+  valid: boolean;
+  devices: Array<{
+    device: string;
+    mapping?: string;
+    cipher?: string;
+    valid: boolean;
+    message: string;
+  }>;
+  message: string;
 }
 
 /** Encryption posture counts for dashboard display */

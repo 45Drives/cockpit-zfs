@@ -27,6 +27,7 @@ import {
   parseZfsMetadata,
   encryptionManagerUrl,
   createEncryptedDatasetWithKms as createWithKmsRpc,
+  validateLuksDevices as validateLuksDevicesRpc,
 } from '../controlplane/controlplane-client';
 import type {
   StorageTarget,
@@ -38,6 +39,7 @@ import type {
   DatasetControlPlaneInfo,
   ActionResult,
   BindingSyncResult,
+  LuksDeviceValidation,
 } from '../controlplane/controlplane-types';
 import type { KmsCreateResult, KmsKeyFetchResult } from '../controlplane/controlplane-client';
 
@@ -84,6 +86,9 @@ export interface ControlPlaneState {
 
   /** Fetch & load a KMS-managed key for a locked dataset (replaces passphrase unlock) */
   fetchAndLoadKey: (datasetName: string) => Promise<KmsKeyFetchResult | null>;
+
+  /** Verify that proposed ZFS pool devices use approved active dm-crypt mappings */
+  validateLuksDevices: (devices: string[]) => Promise<LuksDeviceValidation | null>;
 }
 
 export function useControlPlane(): ControlPlaneState {
@@ -135,7 +140,7 @@ export function useControlPlane(): ControlPlaneState {
     for (const t of targets.value) {
       const binding = bindingsByTarget.value.get(t.id);
       const meta = parseZfsMetadata(t);
-      const isEncrypted = meta?.encryption != null && meta.encryption !== 'off';
+      const isEncrypted = meta?.luksBacked === true && (meta.encryption ?? 'off') === 'off';
 
       if (binding) {
         policyAssigned++;
@@ -227,6 +232,10 @@ export function useControlPlane(): ControlPlaneState {
     return fetchAndLoadKeyRpc(datasetName);
   }
 
+  async function validateLuksDevices(devices: string[]): Promise<LuksDeviceValidation | null> {
+    return validateLuksDevicesRpc(devices);
+  }
+
   return {
     available,
     loading,
@@ -244,5 +253,6 @@ export function useControlPlane(): ControlPlaneState {
     encryptionManagerUrl,
     createEncryptedDatasetWithKms,
     fetchAndLoadKey,
+    validateLuksDevices,
   };
 }

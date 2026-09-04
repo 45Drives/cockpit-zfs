@@ -4,7 +4,22 @@ import argparse
 import tempfile
 import os
 
+CERTIFIED_PROFILE = "PROFILE_ID=45D-FIPS-RL9.6-v1"
+
+def certified_profile_installed():
+    try:
+        with open('/etc/45drives/fips-profile', 'r') as profile_file:
+            return any(line.strip() == CERTIFIED_PROFILE for line in profile_file)
+    except OSError:
+        return False
+
 def create_encrypted_dataset(atime, case, compress, dedup, dnode, xattr, record, readonly, quota, encryption, keyformat, keylocation, path, passphrase_file):
+    if certified_profile_installed():
+        raise RuntimeError(
+            'Native ZFS encryption is disabled in 45D-FIPS-RL9.6-v1; '
+            'use LUKS/dm-crypt beneath the ZFS pool.'
+        )
+
     try:
         # Create a secure temporary file to store the passphrase
         with tempfile.NamedTemporaryFile(mode='w+', delete=False) as temp_passphrase_file:
@@ -47,7 +62,7 @@ def create_encrypted_dataset(atime, case, compress, dedup, dnode, xattr, record,
             os.remove(temp_passphrase_file_path)
 
     except Exception as e:
-        print(f"An error occurred: {e}")
+        raise RuntimeError(f"An error occurred: {e}") from e
 
 def main():
     # Parse command-line arguments

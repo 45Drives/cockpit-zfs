@@ -90,6 +90,7 @@ import {ZFSManager, ZPool ,VDevDisk,ZFSFileSystemInfo,ZpoolCreateOptions,ZPoolBa
 import { pushNotification, Notification } from '@45drives/houston-common-ui';
 import { PoolScanObjectGroup, PoolDiskStats, Activity, StepsNavigationItem, StepNavigationCallback } from '../../types';
 import { useRefreshAllData } from '../../composables/useRefreshAllData';
+import type { ControlPlaneState } from '../../composables/useControlPlane';
 
 const zfsManager = new ZFSManager();
 const show = ref(true);
@@ -122,6 +123,8 @@ const zvolFeedback = computed(() => poolConfiguration.value?.zvolFeedback ?? '')
 const disks = inject<Ref<VDevDisk[]>>('disks')!;
 const pools = inject<Ref<ZPool[]>>('pools')!;
 const datasets = inject<Ref<ZFSFileSystemInfo[]>>('datasets')!;
+const controlPlane = inject<ControlPlaneState>('controlplane', undefined as any);
+const certifiedFipsProfile = computed(() => controlPlane?.fipsStatus?.value?.certifiedProfile === true);
 
 //setting defaults for pool object
 const poolConfig = ref<ZPoolBase & ZpoolCreateOptions>({
@@ -299,6 +302,18 @@ async function finishBtn(newPoolData) {
 	const poolOptions: ZpoolCreateOptions = options;
 
 	try {
+		if (certifiedFipsProfile.value) {
+			const devices = vdevs.flatMap(vdev => vdev.disks.map(disk => disk.path));
+			const validation = await controlPlane?.validateLuksDevices(devices);
+			if (!validation?.valid) {
+				const invalidDevice = validation?.devices.find(device => !device.valid);
+				const detail = invalidDevice
+					? `${invalidDevice.device}: ${invalidDevice.message}`
+					: validation?.message;
+				throw new Error(detail ?? 'Certified FIPS pools require active AES-XTS LUKS/dm-crypt devices.');
+			}
+		}
+
 		// This will throw on non-zero exit (e.g., LVM2_member on the disk)
 		const proc: any = await zfsManager.createPool(poolBase, poolOptions);
 

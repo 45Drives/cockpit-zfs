@@ -1,5 +1,13 @@
 ====== KMS Encryption Setup Guide ======
 
+<WRAP important>
+**Certified profile restriction:** ''45D-FIPS-RL9.6-v1'' disables
+native ZFS encryption. Use AES-XTS LUKS2/dm-crypt below the pool, select
+''/dev/mapper/*'' devices, and keep every ZFS dataset at ''encryption=off''.
+The native-encryption workflow below is for non-profile deployments only and
+carries no CIQ CMVP claim.
+</WRAP>
+
 ===== Overview =====
 
 Cockpit ZFS integrates with the **cockpit-storage-encryption** control plane to provide KMS-backed (Key Management Service) encryption for ZFS datasets. Instead of using manually-entered passphrases, datasets can be encrypted with keys managed by a centralized key management system, enabling:
@@ -11,7 +19,7 @@ Cockpit ZFS integrates with the **cockpit-storage-encryption** control plane to 
   * **Automated key lifecycle management** — key generation, rotation, and revocation
   * **Enterprise key governance** — policy-based encryption with audit trails
   * **Hands-free unlock** — datasets can be unlocked automatically without user intervention
-  * **FIPS compliance** — when used with compliant KMS providers
+  * **Centralized governance** for non-profile native-ZFS deployments
 
 **Key Concepts:**
 

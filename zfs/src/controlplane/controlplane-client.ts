@@ -14,6 +14,7 @@ import type {
   ZfsTargetMetadata,
   ActionResult,
   BindingSyncResult,
+  LuksDeviceValidation,
 } from './controlplane-types';
 
 const API_SERVICE_PATH = '/opt/45drives/controlplane/api_service.py';
@@ -129,6 +130,10 @@ export async function getBindingForTarget(targetId: string): Promise<PolicyBindi
 
 export async function getHostFipsStatus(): Promise<HostFipsStatus | null> {
   return guarded(() => rpc<HostFipsStatus>('host.fipsStatus'));
+}
+
+export async function validateLuksDevices(devices: string[]): Promise<LuksDeviceValidation | null> {
+  return guarded(() => rpc<LuksDeviceValidation>('zfs.validateLuksDevices', { devices }));
 }
 
 // ─── ZFS dataset creation with KMS key ──────────────────────────────────────

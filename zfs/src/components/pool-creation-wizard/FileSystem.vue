@@ -27,7 +27,9 @@
 				<label :for="getIdKey('encryption')"
 					class="mt-1 block text-sm font-medium leading-6 text-default">Encryption</label>
 				<Switch :id="getIdKey('encryption')" v-model="fileSystemConfig.encrypted"
-					:class="[fileSystemConfig.encrypted ? 'bg-primary' : 'bg-accent', 'mt-1 relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-slate-600 focus:ring-offset-2']">
+					:disabled="certifiedFipsProfile"
+					:title="certifiedFipsProfile ? certifiedEncryptionMessage : undefined"
+					:class="[fileSystemConfig.encrypted ? 'bg-primary' : 'bg-accent', certifiedFipsProfile ? 'cursor-not-allowed opacity-50' : 'cursor-pointer', 'mt-1 relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-slate-600 focus:ring-offset-2']">
 					<span class="sr-only">Use setting</span>
 					<span
 						:class="[fileSystemConfig.encrypted ? 'translate-x-5' : 'translate-x-0', 'pointer-events-none relative inline-block h-5 w-5 transform rounded-full bg-default shadow ring-0 transition duration-200 ease-in-out']">
@@ -403,7 +405,9 @@
 					<label :for="getIdKey('encryption')"
 						class="mt-1 block text-sm font-medium leading-6 text-default">Encryption</label>
 					<Switch :id="getIdKey('encryption')" v-model="newFileSystemConfig.encrypted"
-						:class="[newFileSystemConfig.encrypted ? 'bg-primary' : 'bg-accent', 'mt-1 relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-slate-600 focus:ring-offset-2']">
+						:disabled="certifiedFipsProfile"
+						:title="certifiedFipsProfile ? certifiedEncryptionMessage : undefined"
+						:class="[newFileSystemConfig.encrypted ? 'bg-primary' : 'bg-accent', certifiedFipsProfile ? 'cursor-not-allowed opacity-50' : 'cursor-pointer', 'mt-1 relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-slate-600 focus:ring-offset-2']">
 						<span class="sr-only">Use setting</span>
 						<span
 							:class="[newFileSystemConfig.encrypted ? 'translate-x-5' : 'translate-x-0', 'pointer-events-none relative inline-block h-5 w-5 transform rounded-full bg-default shadow ring-0 transition duration-200 ease-in-out']">
@@ -780,7 +784,7 @@
 
 <script setup lang="ts">
 import { EyeSlashIcon, EyeIcon } from '@heroicons/vue/24/outline';
-import { ref, Ref, inject, computed, onMounted, onUpdated } from 'vue';
+import { ref, Ref, inject, computed, onMounted, onUpdated, watch } from 'vue';
 import { Switch } from '@headlessui/vue';
 import { convertSizeToBytes, isBoolOnOff, isBoolCompression, getValue, upperCaseWord } from '../../composables/helpers';
 import {  createEncryptedDataset } from '../../composables/datasets';
@@ -830,6 +834,8 @@ const controlPlane = inject<ControlPlaneState>('controlplane', undefined as any)
 const keySource = ref<'passphrase' | 'kms'>('passphrase');
 const selectedPolicyId = ref('');
 const kmsAvailable = computed(() => controlPlane?.available?.value && (controlPlane?.policies?.value?.length ?? 0) > 0);
+const certifiedFipsProfile = computed(() => controlPlane?.fipsStatus?.value?.certifiedProfile === true);
+const certifiedEncryptionMessage = 'Native ZFS encryption is disabled in the certified FIPS profile. Use LUKS/dm-crypt beneath the pool.';
 
 const saving = ref(false);
 
@@ -874,6 +880,23 @@ const newFileSystemConfig = ref<ZFSFileSystemInfo>({
     },
     children: [],
 });
+
+watch(certifiedFipsProfile, (active) => {
+	if (active) {
+		fileSystemConfig.value.encrypted = false;
+		newFileSystemConfig.value.encrypted = false;
+	}
+}, { immediate: true });
+
+function rejectCertifiedProfileNativeEncryption(fileSystem: ZFSFileSystemInfo): boolean {
+	if (!certifiedFipsProfile.value || !fileSystem.encrypted) {
+		return false;
+	}
+
+	fileSystem.encrypted = false;
+	pushNotification(new Notification('Native Encryption Disabled', certifiedEncryptionMessage, 'error', 5000));
+	return true;
+}
 
 function getInheritedProperties() {
 	if (props.isStandalone) {
@@ -1085,6 +1108,10 @@ const confirmCreateFS = inject<Ref<boolean>>('confirm-create-filesystem')!;
 
 async function fsCreateBtn(fileSystem : ZFSFileSystemInfo) {
 	// console.log('fsCreateBtn fired');
+	if (rejectCertifiedProfileNativeEncryption(fileSystem)) {
+		return;
+	}
+
 	if (props.isStandalone) {
 		if (parentCheck(fileSystem)) {
 			// console.log('parentCheck passed');
@@ -1229,6 +1256,10 @@ async function newFileSystemInPoolWizard() {
 	// console.log('newFileSystemInPool method fired');
 	const fileSystem = ref(fileSystemConfig.value);
 	// console.log('fileSystem:', fileSystem);
+	if (rejectCertifiedProfileNativeEncryption(fileSystem.value)) {
+		return;
+	}
+
 	if (!props.isStandalone) {
 		if (parentCheck(fileSystem.value)) {
 			// console.log('parentCheck passed');

@@ -1,5 +1,12 @@
 ====== Encryption User Guide ======
 
+<WRAP important>
+''45D-FIPS-RL9.6-v1'' does not use native ZFS encryption. Use
+AES-XTS LUKS2/dm-crypt below the pool, select ''/dev/mapper/*'' devices, and
+keep ZFS ''encryption=off''. Native encryption instructions below apply only
+to non-profile deployments and carry no CIQ CMVP claim.
+</WRAP>
+
 Cockpit ZFS Manager provides native ZFS encryption support for file systems, allowing you to protect your data at rest. This guide covers how to create encrypted file systems, manage encryption keys, and perform common encryption operations.
 
 ===== Table of Contents =====
