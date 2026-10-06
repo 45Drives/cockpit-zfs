@@ -3,6 +3,7 @@ import subprocess
 import argparse
 import tempfile
 import os
+import sys
 
 def change_key(fileSystemName, passphrase):
     try:
@@ -22,15 +23,10 @@ def change_key(fileSystemName, passphrase):
 
             # Provide the passphrase file as input to the process
             with open(temp_passphrase_file_path, 'rb') as f:
-                # stdout, stderr = process.communicate(input=f.read())
-            # if process.returncode != 0:
-            #      raise Exception(f"Error: {stderr.decode('utf-8')}")
-                
-            # else:
-            #     print(stdout)
-                process.communicate(input=f.read())
-
-            return process.returncode == 0
+                stdout, stderr = process.communicate(input=f.read())
+            if process.returncode != 0:
+                raise RuntimeError(stderr.decode('utf-8', errors='replace'))
+            return True
 
         finally:
             # Delete the temporary passphrase file after using it
@@ -44,13 +40,12 @@ def main():
     # Parse command-line arguments
     parser = argparse.ArgumentParser(description='Change encryption key for ZFS Dataset')
     parser.add_argument('fileSystemName', type=str, help='fileSystemName')
-    parser.add_argument('newPassphrase', type=str, help='newPassphrase')
 
     args = parser.parse_args()
 
     # Extract values from command-line arguments
     fileSystemName = args.fileSystemName
-    newPassphrase = args.newPassphrase
+    newPassphrase = sys.stdin.read()
 
     # print(f"Executing command: zfs change-key {fileSystemName}")
 

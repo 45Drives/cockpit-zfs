@@ -174,6 +174,8 @@ export async function destroySnapshotsBulk(
     const failed: Array<{ snapshot: string, error: string }> = [];
     const total = snapshotNames.length;
 
+    if (cancelSignal?.value) return { succeeded, failed, cancelled: true };
+
     try {
         // Try to use native ZFS range syntax if snapshots are contiguous
         const range = allSnapshots ? detectSnapshotRange(snapshotNames, allSnapshots) : null;
@@ -217,7 +219,8 @@ export async function destroySnapshotsBulk(
                         return { succeeded, failed, cancelled: true };
                     }
 
-                    const batchSnaps = snapshotNames.slice(i, i + RANGE_BATCH_SIZE);
+                    const orderedSnapshots = [...snapshotNames].sort((first, second) => allSnapshots!.indexOf(first) - allSnapshots!.indexOf(second));
+                    const batchSnaps = orderedSnapshots.slice(i, i + RANGE_BATCH_SIZE);
                     const batchStart = batchSnaps[0].split('@')[1];
                     const batchEnd = batchSnaps[batchSnaps.length - 1].split('@')[1];
                     const rangeCmd = `${range.dataset}@${batchStart}%${batchEnd}`;
@@ -246,61 +249,10 @@ export async function destroySnapshotsBulk(
                 }
             }
         } else {
-            // Use xargs piping approach for non-contiguous snapshots
-            console.log(`Using xargs approach for ${snapshotNames.length} snapshots`);
-            
-            if (onProgress) {
-                onProgress(0, total, 'Starting bulk destroy...');
-            }
-
-            // Create a single piped command: echo snapshots | xargs -n1 -P10 zfs destroy
-            const snapshotList = snapshotNames.join('\n');
-            const cmdString = [
-                'bash', '-c',
-                `echo '${snapshotList}' | xargs -n1 -P10 zfs destroy`
-            ];
-
-            try {
-                // Show periodic progress updates during xargs execution
-                // Since we can't track individual completions, we'll estimate
-                let estimatedProgress = 0;
-                const progressInterval = setInterval(() => {
-                    if (estimatedProgress < total * 0.95) {
-                        estimatedProgress += Math.max(1, Math.floor(total / 20)); // ~5% increments
-                        if (onProgress) {
-                            onProgress(estimatedProgress, total, 'Processing...');
-                        }
-                    }
-                }, 500); // Update every 500ms
-
-                const state = useSpawn(cmdString);
-                await state.promise();
-                
-                clearInterval(progressInterval);
-                
-                // All succeeded
-                succeeded.push(...snapshotNames);
-                
-                if (onProgress) {
-                    onProgress(total, total, null);
-                }
-            } catch (state: any) {
-                // With xargs, if it fails we don't know which ones failed
-                // Fall back to individual deletion to get granular results
-                console.log('xargs failed, falling back to individual deletion');
-                let processed = 0;
-                
-                for (const snapshot of snapshotNames) {
-                    // Check for cancellation
-                    if (cancelSignal?.value) {
-                        console.log('Bulk destroy cancelled by user');
-                        return { succeeded, failed, cancelled: true };
-                    }
-
-                    if (onProgress) {
-                        onProgress(processed, total, snapshot);
-                    }
-
+            let processed = 0;
+            for (let offset = 0; offset < snapshotNames.length; offset += 10) {
+                if (cancelSignal?.value) return { succeeded, failed, cancelled: true };
+                await Promise.all(snapshotNames.slice(offset, offset + 10).map(async snapshot => {
                     try {
                         const state = useSpawn(['zfs', 'destroy', snapshot]);
                         await state.promise();
@@ -308,14 +260,11 @@ export async function destroySnapshotsBulk(
                     } catch (state: any) {
                         failed.push({ snapshot, error: errorString(state) });
                     }
-                    
                     processed++;
-                }
-
-                if (onProgress) {
-                    onProgress(processed, total, null);
-                }
+                    if (onProgress) onProgress(processed, total, snapshot);
+                }));
             }
+            if (onProgress) onProgress(processed, total, null);
         }
     } catch (error: any) {
         // Unexpected error

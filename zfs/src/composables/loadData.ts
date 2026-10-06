@@ -13,6 +13,14 @@ import { safeParse, unpackArray } from '../utils/json';
 // Each disk/vdev gets its own errors array — never share a single reference.
 const vDevs = ref<VDev[]>([]);
 
+function poolRefreservationPercent(dataset: any): number {
+	const properties = dataset?.properties;
+	if (!properties) return 0;
+	const usable = Number(properties.available?.parsed) + Number(properties.used?.parsed) - Number(properties.usedbyrefreservation?.parsed);
+	const reserved = Number(properties.refreservation?.parsed);
+	return Number.isFinite(usable) && usable > 0 && Number.isFinite(reserved) ? Number((reserved / usable * 100).toFixed(2)) : 0;
+}
+
 function isPlainObject(v: any): v is Record<string, any> {
 	return v !== null && typeof v === "object" && !Array.isArray(v);
 }
@@ -77,7 +85,7 @@ export async function loadDisksThenPools(disks, pools) {
 		const rawJSON = await getDisks();
 		// console.log('Raw JSON:', rawJSON);
 		const { data: parsedJSON, error: disksErr } = unpackArray<any>(rawJSON, [])
-		if (disksErr) console.warn('getDisks error:', disksErr);
+		if (disksErr) throw new Error(disksErr);
 		console.log('Disks JSON:', parsedJSON);
 		
 		//loops through and adds disk data from JSON to disk data object, pushes objects to disks array
@@ -103,7 +111,9 @@ export async function loadDisksThenPools(disks, pools) {
 				type: parsedJSON[i].type === 'Disk' ? 'Disk' : parsedJSON[i].type,
 				phy_path: parsedJSON[i].phy_path || 'N/A',
 				sd_path: parsedJSON[i].sd_path || 'N/A',
-				vdev_path: parsedJSON[i].type === 'NVMe' ? parsedJSON[i].sd_path : (parsedJSON[i].vdev_path || 'N/A'),
+				vdev_path: parsedJSON[i].vdev_path && parsedJSON[i].vdev_path !== 'N/A'
+					? parsedJSON[i].vdev_path
+					: parsedJSON[i].sd_path || 'N/A',
 				serial: parsedJSON[i].serial || 'N/A',
 				usable: parsedJSON[i].usable || false,
 				path: bestPath,
@@ -117,6 +127,7 @@ export async function loadDisksThenPools(disks, pools) {
 				errors: parsedJSON[i].health === 'POOR' ? ['SMART health: POOR'] : [],
 				hasPartitions: parsedJSON[i].has_partitions || false,
 				id_path: parsedJSON[i].id_path || '',
+				alias_paths: parsedJSON[i].alias_paths || [],
 				label_path: parsedJSON[i].label_path || '',
 				part_label_path: parsedJSON[i].part_label_path || '',
 				part_uuid: parsedJSON[i].part_uuid || '',
@@ -134,7 +145,7 @@ export async function loadDisksThenPools(disks, pools) {
 		try {
 			const rawJSON = await getPools();
 			const { data: parsedJSON, error: poolsErr } = unpackArray<any>(rawJSON, []);
-			if (poolsErr) console.warn('getPools error:', poolsErr);
+			if (poolsErr) throw new Error(poolsErr);
 			//loops through pool JSON
 			for (let i = 0; i < parsedJSON.length; i++) {
 				//calls parse function for each type of VDev that could be in the Pool, then pushes the VDev data to VDev array
@@ -166,8 +177,7 @@ export async function loadDisksThenPools(disks, pools) {
 							compression: parsedJSON[i].root_dataset.properties.compression.parsed,
 							deduplication: onOffToBool(parsedJSON[i].root_dataset.properties.dedup.parsed),
 							refreservationRawSize: parsedJSON[i].root_dataset.properties.refreservation.parsed,
-							// refreservationPercent: parsedJSON[i].root_dataset ? Number(((parsedJSON[i].root_dataset.properties.refreservation.parsed / parsedJSON[i].root_dataset.properties.used.parsed) * 100).toFixed(2)) : 0,
-							refreservationPercent: parsedJSON[i].root_dataset ? Number(((parsedJSON[i].root_dataset.properties.refreservation.parsed / parsedJSON[i].properties.size.parsed) * 100).toFixed(2)) : 0,
+							refreservationPercent: poolRefreservationPercent(parsedJSON[i].root_dataset),
 							autoExpand: parsedJSON[i].properties.autoexpand.parsed,
 							autoReplace: parsedJSON[i].properties.autoreplace.parsed,
 							autoTrim: onOffToBool(parsedJSON[i].properties.autotrim.parsed),
@@ -231,7 +241,7 @@ export async function loadDisksThenPools(disks, pools) {
 							compression: false,
 							deduplication: false,
 							refreservationRawSize: 0,
-							refreservationPercent: parsedJSON[i].root_dataset ? Number(((parsedJSON[i].root_dataset.properties.refreservation.parsed / parsedJSON[i].properties.size.parsed) * 100).toFixed(2)) : 0,
+							refreservationPercent: 0,
 							autoExpand: parsedJSON[i].properties.autoexpand.parsed,
 							autoReplace: parsedJSON[i].properties.autoreplace.parsed,
 							autoTrim: onOffToBool(parsedJSON[i].properties.autotrim.parsed),
@@ -308,15 +318,17 @@ export async function loadDisksThenPools(disks, pools) {
 			await loadDisksExtraData(disks.value, pools.value);
 
 			console.log("loaded Disks:", disks);
-
+			return true;
 
 		} catch (error) {
 			// Handle any errors that may occur during the asynchronous operation
 			console.error("An error occurred getting pools:", error);
+			return false;
 		}
 	} catch (error) {
 		// Handle any errors that may occur during the asynchronous operation
 		console.error("An error occurred getting disks/pools:", error);
+		return false;
 	}
 }
 
@@ -325,7 +337,7 @@ export async function loadDatasets(datasets) {
 	try {
 		const rawJSON = await getDatasets();
 		const { data: parsedJSON, error } = unpackArray<any>(rawJSON, []);
-		if (error) console.warn('getDatasets error:', error);
+		if (error) throw new Error(error);
 		// console.log('Datasets JSON:', parsedJSON);
 
 		//loops through JSON data and adds data to a Dataset object
@@ -389,15 +401,17 @@ export async function loadDatasets(datasets) {
 				datasets.value.push(dataset);
 			} catch (itemError) {
 				console.warn(`Skipping dataset at index ${i} (${parsedJSON[i]?.name ?? 'unknown'}):`, itemError);
+				throw itemError;
 			}
 		}
 
 		console.log(`loaded Datasets: ${datasets.value.length} of ${parsedJSON.length} parsed`, datasets.value.map(d => d.name));
-
+		return true;
 
 	} catch (error) {
 		// Handle any errors that may occur during the asynchronous operation
 		console.error("An error occurred getting datasets:", error);
+		return false;
 	}
 }
 
@@ -431,7 +445,9 @@ export async function loadDisks(disks) {
 				type: parsedJSON[i].type === 'Disk' ? 'Disk' : parsedJSON[i].type,
 				phy_path: parsedJSON[i].phy_path || 'N/A',
 				sd_path: parsedJSON[i].sd_path || 'N/A',
-				vdev_path: parsedJSON[i].type === 'NVMe' ? parsedJSON[i].sd_path : (parsedJSON[i].vdev_path || 'N/A'),
+				vdev_path: parsedJSON[i].vdev_path && parsedJSON[i].vdev_path !== 'N/A'
+					? parsedJSON[i].vdev_path
+					: parsedJSON[i].sd_path || 'N/A',
 				serial: parsedJSON[i].serial || 'N/A',
 				usable: parsedJSON[i].usable || false,
 				path: bestPath,
@@ -445,6 +461,7 @@ export async function loadDisks(disks) {
 				errors: parsedJSON[i].health === 'POOR' ? ['SMART health: POOR'] : [],
 				hasPartitions: parsedJSON[i].has_partitions || false,
 				id_path: parsedJSON[i].id_path || '',
+				alias_paths: parsedJSON[i].alias_paths || [],
 				label_path: parsedJSON[i].label_path || '',
 				part_label_path: parsedJSON[i].part_label_path || '',
 				part_uuid: parsedJSON[i].part_uuid || '',
@@ -503,7 +520,7 @@ export async function loadDisksExtraData(disks, pools) {
 					const selectedDisk = matchDiskByVdevOrPath(disks, cleanedUsedDiskPath);
 					let statsObject;
 
-					if (selectedDisk && selectedDisk.type == 'NVMe' || selectedDisk && selectedDisk.type == 'Disk' || !usedDisk.stats) {
+					if (!usedDisk.stats) {
 						statsObject = vDev.stats
 					} else {
 						statsObject = usedDisk.stats
@@ -518,9 +535,7 @@ export async function loadDisksExtraData(disks, pools) {
 
 						// Clean the usedDisk.path and compare it with sd_path, phy_path, and vdev_path
 						// Find the index of the original disk in the disks array
-						const index = disks.findIndex(disk =>
-							[cleanDiskPath(disk.sd_path), cleanDiskPath(disk.phy_path), cleanDiskPath(disk.vdev_path)].includes(cleanedUsedDiskPath)
-						);
+						const index = disks.indexOf(selectedDisk);
 
 						// Check if the original disk is found in the disks array
 						if (index !== -1) {
@@ -651,7 +666,7 @@ export function parseVDevData(vDev, poolName, disks, vDevType) {
 			guid: vDev.guid,
 			type: diskVDev.value!.type,
 			health: diskVDev.value!.health ?? diskVDev.value!.status,
-			stats: diskVDev.value!.stats,
+			stats: vDev.stats || diskVDev.value!.stats,
 			capacity: changeUnitToBinary(
 				isCapacityPatternInvalid(diskVDev.value!.capacity)
 					? formatCapacityString(diskVDev.value!.capacity)

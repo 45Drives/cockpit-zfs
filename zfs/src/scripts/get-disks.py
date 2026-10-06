@@ -440,6 +440,7 @@ def _udev_alias_paths(base: str) -> dict:
                 devlinks_str = line.split("=", 1)[1].strip()
                 break
         for p in devlinks_str.split():
+            out.setdefault("alias_paths", []).append(p)
             if p.startswith("/dev/disk/by-id/") and "id_path" not in out:
                 out["id_path"] = p
             elif p.startswith("/dev/disk/by-label/") and "label_path" not in out:
@@ -732,9 +733,11 @@ def get_lsblk_disks(nvme_only=False):
         )
         if r.returncode != 0:
             logger.error(f"lsblk command failed: {r.stderr}")
-            return []
+            raise RuntimeError(r.stderr.strip() or "lsblk discovery failed")
 
         data = json.loads(r.stdout or "{}")
+        if not isinstance(data.get("blockdevices"), list):
+            raise RuntimeError("lsblk discovery returned invalid output")
 
         # Filter to relevant devices first
         candidates = []
@@ -794,7 +797,7 @@ def get_lsblk_disks(nvme_only=False):
         return disks
     except Exception as e:
         logger.error(f"Exception in get_lsblk_disks: {e}")
-        return []
+        raise
 
 UNKNOWN = {None, "", "Unknown", "N/A"}
 
@@ -919,7 +922,7 @@ def main():
             
     except Exception as e:
         logger.error(f"Exception in main: {e}")
-        print("[]")
+        print(json.dumps({"error": str(e)}))
 
 if __name__ == "__main__":
     main()

@@ -3,6 +3,7 @@ import subprocess
 import argparse
 import tempfile
 import os
+import sys
 
 def create_encrypted_dataset(atime, case, compress, dedup, dnode, xattr, record, readonly, quota, encryption, keyformat, keylocation, path, passphrase_file):
     try:
@@ -48,6 +49,7 @@ def create_encrypted_dataset(atime, case, compress, dedup, dnode, xattr, record,
 
     except Exception as e:
         print(f"An error occurred: {e}")
+        raise
 
 def main():
     # Parse command-line arguments
@@ -66,7 +68,6 @@ def main():
     parser.add_argument('keyformat',type=str, help='keyformat')
     parser.add_argument('keylocation',type=str, help='keylocation')
     parser.add_argument('path',type=str, help='path')
-    parser.add_argument('passphrase',type=str, help='passphrase')
 
     args = parser.parse_args()
 
@@ -85,7 +86,7 @@ def main():
     keyformat = args.keyformat
     keylocation = args.keylocation
     path = args.path
-    passphrase = args.passphrase
+    passphrase = sys.stdin.read()
 
     print(f"Executing command: {cmdString} create {atime} {case} {compress} {dedup} {dnode} {xattr} {record} {quota} {readonly} {encryption} {keyformat} {keylocation} {path}")
 

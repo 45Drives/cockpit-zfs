@@ -54,9 +54,12 @@ export async function isControlPlaneAvailable(): Promise<boolean> {
   if (_availabilityCache !== null) return _availabilityCache;
   try {
     const handle = cockpit.file(API_SERVICE_PATH, { superuser: 'try' });
-    const content = await handle.read();
-    handle.close();
-    _availabilityCache = content != null && content.length > 0;
+    try {
+      const content = await handle.read();
+      _availabilityCache = content != null && content.length > 0;
+    } finally {
+      handle.close();
+    }
   } catch {
     _availabilityCache = false;
   }

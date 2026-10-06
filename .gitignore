@@ -29,3 +29,5 @@ node_modules/
 
 # Generated files
 src/version.js
+__pycache__/
+*.py[cod]

@@ -5,38 +5,48 @@
 export function sanitizeRawJson(raw: string, fallback = "[]"): string {
     const text = (raw ?? "").trim();
     if (!text) return fallback;
-
-    const firstObj = text.indexOf("{");
-    const firstArr = text.indexOf("[");
-    const starts = [firstObj, firstArr].filter(i => i >= 0);
-    if (!starts.length) return fallback;
-
-    const first = Math.min(...starts);
-    let candidate = text.slice(first).trim();
-
-    const lastBrace = candidate.lastIndexOf("}");
-    const lastBracket = candidate.lastIndexOf("]");
-    const last = Math.max(lastBrace, lastBracket);
-    if (last >= 0) candidate = candidate.slice(0, last + 1);
-
     try {
-        JSON.parse(candidate);
-        return candidate;
-    } catch {
-        const lastStart = Math.max(text.lastIndexOf("{"), text.lastIndexOf("["));
-        if (lastStart >= 0) {
-            let c2 = text.slice(lastStart).trim();
-            const lb2 = c2.lastIndexOf("}");
-            const la2 = c2.lastIndexOf("]");
-            const l2 = Math.max(lb2, la2);
-            if (l2 >= 0) c2 = c2.slice(0, l2 + 1);
-            try {
-                JSON.parse(c2);
-                return c2;
-            } catch { }
+        JSON.parse(text);
+        return text;
+    } catch { }
+
+    let result = fallback;
+    let start = -1;
+    const closing: string[] = [];
+    let quoted = false;
+    let escaped = false;
+    for (let index = 0; index < text.length; index++) {
+        const character = text[index];
+        if (start === -1) {
+            if (character !== '{' && character !== '[') continue;
+            start = index;
+        }
+        if (quoted) {
+            if (escaped) escaped = false;
+            else if (character === '\\') escaped = true;
+            else if (character === '"') quoted = false;
+            continue;
+        }
+        if (character === '"') quoted = true;
+        else if (character === '{') closing.push('}');
+        else if (character === '[') closing.push(']');
+        else if (character === '}' || character === ']') {
+            if (closing.pop() !== character) {
+                closing.length = 0;
+                start = -1;
+                continue;
+            }
+            if (closing.length === 0) {
+                const candidate = text.slice(start, index + 1);
+                try {
+                    JSON.parse(candidate);
+                    result = candidate;
+                } catch { }
+                start = -1;
+            }
         }
     }
-    return fallback;
+    return result;
 }
 
 /**
@@ -72,11 +82,12 @@ export function unpackArray<T = any>(
     defaultValue: T[] = []
 ): { data: T[]; error?: string } {
     // safeParse handles strings or already-parsed objects
-    const val = safeParse<any>(typeof raw === "string" ? raw : (raw ?? ""), defaultValue);
+    const val = safeParse<any>(raw, null);
 
     if (Array.isArray(val)) return { data: val };
 
     if (val && typeof val === "object") {
+        if (val.ok === false) return { data: defaultValue, error: typeof val.error === 'string' ? val.error : 'Discovery failed.' };
         if (Array.isArray((val as any).data)) {
             return { data: (val as any).data, error: typeof (val as any).error === "string" ? (val as any).error : undefined };
         }
@@ -84,5 +95,5 @@ export function unpackArray<T = any>(
             return { data: defaultValue, error: (val as any).error };
         }
     }
-    return { data: defaultValue };
+    return { data: defaultValue, error: 'Invalid discovery response: expected an array or data envelope.' };
 }
