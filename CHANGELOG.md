@@ -1,3 +1,3 @@
-## zfs module 1.3.0-1
+## zfs module 1.3.1-1
 
-* Updates bulk destroy snapshot to run properly for maximum speed/efficiency
+* Fixes several issues: improve NVMe detection, harden storage operations, correct reservations, and add regression tests and audit documentation
