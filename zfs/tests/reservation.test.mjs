@@ -48,9 +48,14 @@ test('zero reservation disables it without querying space; invalid percentages r
     assert.deepEqual(calls, []);
 });
 
-test('failed post-create reservation explicitly reports the pool exists and never destroys it', async () => {
+test('failed post-create reservation warns that the pool exists and never destroys it', async () => {
     const { manager, calls } = fixture('available\tinvalid\n');
-    await assert.rejects(create.call(manager, { name: 'tank', vdevs: [] }, { refreservationPercent: 10 }), error => error.poolCreated === true && /was created/.test(error.message));
+    const warnings = [];
+    manager.onWarning = message => warnings.push(message);
+    await create.call(manager, { name: 'tank', vdevs: [] }, { refreservationPercent: 10 });
+    assert.equal(warnings.length, 1);
+    assert.match(warnings[0], /Pool 'tank' was created, but the 10% space reservation could not be applied/);
+    assert.match(warnings[0], /Invalid usable-space property 'available'/);
     assert.equal(calls.length, 2);
     assert.ok(!calls.some(argv => argv.includes('destroy')));
 });
