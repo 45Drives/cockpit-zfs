@@ -1,3 +1,3 @@
-## zfs module 1.3.1-1
+## zfs module 1.3.1-2
 
-* Fixes several issues: improve NVMe detection, harden storage operations, correct reservations, and add regression tests and audit documentation
+* build testing package: fix(zfs): improve disk detection and storage operation safety
