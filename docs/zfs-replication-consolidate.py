@@ -63,13 +63,15 @@ def validate_config(config):
 
 
 def prompt_config():
-    config = {
+    config: dict = {
         "source_root": input("Source dataset root: ").strip(),
         "legacy_root": input("Backup root that holds the EXISTING replicas: ").strip(),
     }
+    suggested = f"{config['legacy_root']}/{config['source_root'].rsplit('/', 1)[-1]}"
     config["destination_root"] = input(
-        "Backup root for the NEW recursive task [blank = same as existing]: "
-    ).strip() or config["legacy_root"]
+        f"Backup root for the NEW recursive task [{suggested}] "
+        f"(type {config['legacy_root']} to reuse the existing root in place): "
+    ).strip() or suggested
     config.update(
         ssh=input("Backup SSH destination (user@host or SSH alias): ").strip(),
         port=int(input("SSH port [22]: ").strip() or "22"),
@@ -215,13 +217,15 @@ class Transport:
 
     def transfer(self, send_args, destination):
         sender = subprocess.Popen(["zfs", "send", *send_args], stdout=subprocess.PIPE)
+        pipe = sender.stdout
+        assert pipe is not None
         receiver = None
         try:
             receiver = subprocess.Popen(
                 self.command(["zfs", "receive", "-s", "-u", destination], True),
-                stdin=sender.stdout,
+                stdin=pipe,
             )
-            sender.stdout.close()
+            pipe.close()
             receive_status = receiver.wait()
             if receive_status and sender.poll() is None:
                 sender.terminate()
@@ -232,8 +236,7 @@ class Transport:
                     "Give Service the log; after approval, run copy again to resume."
                 )
         finally:
-            if sender.stdout:
-                sender.stdout.close()
+            pipe.close()
             for process in (receiver, sender):
                 if process is not None and process.poll() is None:
                     process.kill()
@@ -343,7 +346,12 @@ def classify(transport):
         elif relocate:
             row.update(action="full", status="READY", note=f"Existing copy {row['legacy']} is not usable ({why}) and is left in place.")
         else:
-            row["reason"] = why + " Re-run check with a NEW backup root for the recursive task."
+            row["reason"] = why or ""
+            if parent is None:
+                row["reason"] += (
+                    f" In-place mode cannot work for this root. Re-run check and press Enter at the"
+                    f" NEW backup root prompt to use {config['legacy_root']}/{name.rsplit('/', 1)[-1]}."
+                )
     if relocate and destination:
         blockers.append(f"New backup root {config['destination_root']} already exists; choose a name that does not exist.")
     if not destination:
@@ -424,7 +432,7 @@ def observe_all(transport, plan, require_absent=False, require_snapshot=False):
         raise MigrationError("Migration snapshot already exists. Do not start a new migration over it.")
     if require_snapshot:
         found = [migration_snapshot(name, dataset) for name, dataset in source.items()]
-        if not all(found) or len({snapshot["txg"] for snapshot in found}) != 1:
+        if not all(found) or len({snapshot["txg"] for snapshot in found if snapshot}) != 1:
             raise MigrationError("Migration snapshots are not one complete recursive snapshot set.")
         if any(not row["migration_guid"] for row in rows):
             raise MigrationError("Plan does not pin migration snapshots; prepare did not finish.")
