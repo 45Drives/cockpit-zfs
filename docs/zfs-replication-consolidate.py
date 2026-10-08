@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Consolidate per-dataset ZFS replicas into one recursive replica without forced rollback.
+"""Consolidate per-dataset ZFS replicas into one recursive replica without resending existing data.
 
-Existing replicas with a shared snapshot are sent incrementally. Datasets with no
-usable replica are sent in full. If the backup root cannot share a snapshot with the
-source root (e.g. a backup pool root that only received children), a NEW backup root
-is seeded and existing replicas are renamed under it (same pool, snapshots preserved).
+Existing replicas with a shared snapshot are sent incrementally, in place. Datasets with no
+usable replica are sent in full. If the backup root never received the source root (the usual
+case for a backup pool root), only that root dataset's own data is overwritten by a full send of
+the source root; child datasets are not touched or moved. --new-root relocates instead.
 """
 
 import argparse
@@ -19,13 +19,14 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import uuid
 from pathlib import Path
 
 
 DATASET_PATTERN = r"[A-Za-z][A-Za-z0-9_.:-]*(?:/[A-Za-z0-9_.:-]+)*"
 SNAPSHOT = "migration-to-recursive"
-VERSION = 3
+VERSION = 5
 # An incremental without -L fails if earlier replication used -L, so always send large blocks.
 SEND_FLAGS = ["-L", "-e", "-c"]
 
@@ -38,8 +39,26 @@ def within(name, root):
     return name == root or name.startswith(root + "/")
 
 
+def size(count):
+    for unit in ("B", "KiB", "MiB", "GiB"):
+        if count < 1024:
+            return f"{count:.0f} {unit}" if unit == "B" else f"{count:.2f} {unit}"
+        count /= 1024
+    return f"{count:.2f} TiB"
+
+
 def relocating(config):
     return config["legacy_root"] != config["destination_root"]
+
+
+def park_root(config):
+    return f"{config['legacy_root'].split('/')[0]}/migration-parked-{config['hold_tag'][-12:]}"
+
+
+def parked_name(config, park, name):
+    if any(within(name, top) for top in park):
+        return park_root(config) + name[len(config["legacy_root"]):]
+    return None
 
 
 def validate_config(config):
@@ -62,20 +81,17 @@ def validate_config(config):
         raise MigrationError("The new backup root must be in the same backup pool as the existing replicas.")
 
 
-def prompt_config():
+def prompt_config(port=22, identity=None):
     config: dict = {
         "source_root": input("Source dataset root: ").strip(),
         "legacy_root": input("Backup root that holds the EXISTING replicas: ").strip(),
     }
-    suggested = f"{config['legacy_root']}/{config['source_root'].rsplit('/', 1)[-1]}"
-    config["destination_root"] = input(
-        f"Backup root for the NEW recursive task [{suggested}] "
-        f"(type {config['legacy_root']} to reuse the existing root in place): "
-    ).strip() or suggested
+    # Final value is chosen by choose_destination() once the backup can be inspected.
+    config["destination_root"] = config["legacy_root"]
     config.update(
         ssh=input("Backup SSH destination (user@host or SSH alias): ").strip(),
-        port=int(input("SSH port [22]: ").strip() or "22"),
-        identity=input("SSH identity file [blank for SSH defaults]: ").strip() or None,
+        port=port,
+        identity=identity,
         hold_tag="service-repl-" + uuid.uuid4().hex[:12],
     )
     if config["identity"]:
@@ -167,8 +183,8 @@ class Transport:
     def dataset(self, name, remote=False):
         return self.inventory(name, remote, recursive=False, missing_ok=True).get(name)
 
-    def rename(self, old, new):
-        self.query(["zfs", "rename", old, new], True)
+    def rename(self, old, new, parents=False):
+        self.query(["zfs", "rename", *(["-p"] if parents else []), old, new], True)
 
     def resume_target(self, token):
         if not re.fullmatch(r"[0-9A-Za-z-]+", token):
@@ -178,6 +194,10 @@ class Transport:
         if not match:
             raise MigrationError("Cannot read the resume token's target snapshot.")
         return match.group(1)
+
+    def used_by_dataset(self, name):
+        value = self.query(["zfs", "get", "-H", "-p", "-o", "value", "usedbydataset", name], True)
+        return int(value) if value.isdigit() else 0
 
     def written(self, dataset, snapshot):
         suffix = snapshot.split("@", 1)[1]
@@ -215,17 +235,27 @@ class Transport:
             raise MigrationError(f"Cannot parse send estimate for {target}; review installed ZFS output.")
         return {"bytes": sizes[0], "output": output}
 
-    def transfer(self, send_args, destination):
+    def transfer(self, send_args, destination, overwrite=False, progress=None):
+        """Send and receive one dataset; return the number of stream bytes sent."""
+        receive = ["zfs", "receive", "-s", *(["-F"] if overwrite else ["-u"]), destination]
         sender = subprocess.Popen(["zfs", "send", *send_args], stdout=subprocess.PIPE)
-        pipe = sender.stdout
-        assert pipe is not None
-        receiver = None
+        receiver = subprocess.Popen(self.command(receive, True), stdin=subprocess.PIPE)
+        assert sender.stdout is not None and receiver.stdin is not None
+        sent = 0
         try:
-            receiver = subprocess.Popen(
-                self.command(["zfs", "receive", "-s", "-u", destination], True),
-                stdin=pipe,
-            )
-            pipe.close()
+            try:
+                while chunk := sender.stdout.read(1 << 20):
+                    receiver.stdin.write(chunk)
+                    sent += len(chunk)
+                    if progress:
+                        progress(sent)
+            except BrokenPipeError:
+                pass
+            finally:
+                try:
+                    receiver.stdin.close()
+                except BrokenPipeError:
+                    pass
             receive_status = receiver.wait()
             if receive_status and sender.poll() is None:
                 sender.terminate()
@@ -235,10 +265,11 @@ class Transport:
                     f"Transfer failed (send={send_status}, receive={receive_status}). "
                     "Give Service the log; after approval, run copy again to resume."
                 )
+            return sent
         finally:
-            pipe.close()
+            sender.stdout.close()
             for process in (receiver, sender):
-                if process is not None and process.poll() is None:
+                if process.poll() is None:
                     process.kill()
                     process.wait()
 
@@ -278,38 +309,56 @@ def load_inventories(transport):
     config = transport.config
     source = transport.inventory(config["source_root"])
     destination = transport.inventory(config["destination_root"], True, missing_ok=True)
+    parked = transport.inventory(park_root(config), True, missing_ok=True)
     if not relocating(config):
-        return source, destination, destination
+        return source, destination, destination, parked
     legacy = {
         name: dataset for name, dataset in transport.inventory(config["legacy_root"], True).items()
-        if not within(name, config["destination_root"])
+        if not within(name, config["destination_root"]) and not within(name, park_root(config))
     }
-    return source, destination, legacy
+    return source, destination, legacy, parked
 
 
-def legacy_review(config, rows, legacy):
-    """Return (blockers, left_in_place) for existing backup datasets."""
+def backup_layout(config, rows, legacy):
+    """Return (park, left): backup datasets to move aside out of the new tree, and those left untouched."""
     by_legacy = {row["legacy"]: row for row in rows}
     renamed = [row["legacy"] for row in rows if row["rename"]]
-    blockers, left = [], []
+    park, left = [], []
     for name in sorted(legacy):
+        if name == config["destination_root"] or any(within(name, top) for top in park):
+            continue
         row = by_legacy.get(name)
-        moves = any(within(name, root) for root in renamed)
-        if not relocating(config):
-            if row is None:
-                blockers.append(f"Backup-only dataset requires review: {name}")
-        elif moves and (row is None or row["action"] != "incremental"):
-            blockers.append(f"{name} would be moved along with its renamed parent; Service review required.")
-        elif not moves:
+        if relocating(config):
+            lands_in_new_tree = any(within(name, root) for root in renamed)
+            if lands_in_new_tree and (row is None or row["action"] != "incremental"):
+                park.append(name)
+            elif not lands_in_new_tree:
+                left.append(name)
+        elif row is None:
+            # Kept in place; a non-forced recursive receive ignores datasets the source does not have.
             left.append(name)
-    return blockers, left
+        elif row["action"] == "full" and not row["overwrite"]:
+            park.append(name)
+    return park, left
+
+
+def existing_replica(config, park, row, lookup):
+    """Return (name, dataset, pending_park) for a replica that is not yet at its destination."""
+    moved = parked_name(config, park, row["legacy"])
+    if moved:
+        dataset = lookup(moved)
+        if dataset is not None:
+            return moved, dataset, False
+    if relocating(config):
+        return row["legacy"], lookup(row["legacy"]), False
+    return row["legacy"], None, moved is not None
 
 
 def new_row(config, name):
     suffix = name[len(config["source_root"]):]
     return {
         "source": name, "destination": config["destination_root"] + suffix,
-        "legacy": config["legacy_root"] + suffix, "action": None, "rename": False,
+        "legacy": config["legacy_root"] + suffix, "action": None, "rename": False, "overwrite": False,
         "status": "BLOCKED", "reason": "", "note": "",
         "base_source": None, "base_destination": None, "base_guid": None, "migration_guid": None,
     }
@@ -318,7 +367,7 @@ def new_row(config, name):
 def classify(transport):
     config = transport.config
     relocate = relocating(config)
-    source, destination, legacy = load_inventories(transport)
+    source, destination, legacy, _ = load_inventories(transport)
     rows, by_source, blockers = [], {}, []
     for name in sorted(source):
         row = new_row(config, name)
@@ -343,23 +392,38 @@ def classify(transport):
             row["rename"] = relocate and (parent is None or parent["action"] != "incremental")
             if row["rename"] and within(config["destination_root"], row["legacy"]):
                 row.update(status="BLOCKED", reason="The new backup root is inside this existing replica.")
-        elif relocate:
-            row.update(action="full", status="READY", note=f"Existing copy {row['legacy']} is not usable ({why}) and is left in place.")
+        elif not relocate and not candidate["snapshots"] and not unusable(dataset, candidate):
+            # No snapshots means it never received a replica; usually an empty container dataset.
+            row.update(
+                action="full", overwrite=True, status="READY",
+                note=f"{row['legacy']} has no snapshots. Its own data "
+                     f"({size(transport.used_by_dataset(row['legacy']))}) is replaced; child datasets are not touched.",
+            )
+        elif relocate or parent is not None:
+            row.update(action="full", status="READY", note=why or "")
         else:
-            row["reason"] = why or ""
-            if parent is None:
-                row["reason"] += (
-                    f" In-place mode cannot work for this root. Re-run check and press Enter at the"
-                    f" NEW backup root prompt to use {config['legacy_root']}/{name.rsplit('/', 1)[-1]}."
-                )
+            row["reason"] = (why or "") + (
+                " The backup root has snapshots or is encrypted, so it cannot be overwritten in place."
+                " Service review required (see --new-root)."
+            )
+    park, left = backup_layout(config, rows, legacy)
+    for row in rows:
+        moved = parked_name(config, park, row["legacy"])
+        if row["action"] == "incremental" and moved and not relocate:
+            parent = by_source.get(row["source"].rsplit("/", 1)[0])
+            row["rename"] = parent is None or parent["action"] != "incremental"
+        if row["action"] == "full" and row["note"] and not row["overwrite"]:
+            row["note"] = f"Existing copy {row['legacy']} is not usable ({row['note']}) and " + (
+                f"will be moved aside to {moved}." if moved else "is left in place."
+            )
+    if park and transport.dataset(park_root(config), True) is not None:
+        blockers.append(f"{park_root(config)} already exists; Service review required.")
     if relocate and destination:
         blockers.append(f"New backup root {config['destination_root']} already exists; choose a name that does not exist.")
     if not destination:
         parent = config["destination_root"].rsplit("/", 1)[0] if "/" in config["destination_root"] else None
         if parent is None or transport.dataset(parent, True) is None:
             blockers.append(f"Parent of backup root {config['destination_root']} does not exist on the backup.")
-    legacy_blockers, left = legacy_review(config, rows, legacy)
-    blockers += legacy_blockers
     if any(
         snapshot["name"].endswith("@" + SNAPSHOT)
         for dataset in list(source.values()) + list(destination.values()) + list(legacy.values())
@@ -367,20 +431,24 @@ def classify(transport):
     ):
         blockers.append("Migration snapshot already exists. Do not start a new migration over it.")
     blockers = [f"{row['source']}: {row['reason']}" for row in rows if row["status"] == "BLOCKED"] + blockers
-    return {"datasets": rows, "blockers": blockers, "left_in_place": left}
+    return {"datasets": rows, "blockers": blockers, "left_in_place": left, "park": park}
 
 
-def observe_row(transport, row, source, destination, legacy):
+def observe_row(transport, row, source, destination, existing):
     """Return (status, location, reason); status is READY, PARTIAL, COMPLETE, or BLOCKED."""
+    legacy_name, legacy, pending_park = existing
     if source is None:
         return "BLOCKED", None, "Source dataset missing."
     migration = migration_snapshot(row["source"], source)
     if row["migration_guid"] and (not migration or migration["guid"] != row["migration_guid"]):
         return "BLOCKED", None, "Source migration snapshot identity changed."
+    if destination is not None and pending_park and row["action"] == "full":
+        # The unusable copy at this path is moved aside at the start of copy.
+        return "READY", None, ""
     if destination is not None:
         location, backup = row["destination"], destination
     elif row["action"] == "incremental" and legacy is not None:
-        location, backup = row["legacy"], legacy
+        location, backup = legacy_name, legacy
     elif row["action"] == "full":
         return "READY", None, ""
     else:
@@ -398,6 +466,8 @@ def observe_row(transport, row, source, destination, legacy):
                 and not transport.written(location, latest["name"])):
             return "COMPLETE", location, ""
         return "BLOCKED", location, "Backup migration snapshot mismatched or modified after receive."
+    if row["overwrite"] and latest is None:
+        return "READY", location, ""
     if row["action"] == "full":
         return "BLOCKED", location, f"{location} already exists; a full transfer would overwrite it."
     if not latest or latest["guid"] != row["base_guid"]:
@@ -415,15 +485,26 @@ def observe_row(transport, row, source, destination, legacy):
 def observe_all(transport, plan, require_absent=False, require_snapshot=False):
     config = transport.config
     rows = plan["datasets"]
-    source, destination, legacy = load_inventories(transport)
+    park = plan["park"]
+    source, destination, legacy, parked = load_inventories(transport)
     if set(source) != {row["source"] for row in rows}:
         raise MigrationError("Source dataset hierarchy changed; Service review required.")
-    extras = sorted(set(destination) - {row["destination"] for row in rows})
+    allowed = set(plan.get("left_in_place", []))
+    extras = sorted(
+        name for name in set(destination) - {row["destination"] for row in rows}
+        if name not in allowed and not within(name, park_root(config))
+        and not any(within(name, top) for top in park)
+    )
     if extras:
         raise MigrationError("Unexpected datasets under the backup root: " + ", ".join(extras))
-    blockers, _ = legacy_review(config, rows, legacy)
-    if blockers:
-        raise MigrationError("Backup layout changed:\n" + "\n".join(blockers))
+    found, _ = backup_layout(config, rows, legacy)
+    legacy_names = {row["legacy"] for row in rows}
+    unexpected = [
+        name for name in found
+        if name not in legacy_names and not any(within(name, top) for top in park)
+    ]
+    if unexpected:
+        raise MigrationError("Backup layout changed; not in the approved plan: " + ", ".join(unexpected))
     if require_absent and any(
         snapshot["name"].endswith("@" + SNAPSHOT)
         for dataset in list(source.values()) + list(destination.values()) + list(legacy.values())
@@ -436,19 +517,22 @@ def observe_all(transport, plan, require_absent=False, require_snapshot=False):
             raise MigrationError("Migration snapshots are not one complete recursive snapshot set.")
         if any(not row["migration_guid"] for row in rows):
             raise MigrationError("Plan does not pin migration snapshots; prepare did not finish.")
+    def lookup(name):
+        return parked.get(name) if within(name, park_root(config)) else legacy.get(name)
+
     return {
         row["source"]: observe_row(
             transport, row, source.get(row["source"]), destination.get(row["destination"]),
-            legacy.get(row["legacy"]) if relocating(config) else None,
+            existing_replica(config, park, row, lookup),
         )
         for row in rows
     }
 
 
-def observe_one(transport, row):
-    legacy = transport.dataset(row["legacy"], True) if row["legacy"] != row["destination"] else None
+def observe_one(transport, plan, row):
+    existing = existing_replica(transport.config, plan["park"], row, lambda name: transport.dataset(name, True))
     return observe_row(
-        transport, row, transport.dataset(row["source"]), transport.dataset(row["destination"], True), legacy,
+        transport, row, transport.dataset(row["source"]), transport.dataset(row["destination"], True), existing,
     )
 
 
@@ -479,59 +563,80 @@ def save_state(path, state, new=False):
             os.unlink(temporary)
 
 
-def event(path, status, message):
+def event(path, status, message, quiet=False):
     record = {
         "time": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "status": status, "message": message,
     }
     with path.with_suffix(".log.jsonl").open("a", encoding="utf-8") as output:
         output.write(json.dumps(record) + "\n")
-    print(f"{status}: {message}", flush=True)
+    if not quiet:
+        print(f"  {status:<9} {message}", flush=True)
+
+
+def label(row):
+    if row["overwrite"]:
+        return "FULL, OVERWRITE"
+    if row["rename"]:
+        return "MOVE + INCREMENTAL"
+    return {"incremental": "INCREMENTAL", "full": "FULL"}.get(row["action"], "-")
 
 
 def report(path, config, plan, stage):
-    lines = [
+    """Write the full report to a file and print a short summary."""
+    mode = "relocate" if relocating(config) else "root to root, in place"
+    header = [
         f"ZFS migration report: {stage}",
         f"Source root: {config['source_root']}",
         f"Existing replicas: {config['ssh']}:{config['legacy_root']}",
         f"New recursive backup root: {config['ssh']}:{config['destination_root']}",
-        "Mode: " + ("RELOCATE (new root seeded, usable replicas renamed under it)"
-                    if relocating(config) else "IN PLACE"),
+        f"Mode: {mode}",
         f"Hold tag: {config['hold_tag']}",
         "",
     ]
-    labels = {"incremental": "INCREMENTAL", "full": "FULL"}
+    detail, summary = [], []
     for row in plan["datasets"]:
-        label = "MOVE + INCREMENTAL" if row["rename"] else labels.get(row["action"], "-")
-        lines.append(f"{row['status']} [{label}]: {row['source']} -> {row['destination']} {row['reason']}".rstrip())
-        if row["rename"]:
-            lines.append(f"  Rename on backup: {row['legacy']} -> {row['destination']}")
-        if row["note"]:
-            lines.append("  " + row["note"])
-        if row["base_source"]:
-            lines.append(f"  Base: {row['base_source']} -> {row['base_destination']} (GUID {row['base_guid']})")
-        if row["migration_guid"]:
-            lines.append(f"  Migration GUID: {row['migration_guid']}")
+        line = f"{row['status']} [{label(row)}]: {row['source']} -> {row['destination']} {row['reason']}".rstrip()
+        detail.append(line)
+        brief = f"  {label(row):<20} {row['source']} -> {row['destination']}"
         if "estimate" in row:
-            lines.append(f"  Estimated stream bytes: {row['estimate']['bytes']}")
-            lines.append(row["estimate"]["output"])
-    counts = {label: sum(row["action"] == key for row in plan["datasets"]) for key, label in labels.items()}
-    lines.append("")
-    lines.append(f"Datasets: {len(plan['datasets'])} ({counts['INCREMENTAL']} incremental, {counts['FULL']} full, "
-                 f"{sum(row['rename'] for row in plan['datasets'])} renames)")
-    if any("estimate" in row for row in plan["datasets"]):
-        total = sum(row.get("estimate", {}).get("bytes", 0) for row in plan["datasets"])
-        lines.append(f"Total estimated stream bytes: {total} ({total / 1024 ** 3:.2f} GiB)")
-        lines.append("Service must check backup capacity separately; stream size is not disk usage.")
+            brief += f"  ({size(row['estimate']['bytes'])})"
+        if row["base_source"]:
+            brief += f"  from @{row['base_source'].split('@', 1)[1]}"
+        summary.append(brief if row["status"] == "READY" else line)
+        if row["rename"]:
+            detail.append(f"  Rename on backup: {row['legacy']} -> {row['destination']}")
+        if row["note"]:
+            detail.append("  " + row["note"])
+            summary.append("      " + row["note"])
+        if row["base_source"]:
+            detail.append(f"  Base: {row['base_source']} -> {row['base_destination']} (GUID {row['base_guid']})")
+        if row["migration_guid"]:
+            detail.append(f"  Migration GUID: {row['migration_guid']}")
+        if "estimate" in row:
+            detail.append(f"  Estimated stream bytes: {row['estimate']['bytes']}")
+            detail.append(row["estimate"]["output"])
+    for top in plan.get("park", []):
+        line = f"MOVE ASIDE on backup (kept, not deleted): {top} -> {parked_name(config, plan['park'], top)}"
+        detail.append(line)
+        summary.append("  " + line)
+    rows = plan["datasets"]
+    totals = (f"{len(rows)} datasets: {sum(row['action'] == 'incremental' for row in rows)} incremental, "
+              f"{sum(row['action'] == 'full' for row in rows)} full, {sum(row['rename'] for row in rows)} renamed, "
+              f"{len(plan.get('park', []))} moved aside")
+    if any("estimate" in row for row in rows):
+        totals += f". Estimated to send: {size(sum(row.get('estimate', {}).get('bytes', 0) for row in rows))}"
+    tail = ["", totals]
     if plan.get("left_in_place"):
-        lines.append("Left in place on the backup (not part of the new task): " + ", ".join(plan["left_in_place"]))
-    lines.extend("BLOCKER: " + blocker for blocker in plan.get("blockers", []))
+        tail.append("Not part of the new task, left untouched: " + ", ".join(plan["left_in_place"]))
+    tail.extend("BLOCKER: " + blocker for blocker in plan.get("blockers", []))
     stamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     filename = path.with_suffix(f".{stage}-{stamp}.txt")
     with filename.open("x", encoding="utf-8") as output:
-        output.write("\n".join(lines) + "\n")
-    print("\n".join(lines), flush=True)
-    print(f"Report: {filename}", flush=True)
+        output.write("\n".join(header + detail + tail) + "\n")
+    print(f"{config['source_root']} -> {config['ssh']}:{config['destination_root']} ({mode})")
+    print("\n".join(summary + tail), flush=True)
+    print(f"Full report: {filename}", flush=True)
 
 
 def backup_base(row, location):
@@ -563,8 +668,7 @@ def prepare(transport, state, path):
     plan = state["plan"]
     observations = observe_all(transport, plan, require_absent=True)
     expect(observations, {"READY"})
-    print("This protects starting snapshots and creates ONE recursive migration snapshot set.")
-    print("Pause applications first if application-consistent snapshots are required.")
+    print("Creates one recursive snapshot set and holds the starting snapshots. Pause applications first if needed.")
     confirm("PREPARE")
     state["phase"] = "preparing"
     save_state(path, state)
@@ -572,14 +676,14 @@ def prepare(transport, state, path):
         if row["action"] != "incremental":
             continue
         transport.hold(row["base_source"])
-        event(path, "HELD_SOURCE_BASE", row["base_source"])
+        event(path, "HELD_SOURCE_BASE", row["base_source"], quiet=True)
         held = backup_base(row, observations[row["source"]][1])
         transport.hold(held, True)
-        event(path, "HELD_BACKUP_BASE", held)
+        event(path, "HELD_BACKUP_BASE", held, quiet=True)
     expect(observe_all(transport, plan, require_absent=True), {"READY"})
     target = f"{transport.config['source_root']}@{SNAPSHOT}"
     transport.query(["zfs", "snapshot", "-r", target])
-    event(path, "SNAPSHOT_CREATED", target)
+    event(path, "SNAPSHOT", target)
     transport.query(["zfs", "hold", "-r", transport.config["hold_tag"], target])
     source = transport.inventory(transport.config["source_root"])
     for row in plan["datasets"]:
@@ -595,53 +699,148 @@ def prepare(transport, state, path):
     report(path, transport.config, plan, "transfer")
     state.update(phase="prepared", plan=plan)
     save_state(path, state)
-    print("PREPARE PASSED. Applications paused only for snapshot creation may resume.")
-    print("Service must approve the transfer report and backup capacity before copy.")
+    print("PREPARE PASSED. Applications may resume. Approve the report and backup capacity, then run copy.")
 
 
-def copy(transport, state, path):
+class Progress:
+    """One updating status line on a terminal; periodic plain lines when output goes to a file."""
+
+    def __init__(self, label, total, done_before, grand_total):
+        self.label, self.total = label, total
+        self.done_before, self.grand_total = done_before, grand_total
+        self.interactive = sys.stdout.isatty()
+        self.start = self.last = time.monotonic()
+        self.width = 0
+        if not self.interactive:
+            print(f"  {label}: started" + (f", about {size(total)} to send" if total else ""), flush=True)
+
+    def __call__(self, sent):
+        now = time.monotonic()
+        if now - self.last < (1 if self.interactive else 10):
+            return
+        self.last = now
+        rate = sent / max(now - self.start, 0.001)
+        text = f"  {self.label}: {size(sent)}"
+        if self.total:
+            # The ZFS estimate can be slightly low; never show more than 100%.
+            total = max(self.total, sent)
+            fraction = sent / total
+            filled = int(fraction * 20)
+            text += f" / {size(total)} [{'#' * filled}{'-' * (20 - filled)}] {fraction:.0%}"
+            if rate > 0 and sent < total:
+                text += f"  ETA {datetime.timedelta(seconds=int((total - sent) / rate))}"
+        text += f"  {size(rate)}/s"
+        if self.grand_total:
+            text += f"  | all: {min((self.done_before + sent) / self.grand_total, 1.0):.0%}"
+        if self.interactive:
+            print("\r" + text.ljust(self.width), end="", flush=True)
+            self.width = len(text)
+        else:
+            print(text, flush=True)
+
+    def clear(self):
+        if self.interactive and self.width:
+            print("\r" + " " * self.width + "\r", end="", flush=True)
+
+
+def detach(path):
+    """Offer to run copy in its own session so closing the terminal does not stop it."""
+    if os.environ.get("TMUX") or os.environ.get("STY"):
+        return False
+    print("WARNING: this terminal is not inside tmux or screen. If it closes or the SSH session drops, "
+          "the copy stops (it can be resumed by running copy again).")
+    if input("Run copy in the background so it keeps going if this terminal closes? [Y/n]: ").strip().lower() \
+            not in ("", "y", "yes"):
+        return False
+    stamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    output = path.with_suffix(f".copy-{stamp}.out")
+    with output.open("x", encoding="utf-8") as handle:
+        child = subprocess.Popen(
+            [sys.executable, "-u", os.path.abspath(__file__), "copy", "--state", str(path), "--approved"],
+            stdin=subprocess.DEVNULL, stdout=handle, stderr=subprocess.STDOUT, start_new_session=True,
+        )
+    event(path, "BACKGROUND", f"copy running as PID {child.pid}, output in {output}")
+    print(f"Watch progress:  tail -f {output}")
+    print("You can close this terminal. When the output ends with COPY PASSED, run verify.")
+    return True
+
+
+def copy(transport, state, path, approved=False):
     if state["phase"] not in ("prepared", "completed"):
         raise MigrationError("Copy requires a successful prepare. Ask Service about incomplete preparation.")
+    if approved and not state.get("copy_approved"):
+        raise MigrationError("Copy was not approved; run copy without --approved.")
     plan = state["plan"]
     observations = observe_all(transport, plan, require_snapshot=True)
     expect(observations, {"READY", "PARTIAL", "COMPLETE"})
     require_holds(transport, plan, observations)
-    print("Review the transfer report with Service before approving these renames and transfers.")
-    confirm("COPY")
-    for row in plan["datasets"]:
-        label = f"{row['source']} -> {row['destination']}"
+    if not approved:
+        for row in plan["datasets"]:
+            if row["overwrite"] and observations[row["source"]][0] == "READY":
+                print(f"NOTE: {row['destination']} itself is overwritten (it has no snapshots); its child datasets "
+                      "are not touched but are briefly unmounted and remounted.")
+        confirm("COPY")
+        state["copy_approved"] = True
+        save_state(path, state)
+        if detach(path):
+            return
+    grand_total = sum(row.get("estimate", {}).get("bytes", 0) for row in plan["datasets"])
+    done_before = 0
+    # Move aside before any rename so original paths are still valid.
+    for top in plan["park"]:
+        moved = parked_name(transport.config, plan["park"], top)
+        if transport.dataset(moved, True) is None:
+            transport.rename(top, moved, parents=True)
+            event(path, "PARKED", f"{top} -> {moved}")
+    for index, row in enumerate(plan["datasets"], 1):
+        name = f"{row['source']} -> {row['destination']}"
         target = f"{row['source']}@{SNAPSHOT}"
-        status, location, reason = observe_one(transport, row)
-        result = "VERIFIED"
+        status, location, reason = observe_one(transport, plan, row)
+        result, sent = "DONE", None
+        tag = f"[{index}/{len(plan['datasets'])}] {row['source']}"
         if status == "PARTIAL":
             token = transport.dataset(row["destination"], True)["token"]
             if transport.resume_target(token) != target:
                 raise MigrationError(f"Resume token on {row['destination']} does not target {target}.")
-            event(path, "RESUMING", label)
-            transport.transfer(["-t", token], row["destination"])
-            status, location, reason = observe_one(transport, row)
+            event(path, "RESUMING", name, quiet=True)
+            try:
+                remaining = transport.estimate(["-t", token])["bytes"]
+            except MigrationError:
+                remaining = None
+            progress = Progress(tag + " (resuming)", remaining, done_before, grand_total)
+            try:
+                sent = transport.transfer(["-t", token], row["destination"], row["overwrite"], progress)
+            finally:
+                progress.clear()
+            status, location, reason = observe_one(transport, plan, row)
         elif status == "READY":
             if row["action"] == "incremental" and location != row["destination"]:
                 if not row["rename"]:
-                    raise MigrationError(f"{row['legacy']} did not move with its parent; Service review required.")
-                transport.rename(row["legacy"], row["destination"])
-                event(path, "RENAMED", f"{row['legacy']} -> {row['destination']}")
-                status, location, reason = observe_one(transport, row)
+                    raise MigrationError(f"{location} did not move with its parent; Service review required.")
+                transport.rename(location, row["destination"])
+                event(path, "RENAMED", f"{location} -> {row['destination']}")
+                status, location, reason = observe_one(transport, plan, row)
                 if status != "READY" or location != row["destination"]:
                     raise MigrationError(f"Post-rename check failed: {row['destination']}: {status} {reason}")
-            event(path, "STARTED", label)
-            transport.transfer(send_args(row), row["destination"])
-            status, location, reason = observe_one(transport, row)
+            event(path, "STARTED", name, quiet=True)
+            progress = Progress(tag, row.get("estimate", {}).get("bytes"), done_before, grand_total)
+            try:
+                sent = transport.transfer(send_args(row), row["destination"], row["overwrite"], progress)
+            finally:
+                progress.clear()
+            status, location, reason = observe_one(transport, plan, row)
         elif status == "COMPLETE":
             result = "SKIPPED"
         if status != "COMPLETE":
-            raise MigrationError(f"Verification failed: {label}: {status} {reason}")
+            raise MigrationError(f"Verification failed: {name}: {status} {reason}")
         transport.hold(f"{row['destination']}@{SNAPSHOT}", True)
-        event(path, result, label)
+        done_before += row.get("estimate", {}).get("bytes", 0)
+        detail = "already done" if sent is None else f"{row['action']}, sent {size(sent)}"
+        event(path, result, f"{name} ({detail})")
     verify(transport, state)
     state["phase"] = "completed"
     save_state(path, state)
-    print("COPY PASSED. Run verify before testing the new task.")
+    print("COPY PASSED. Next: create and test the recursive task (Step 7).")
 
 
 def verify(transport, state):
@@ -654,25 +853,33 @@ def verify(transport, state):
     for row in plan["datasets"]:
         if not transport.has_hold(f"{row['destination']}@{SNAPSHOT}", True):
             raise MigrationError(f"Backup migration hold missing: {row['destination']}")
-    print(f"VERIFY PASSED: all {len(plan['datasets'])} datasets match under {transport.config['destination_root']}.")
-    print("Snapshot, written-data, receive-token, and hold checks passed. This is not a complete backup-change audit.")
+    print(f"VERIFY PASSED: all {len(plan['datasets'])} datasets under {transport.config['destination_root']} "
+          f"share @{SNAPSHOT} with the source.")
     if plan.get("left_in_place"):
-        print("Left in place on the backup (Service to review): " + ", ".join(plan["left_in_place"]))
+        print("Not part of the new task, left untouched: " + ", ".join(plan["left_in_place"]))
 
 
-def run_mode(mode, path):
+def choose_destination(transport, override):
+    config = transport.config
+    config["destination_root"] = override or config["legacy_root"]
+    validate_config(config)
+    if transport.dataset(config["source_root"]) is None:
+        raise MigrationError(f"Source root not found: {config['source_root']}")
+
+
+def run_mode(mode, path, new_root=None, approved=False, port=22, identity=None):
     if mode == "check":
         if path.exists():
             raise MigrationError("State file already exists. Keep it; do not restart check over an existing migration.")
-        config = prompt_config()
+        config = prompt_config(port, identity)
         transport = Transport(config)
+        choose_destination(transport, new_root)
         plan = classify(transport)
         report(path, config, plan, "readiness")
         if plan["blockers"]:
             raise MigrationError("Readiness has blockers. Give the report to Service; do not prepare.")
         save_state(path, {"version": VERSION, "phase": "checked", "config": config, "plan": plan}, new=True)
-        print("CHECK PASSED. No ZFS snapshots, holds, or transfers were created.")
-        print("Have Service review the readiness report before prepare.")
+        print("CHECK PASSED. Nothing was changed. Approve the report, then run prepare.")
         return
     with path.open(encoding="utf-8") as source:
         state = json.load(source)
@@ -682,7 +889,7 @@ def run_mode(mode, path):
     if mode == "prepare":
         prepare(transport, state, path)
     elif mode == "copy":
-        copy(transport, state, path)
+        copy(transport, state, path, approved)
     else:
         verify(transport, state)
 
@@ -691,16 +898,22 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("mode", choices=("check", "prepare", "copy", "verify"))
     parser.add_argument("--state", type=Path, default=Path("migration-state.json"))
+    parser.add_argument("--new-root", help="check only: replicate to this NEW backup dataset and move existing "
+                                           "replicas under it, instead of root to root in place")
+    parser.add_argument("--port", type=int, default=22, help="check only: backup SSH port (default 22)")
+    parser.add_argument("--identity", help="check only: SSH private key file (default: SSH's own defaults)")
+    parser.add_argument("--approved", action="store_true", help=argparse.SUPPRESS)
     args = parser.parse_args()
     path = args.state.resolve()
     try:
         descriptor = os.open(path.with_suffix(".lock"), os.O_WRONLY | os.O_CREAT, 0o600)
         with os.fdopen(descriptor, "w") as lock:
             try:
-                fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                # The background copy waits for the command that started it to release the lock.
+                fcntl.flock(lock, fcntl.LOCK_EX | (0 if args.approved else fcntl.LOCK_NB))
             except BlockingIOError:
                 raise MigrationError("Another command is using this state file; do not run concurrent migrations.") from None
-            run_mode(args.mode, path)
+            run_mode(args.mode, path, args.new_root, args.approved and args.mode == "copy", args.port, args.identity)
         return 0
     except (MigrationError, OSError, ValueError, KeyError, TypeError, EOFError, subprocess.SubprocessError) as error:
         print(f"STOPPED: {error}", file=sys.stderr)

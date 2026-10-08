@@ -6,37 +6,49 @@ The selected root may be a pool's root dataset or a dataset below it. This repli
 
 **You use one Python script, four times.** It asks for the customer's settings once and remembers them. No Bash variables or separate ZFS commands are needed.
 
-==== Which backup root to use ====
+==== How it works ====
 
-A recursive task needs the source root **and** every child to share a snapshot with the backup. Per-dataset tasks never replicate the source root itself, so the backup root usually has no shared snapshot (e.g. ''%%main -> backup%%'' where ''%%backup%%'' is the backup pool). That cannot be fixed in place without overwriting the backup root.
+A recursive task can only send incrementally if **every** dataset in the hierarchy, including the root, has one snapshot with the **same name and GUID** on both sides. Per-dataset tasks each created their own differently named snapshots, so no such snapshot exists yet. That is why the scheduler falls back to a full resend.
 
-The script therefore supports two modes, chosen by the backup roots you enter:
+The script fixes this without resending existing data:
 
-^ Mode ^ When ^ What happens ^
-| **Relocate** (typical) | New backup root differs from the existing one, e.g. existing ''%%backup%%'', new ''%%backup/main%%'' | The new root is created by a full send of the source root. Each usable existing replica is **renamed** under it on the backup (same pool, snapshots kept) and then sent incrementally. Datasets with no usable replica are sent in full. |
-| **In place** | New backup root typed the same as the existing one | Only works if the backup root already shares a snapshot with the source root. Missing children are sent in full. |
+  - It takes one recursive snapshot, ''%%@migration-to-recursive%%'', on the source.
+  - For each dataset that already has a backup, it sends **only the changes** between the latest shared snapshot and ''%%@migration-to-recursive%%''. The backup stays at the same path.
+  - Datasets with no backup are sent in full.
+  - The source root (e.g. ''%%main%%'') was never copied by per-dataset tasks. It is sent in full **into the existing backup root** (e.g. ''%%backup%%''). This replaces only the backup root dataset's own few KiB. Child datasets such as ''%%backup/data%%'' are separate datasets and are not touched.
+  - Afterwards every dataset shares ''%%@migration-to-recursive%%'', so the new recursive task ''%%main -> backup%%'' starts incrementally from it.
 
-If ''%%check%%'' reports ''%%In-place mode cannot work for this root%%'', run ''%%check%%'' again and press Enter at the NEW backup root prompt.
+Existing backups are never re-sent, renamed or moved. Snapshots cannot be merged or copied into a parent's snapshot.
 
-Existing replicas are matched by relative path: source ''%%main/a/b%%'' is matched to ''%%<existing root>/a/b%%''. A replica stored anywhere else is not found, and that dataset is sent in full. Service must check the readiness report for unexpected ''%%FULL%%'' rows.
+==== Root to root (default) ====
+
+The new task replicates the source root to the **same** backup root the old tasks used, e.g. ''%%main -> backup%%''. Paths on the backup do not change.
+
+A backup dataset is **overwritten** only if it has **no snapshots**, which means it never received a replica. This is normally the backup pool root or an empty parent dataset. The report labels these ''%%FULL, OVERWRITE%%'' and shows how much of that dataset's own data is replaced. Child datasets are not touched, but ZFS briefly unmounts and remounts them during that receive.
+
+The script refuses to overwrite a backup dataset that has snapshots or encryption. If the backup root has either, ''%%check%%'' blocks; Service must review.
+
+''%%--new-root <dataset>%%'' on ''%%check%%'' replicates to a new, empty backup dataset instead, and **renames** the existing replicas under it. Use it only when Service has approved changing backup paths.
+
+Existing replicas are matched by relative path: source ''%%main/a/b%%'' is matched to ''%%<backup root>/a/b%%''. A replica stored anywhere else is not found, and that dataset is sent in full. Service must check the readiness report for unexpected ''%%FULL%%'' rows.
 
 ===== Before You Start =====
 
 Service must first approve the source root, existing and new backup roots, SSH settings, ZFS compatibility, available backup space, and backup state. Keep a recoverable backup and record the old task settings.
 
-**This procedure is for unencrypted, non-clone datasets.** Encryption and clones need a separate plan. Never force a full transfer into a populated backup dataset or pool root; the script refuses to do so.
+**This procedure is for unencrypted, non-clone datasets.** Encryption and clones need a separate plan. The script never overwrites a backup dataset that has snapshots.
 
 Full sends of datasets without a backup copy all of their data. Service must confirm network time and backup capacity for those datasets from the transfer report.
 
 All sends use ''%%-L -e -c%%'' (large blocks, embedded data, compressed). This matches replicas originally sent with or without large blocks. The backup pool must have the ''%%large_blocks%%'' and ''%%embedded_data%%'' features enabled (''%%zpool get feature@large_blocks,feature@embedded_data <pool>%%'').
 
-The script checks and copies datasets one at a time over a single reused SSH connection. With hundreds of datasets, ''%%check%%'', ''%%prepare%%'' and ''%%verify%%'' can take several minutes before any data moves. Run the commands inside ''%%tmux%%'' or ''%%screen%%'' so a dropped terminal does not interrupt ''%%copy%%''.
+The script checks and copies datasets one at a time over a single reused SSH connection. With hundreds of datasets, ''%%check%%'', ''%%prepare%%'' and ''%%verify%%'' can take several minutes before any data moves. ''%%copy%%'' can run for hours; if it is not started inside ''%%tmux%%'' or ''%%screen%%'', it offers to run in the background so a closed terminal or dropped SSH session does not stop it (Step 5).
 
 Service must test this script on a small representative hierarchy and confirm the installed replication software can use manually created migration snapshots. The script does not verify those software capabilities or available capacity.
 
 **At any error: stop and give Service the reports and log. Do not enable force/overwrite, delete snapshots, or try to fix a partial receive yourself.**
 
-**Backup permissions:** the backup must accept ''%%zfs receive -s%%'' (resumable receive) and ''%%zfs rename%%'' over SSH for the chosen account.
+**Backup permissions:** the backup must accept ''%%zfs receive -s%%'' (resumable), ''%%zfs receive -F%%'' (for ''%%FULL, OVERWRITE%%'' rows) and ''%%zfs rename%%'' over SSH for the chosen account.
 
 ===== 1. Pause the Old Tasks =====
 
@@ -69,20 +81,26 @@ Enter these values when prompted:
 ^ Prompt ^ Example ^
 | Source dataset root | ''%%main%%'' |
 | Backup root that holds the EXISTING replicas | ''%%backup%%'' |
-| Backup root for the NEW recursive task | Press **Enter** for the suggested ''%%backup/main%%'' (relocate, must not exist yet). Type the existing root again (''%%backup%%'') only for in-place mode. |
 | Backup SSH destination | ''%%root@backup-host%%'' |
 
-A blank port uses 22; a blank identity uses SSH defaults. Never enter an SSH password or private-key contents into these settings prompts.
+SSH uses port 22 and your normal SSH keys/config. Only if the backup needs something else, add overrides to the ''%%check%%'' command, e.g. ''%%check --port 2222 --identity ~/.ssh/backup_key%%''. Never enter an SSH password or private-key contents into these prompts.
+
+The script prints the target (normally the same backup root, ''%%root to root, in place%%''). Record it for Step 7.
 
 This checks both hierarchies, including the root and parents. It compares snapshot GUIDs and checks for conflicting backup state, encryption, clones, and unfinished receives. **It creates no ZFS snapshots, holds, renames, or transfers.**
 
 Each dataset in the readiness report is labelled:
 
-  * ''%%[INCREMENTAL]%%'': existing replica, sent incrementally.
-  * ''%%[MOVE + INCREMENTAL]%%'': existing replica, renamed under the new root on the backup, then sent incrementally. Its children move with it.
-  * ''%%[FULL]%%'': no usable replica; full send. A note explains any existing, unusable copy, which is left in place.
+  * ''%%INCREMENTAL%%'': existing replica, sent incrementally at the same path. The ''%%from @...%%'' snapshot is where it continues from.
+  * ''%%FULL%%'': nothing on the backup yet; full send.
+  * ''%%FULL, OVERWRITE%%'': the backup dataset exists but has no snapshots (usually the backup root). Its own data is replaced; the report shows how much. Its children are not touched.
+  * ''%%MOVE + INCREMENTAL%%'': only with ''%%--new-root%%'' or when moving aside; the replica is renamed, then sent incrementally.
 
-''%%Left in place%%'' lists backup datasets that are not part of the new task (for example, the old backup root and unusable copies). Nothing is deleted.
+''%%MOVE ASIDE%%'' lines are rare in root-to-root mode. They list a backup copy that has snapshots but none shared with the source, so it can neither be continued nor safely overwritten. During ''%%copy%%'' it is **renamed** (not deleted) to ''%%<backup pool>/migration-parked-<id>/...%%'' and the dataset is sent in full. Service must approve each one.
+
+''%%Not part of the new task, left untouched%%'' lists backup datasets that have no source dataset. They are kept. Keep **Allow Overwrite** off in the new task, because a forced recursive receive would destroy them.
+
+The console shows a summary; the full report file (''%%migration-state.readiness-<time>.txt%%'') has GUIDs and details.
 
 **Continue only after ''%%CHECK PASSED%%'' and Service approval of the readiness report (''%%migration-state.readiness-<time>.txt%%'').** If the report contains blockers, stop. A blocked check saves no state, so after Service review you can run ''%%check%%'' again with corrected answers. The migration snapshot name must be unused on both sides.
 
@@ -102,7 +120,7 @@ The script rechecks the plan, protects the incremental starting snapshots on bot
 
 **Continue only after ''%%PREPARE PASSED%%''.** Applications paused only for snapshot creation may then resume. Keep pruning paused and the dataset layout fixed.
 
-Service must review the transfer report (''%%migration-state.transfer-<time>.txt%%'') and approve the mappings, renames, estimates, and backup capacity. Stream-size estimates are not a guarantee of final disk-space usage.
+Service must review the transfer report (''%%migration-state.transfer-<time>.txt%%'') and approve the estimates and backup capacity. Each dataset shows its estimated send size: an ''%%INCREMENTAL%%'' row shows only the changes, not the dataset's full size. Stream-size estimates are not a guarantee of final disk-space usage.
 
 ===== 5. Copy the Migration Snapshots =====
 
@@ -112,15 +130,44 @@ python3 zfs-replication-consolidate.py copy
 
 After Service approves the transfer report, type ''%%COPY%%'' at the confirmation prompt.
 
-The script processes datasets parent-first, one at a time. For each it rechecks the approved state, then:
+**Keep the copy running if the terminal closes.** If the command is not running inside ''%%tmux%%'' or ''%%screen%%'', the script warns you and asks:
 
-  * creates the new root or a missing dataset by a full send,
-  * renames an existing replica under the new root (relocate mode), then sends it incrementally,
-  * verifies the received snapshot and protects it on the backup.
+<code>
+Run copy in the background so it keeps going if this terminal closes? [Y/n]:
+</code>
 
-All receives use ''%%-u%%'' (not mounted) and ''%%-s%%'' (resumable); there is no forced rollback. Completed transfers are reported as ''%%VERIFIED%%''; already-complete datasets on a restart are ''%%SKIPPED%%''.
+Press **Enter** (yes). The copy continues as a separate background process and the script prints where its output goes:
 
-**Renamed replicas change mount path on the backup** if their mountpoint is inherited (e.g. ''%%/backup/data%%'' becomes ''%%/backup/main/data%%''). Anything on the backup server that uses the old path must be updated. The new root itself is not mounted.
+<code>
+Watch progress:  tail -f migration-state.copy-<time>.out
+</code>
+
+You can then close the terminal or disconnect. To check on it later, reconnect, go to the same directory and run the ''%%tail -f%%'' command again (Ctrl+C stops watching, not the copy). Wait until the output ends with ''%%COPY PASSED%%'' (or ''%%STOPPED%%''), then continue with Step 6. Do not start another ''%%copy%%'' while the background one is running; the script refuses to.
+
+If you answer ''%%n%%'', or you are already in ''%%tmux%%''/''%%screen%%'', the copy runs in the current terminal.
+
+While a dataset is being sent, a status line shows its progress and the overall progress, e.g.:
+
+<code>
+  [2/3] main/data: started, about 3.06 GiB to send
+  [2/3] main/data: 1.86 GiB / 3.06 GiB [############--------] 61%  ETA 0:00:39  31.79 MiB/s  | all: 41%
+</code>
+
+In the background output file a new line is written every 10 seconds, so a dataset that finishes faster shows only its ''%%started%%'' and ''%%DONE%%'' lines. Sizes come from the ZFS estimate, so the final amount can differ slightly.
+
+The script processes datasets parent-first, one at a time. For each, it rechecks the approved state, sends it (incremental, full, or full overwrite), verifies the received snapshot, and protects it on the backup. Each line shows how much was actually sent, e.g.:
+
+<code>
+  DONE      main -> backup (full, sent 42.61 KiB)
+  DONE      main/data -> backup/data (incremental, sent 3.06 GiB)
+  DONE      main/data2 -> backup/data2 (full, sent 3.93 GiB)
+</code>
+
+An incremental row that sends much less than the dataset's size confirms that existing backup data was not re-sent.
+
+All receives are resumable (''%%-s%%''). New datasets are received unmounted (''%%-u%%''). ''%%FULL, OVERWRITE%%'' rows use ''%%-F%%'' on that one dataset only; it is remounted as before. Already-complete datasets on a restart are ''%%SKIPPED%%''.
+
+A ''%%FULL, OVERWRITE%%'' receive fails with ''%%cannot unmount ... busy%%'' if something on the backup is using that dataset or its children; stop that process and run ''%%copy%%'' again.
 
 **Continue only after ''%%COPY PASSED%%''.** Keep ''%%migration-state.log.jsonl%%'' with the reports and state file.
 
@@ -138,7 +185,7 @@ The script checks referenced data written since the latest backup snapshot; this
 
 ===== 7. Test the New Task =====
 
-Create one replication task using the approved source root and the **new** backup root (the one entered for the new recursive task, e.g. ''%%backup/main%%''):
+Create one replication task using the approved source root and the backup root printed by ''%%check%%'' (normally the same root the old tasks used, e.g. ''%%main -> backup%%''):
 
   * Enable **Send Recursive**.
   * Enable **Send Compressed**. The migration snapshots were sent with large blocks (''%%-L%%''); a later incremental without it can be refused by the backup.
@@ -167,17 +214,26 @@ After the real test succeeds and Service approves, enable the new schedule. Keep
 
 Service must review snapshot/pruning automation before re-enabling it. Keep the migration records and holds until a newer shared recursive snapshot is verified.
 
-Cleanup is a separate approved operation. The script does not delete snapshots, datasets, or holds. Its unique hold tag is recorded in the state file and reports. Service can release those specific holds, review old snapshots, and review the ''%%Left in place%%'' datasets after handover; never remove the last usable shared snapshot or holds belonging to another workflow.
+Cleanup is a separate approved operation. The script does not delete snapshots, datasets, or holds. Its unique hold tag is recorded in the state file and reports. After handover, Service can:
+
+  * release those specific holds,
+  * review old snapshots,
+  * review the ''%%left untouched%%'' datasets and any ''%%migration-parked-<id>%%'' area.
+
+Never remove the last usable shared snapshot or holds belonging to another workflow.
 
 ===== If Anything Goes Wrong =====
 
   * **Script missing:** return to Step 2. This is a supplied helper, not a system command.
-  * **Check blocked:** give Service the readiness report. Do not prepare or copy. After review, run ''%%check%%'' again (for example in relocate mode).
-  * **''%%Backup has data written after its latest snapshot%%'':** something changed that backup replica (often a mounted backup with ''%%atime=on%%'', or a user writing to it). An incremental receive will be refused. Service decides whether those backup-side changes can be discarded (''%%zfs rollback%%'' to the latest snapshot) and then reruns ''%%check%%''. In relocate mode, an unusable replica is sent in full instead and the old copy is left in place.
+  * **Backup paths moved to ''%%<backup>/<source root>/...%%'':** an older script version relocated replicas by default. Stop, keep the log, and have Service rename them back (see **Migration abandoned**), or roll back. The current version replicates root to root in place.
+  * **''%%cannot be overwritten in place%%'' on the root:** the backup root has snapshots or encryption. Give Service the readiness report; do not use ''%%--new-root%%'' unless path changes are approved.
+  * **Check blocked:** give Service the readiness report. Do not prepare or copy. After review, run ''%%check%%'' again.
+  * **''%%Backup has data written after its latest snapshot%%'':** something changed that backup replica (often a mounted backup with ''%%atime=on%%'', or a user writing to it). An incremental receive will be refused. Service decides whether those backup-side changes can be discarded (''%%zfs rollback%%'' to the latest snapshot) and then reruns ''%%check%%''.
   * **Prepare failed:** stop. Snapshots or holds may already exist; do not repeat preparation or delete the state file.
   * **Copy interrupted:** after Service review, run ''%%copy%%'' again; it resumes the interrupted receive.
+  * **Background copy:** ''%%tail -f migration-state.copy-<time>.out%%'' shows its output. If it ended with ''%%STOPPED%%'', give Service that file and the log, then run ''%%copy%%'' again after approval.
   * **State file already exists:** keep it. Use it to continue the existing migration; do not start over without Service review.
-  * **Migration abandoned:** Service must inspect the backup history and partial receives. In relocate mode, the log lists every ''%%RENAMED%%'' replica; Service must rename those back (''%%zfs rename <new> <old>%%'') before re-enabling the old tasks.
+  * **Migration abandoned:** Service must inspect the backup history and partial receives. The log lists every ''%%RENAMED%%'' and ''%%PARKED%%'' dataset. Service must rename those back (''%%zfs rename <new> <old>%%''), newest log entry first, before re-enabling the old tasks.
 
 For a new Service-approved attempt after a **passed** check or a started migration, use a different state filename with ''%%--state%%'' on **every** command. Keep the previous reports. For example, ''%%python3 zfs-replication-consolidate.py check --state reviewed-attempt.json%%'' starts a separate readiness check; it is not a way to bypass existing migration snapshots or partial receives.
 
