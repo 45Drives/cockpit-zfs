@@ -1,3 +1,3 @@
-## zfs module 1.3.1-2
+## zfs module 1.3.1-3
 
-* build testing package: fix(zfs): improve disk detection and storage operation safety
+* Building testing package with main branch merged in for consistency

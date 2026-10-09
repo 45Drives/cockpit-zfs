@@ -1,3 +1,9 @@
+cockpit-zfs (1.3.1-3bookworm) bookworm; urgency=medium
+
+  * Building testing package with main branch merged in for consistency
+
+ -- Jordan Keough <jkeough@45drives.com>  Fri, 09 Oct 2026 07:00:30 -0300
+
 cockpit-zfs (1.3.1-2bookworm) bookworm; urgency=medium
 
   * build testing package: fix(zfs): improve disk detection and storage operation
