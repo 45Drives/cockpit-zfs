@@ -3,6 +3,7 @@ import subprocess
 import argparse
 import tempfile
 import os
+import sys
 
 CERTIFIED_PROFILE = "PROFILE_ID=45D-FIPS-RL9.6-v1"
 
@@ -81,7 +82,6 @@ def main():
     parser.add_argument('keyformat',type=str, help='keyformat')
     parser.add_argument('keylocation',type=str, help='keylocation')
     parser.add_argument('path',type=str, help='path')
-    parser.add_argument('passphrase',type=str, help='passphrase')
 
     args = parser.parse_args()
 
@@ -100,7 +100,7 @@ def main():
     keyformat = args.keyformat
     keylocation = args.keylocation
     path = args.path
-    passphrase = args.passphrase
+    passphrase = sys.stdin.read()
 
     print(f"Executing command: {cmdString} create {atime} {case} {compress} {dedup} {dnode} {xattr} {record} {quota} {readonly} {encryption} {keyformat} {keylocation} {path}")
 

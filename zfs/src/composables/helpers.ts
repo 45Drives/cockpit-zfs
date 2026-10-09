@@ -172,6 +172,26 @@ export function convertRawTimestampToString(rawTimestamp) {
     return timestamp.substring(0, 19);
 }
 
+export function formatSnapshotCreation(epoch: string | number | null | undefined): string {
+	if ((typeof epoch !== 'number' && typeof epoch !== 'string') || (typeof epoch === 'string' && !epoch.trim())) {
+		return '-';
+	}
+	const seconds = Number(epoch);
+	const date = new Date(seconds * 1000);
+	if (!Number.isFinite(seconds) || isNaN(date.getTime())) {
+		return '-';
+	}
+	const pad = (value: number) => String(value).padStart(2, '0');
+	const day = `${String(date.getFullYear()).padStart(4, '0')}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+	const time = `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+	const offsetMinutes = -date.getTimezoneOffset();
+	const absoluteOffset = Math.abs(offsetMinutes);
+	const offsetHours = Math.floor(absoluteOffset / 60);
+	const remainingMinutes = absoluteOffset % 60;
+	const offset = offsetMinutes === 0 ? '' : `${offsetMinutes > 0 ? '+' : '-'}${offsetHours}${remainingMinutes ? `:${pad(remainingMinutes)}` : ''}`;
+	return `${day} ${time} GMT${offset}`;
+}
+
 export function convertTimestampToLocal(timestamp) {
     // Guard against null/undefined/"None" from Python
     if (!timestamp || timestamp === 'None' || timestamp === 'null') {
@@ -543,6 +563,7 @@ export function getFullDiskInfo(disks: VDevDisk[], diskName: string): VDevDisk |
 	}
 
 	const pathPrefixes: Record<string, string> = {
+		vdev_path: '/dev/disk/by-vdev/',
 		phy_path: '/dev/disk/by-path/',
 		sd_path: '/dev/',
 		id_path: '/dev/disk/by-id/',
@@ -554,29 +575,33 @@ export function getFullDiskInfo(disks: VDevDisk[], diskName: string): VDevDisk |
 
 	// console.log("Searching for disk with name:", diskName);
 
-	// Find the disk by matching its name against possible paths
+	let matchedPath = '';
 	const foundDisk = disks.find(disk => {
 		if (disk.name?.trim() === diskName.trim() || disk.vdev_path?.trim() === diskName.trim()) {
-			disk.path = disk.vdev_path?.trim() ?? disk.name?.trim() ?? ''; // Ensure it's always a string
+			matchedPath = disk.vdev_path?.startsWith('/dev/') ? disk.vdev_path.trim() : disk.sd_path?.trim() ?? '';
 			return true;
 		}
 
 		for (const [key, prefix] of Object.entries(pathPrefixes)) {
 			const diskPath = (disk as any)[key]?.trim();
-			if (diskPath && diskPath.replace(prefix, '') === diskName.trim()) {
-				disk.path = diskPath; // Assign the actual matched path
+			if (diskPath && (diskPath === diskName.trim() || diskPath.replace(prefix, '') === diskName.trim())) {
+				matchedPath = diskPath;
 				return true;
 			}
 		}
 
-		return false;
+		const alias = (disk as VDevDisk & { alias_paths?: string[] }).alias_paths?.find(path =>
+			path === diskName.trim() || path.replace(/^\/dev\/(?:disk\/by-[^/]+\/)?/, '') === diskName.trim()
+		);
+		if (alias) matchedPath = alias;
+		return Boolean(alias);
 	});
 
 	if (foundDisk) {
 		// console.log("Found disk:", foundDisk);
 	}
 
-	return foundDisk;
+	return foundDisk ? { ...foundDisk, path: matchedPath } : undefined;
 }
 
 
@@ -603,6 +628,7 @@ export function getDiskIDName(disks: VDevDisk[], diskIdentifier: string, selecte
 		// console.log("Checking disk:", disk.name?.trim(), "against", selectedDiskName.trim());
 		return disk.name?.trim() === selectedDiskName.trim();
 	});
+	if (!newDisk.value) return '';
 
 	switch (diskIdentifier) {
 		case 'vdev_path':
@@ -611,31 +637,31 @@ export function getDiskIDName(disks: VDevDisk[], diskIdentifier: string, selecte
 			break;
 		case 'phy_path':
 			diskPath.value = newDisk.value!.phy_path;
-			diskName.value = diskPath.value.replace(phyPathPrefix, '');
+			diskName.value = diskPath.value?.replace(phyPathPrefix, '') ?? '';
 			break;
 		case 'sd_path':
 			diskPath.value = newDisk.value!.sd_path;
-			diskName.value = diskPath.value.replace(sdPathPrefix, '');
+			diskName.value = diskPath.value?.replace(sdPathPrefix, '') ?? '';
 			break;
 		case 'id_path':
 			diskPath.value = newDisk.value!.id_path;
-			diskName.value = diskPath.value.replace(idPathPrefix, '');
+			diskName.value = diskPath.value?.replace(idPathPrefix, '') ?? '';
 			break;
 		case 'label_path':
 			diskPath.value = newDisk.value!.label_path;
-			diskName.value = diskPath.value.replace(labelPathPrefix, '');
+			diskName.value = diskPath.value?.replace(labelPathPrefix, '') ?? '';
 			break;
 		case 'part_label_path':
 			diskPath.value = newDisk.value!.part_label_path;
-			diskName.value = diskPath.value.replace(partLabelPathPrefix, '');
+			diskName.value = diskPath.value?.replace(partLabelPathPrefix, '') ?? '';
 			break;
 		case 'part_uuid':
 			diskPath.value = newDisk.value!.part_uuid;
-			diskName.value = diskPath.value.replace(partUUIDPrefix, '');
+			diskName.value = diskPath.value?.replace(partUUIDPrefix, '') ?? '';
 			break;
 		case 'uuid':
 			diskPath.value = newDisk.value!.uuid;
-			diskName.value = diskPath.value.replace(uuidPrefix, '');
+			diskName.value = diskPath.value?.replace(uuidPrefix, '') ?? '';
 			break;
 		default:
 			console.log('Error with selectedDiskNames/diskIdentifier');
@@ -648,7 +674,7 @@ export function getDiskIDName(disks: VDevDisk[], diskIdentifier: string, selecte
 
 // One canonical matcher. Works with reactive arrays (pass disks.value) or plain arrays.
 export function matchDiskByVdevOrPath(
-	disksLike: MaybeRef<VDevDisk[]>,
+	disksLike: MaybeRef<(VDevDisk & { alias_paths?: string[] })[]>,
 	vdevPathOrAnyPath: string
 ) {
 	if (!vdevPathOrAnyPath) return undefined;
@@ -677,33 +703,18 @@ export function matchDiskByVdevOrPath(
 		return p;
 	};
 
-	const sameOrStartsWith = (a: string, b: string) => {
-		if (!a || !b) return false;
-		if (a === b) return true;
-		// Require a path-separator boundary to avoid sda matching sdab
-		const longer = a.length > b.length ? a : b;
-		const shorter = a.length > b.length ? b : a;
-		if (!longer.startsWith(shorter)) return false;
-		const nextChar = longer[shorter.length];
-		return nextChar === '/' || nextChar === '-' || nextChar === '.' || nextChar === undefined;
-	};
-
 	const want = vdevPathOrAnyPath;
 	const wantBase = clean(want);
 
 	const candidates = ["sd_path", "phy_path", "vdev_path", "id_path", "label_path", "part_label_path", "part_uuid", "uuid"];
+	const pathsFor = (disk: VDevDisk & { alias_paths?: string[] }) => [
+		...candidates.map(key => (disk as any)?.[key] as string | undefined),
+		...(disk.alias_paths ?? []),
+	];
 
-	let d = disks.find(dd => candidates.some(k => {
-		const v = (dd as any)?.[k] as string | undefined;
+	return disks.find(dd => pathsFor(dd).some(v => {
 		return v === want || clean(v) === wantBase;
 	}));
-	if (d) return d;
-
-	d = disks.find(dd => candidates.some(k => {
-		const v = ((dd as any)?.[k] as string | undefined) ?? "";
-		return sameOrStartsWith(v, want) || sameOrStartsWith(clean(v), wantBase);
-	}));
-	return d;
 }
 
 

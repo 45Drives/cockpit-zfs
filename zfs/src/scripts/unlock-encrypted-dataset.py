@@ -3,6 +3,7 @@ import subprocess
 import argparse
 import tempfile
 import os
+import sys
 
 def unlock_locked_dataset(name, passphrase_file):
     try :
@@ -26,8 +27,7 @@ def unlock_locked_dataset(name, passphrase_file):
                 stdout, stderr = process.communicate(input=f.read())
 
             if process.returncode != 0:
-                # raise Exception(f"Error: {stderr.decode('utf-8')}")
-                print(f"Error: {stderr}")
+                raise RuntimeError(stderr.decode('utf-8', errors='replace'))
             else:
                 print(stdout)
 
@@ -44,13 +44,12 @@ def main():
     # Parse command-line arguments
     parser = argparse.ArgumentParser(description='Unlock encrypted ZFS Dataset')
     parser.add_argument('name', type=str, help='dataset name')
-    parser.add_argument('passphrase', type=str, help='passphrase')
 
     args = parser.parse_args()
 
     # Extract values from arguments
     name = args.name
-    passphrase = args.passphrase
+    passphrase = sys.stdin.read()
 
     print(f"Executing unlock command on {name}")
 

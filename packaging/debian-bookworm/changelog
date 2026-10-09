@@ -1,3 +1,41 @@
+cockpit-zfs (1.3.1-4bookworm) bookworm; urgency=medium
+
+  * Testing fixes from copilot review and new signing fix
+
+ -- Jordan Keough <jkeough@45drives.com>  Fri, 09 Oct 2026 09:51:08 -0300
+
+cockpit-zfs (1.3.1-3bookworm) bookworm; urgency=medium
+
+  * Building testing package with main branch merged in for consistency
+
+ -- Jordan Keough <jkeough@45drives.com>  Fri, 09 Oct 2026 07:00:30 -0300
+
+cockpit-zfs (1.3.1-2bookworm) bookworm; urgency=medium
+
+  * build testing package: fix(zfs): improve disk detection and storage operation
+    safety
+
+ -- Jordan Keough <jkeough@45drives.com>  Tue, 06 Oct 2026 07:26:29 -0300
+
+cockpit-zfs (1.3.1-1bookworm) bookworm; urgency=medium
+
+  * Fixes several issues: improve NVMe detection, harden storage operations, correct
+    reservations, and add regression tests and audit documentation
+
+ -- Jordan Keough <jkeough@45drives.com>  Tue, 06 Oct 2026 07:19:29 -0300
+
+cockpit-zfs (1.3.0-1bookworm) bookworm; urgency=medium
+
+  * Updates bulk destroy snapshot to run properly for maximum speed/efficiency
+
+ -- Jordan Keough <jkeough@45drives.com>  Thu, 13 Aug 2026 12:33:10 -0300
+
+cockpit-zfs (1.2.33-2bookworm) bookworm; urgency=medium
+
+  * Forcing rebuild with latest fix: timestamp display issue
+
+ -- Jordan Keough <jkeough@45drives.com>  Tue, 11 Aug 2026 05:25:20 -0300
+
 cockpit-zfs (1.2.33-1bookworm) bookworm; urgency=medium
 
   * Fixes some disk data display issues, adds replace disk for removed disks, fixes

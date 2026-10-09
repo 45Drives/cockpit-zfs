@@ -123,6 +123,41 @@ The following packages should be installed on the target system:
 
 ## Development
 
+### Automated Checks
+
+Run the checks before building or deploying:
+
+```bash
+npm test
+```
+
+`yarn test` runs the same checks. They require Node.js 22.13 or newer and Python 3,
+but do not require dependency installation, Cockpit, ZFS, libzfs, SSH, or root.
+They never run live disk operations. The newer Node requirement applies to tests,
+not to the installed Cockpit module.
+
+The suite covers disk identifiers, creation safety, attach/replace targets,
+snapshot deletion, dataset settings, pool import flags, refresh coordination,
+control-plane RPC, backend discovery and pool parsing, encryption failure handling,
+and frontend/backend source syntax. Operation tests evaluate real functions with
+mocked command transports; they do not mount Vue components or typecheck imports.
+
+To run only one part from the repository root:
+
+```bash
+npm run test:frontend
+npm run test:backend
+```
+
+CI runs these checks on pushes and pull requests, and package-building CI waits
+for the test job. Local builds remain a separate command: run the tests first.
+Passing unit tests does not replace a small integration smoke test for actual
+ZFS versions, udev links, Cockpit permissions, KMS providers, or replication.
+See [the audit and fixes record](docs/module-audit.md) for the complete fixes history,
+replication rollback policy, and remaining live-integration checks.
+
+### Dev Server
+
 ```bash
 # Start the Vite dev server for hot-reload development
 cd zfs
