@@ -700,17 +700,6 @@ export function matchDiskByVdevOrPath(
 		return p;
 	};
 
-	const sameOrStartsWith = (a: string, b: string) => {
-		if (!a || !b) return false;
-		if (a === b) return true;
-		// Require a path-separator boundary to avoid sda matching sdab
-		const longer = a.length > b.length ? a : b;
-		const shorter = a.length > b.length ? b : a;
-		if (!longer.startsWith(shorter)) return false;
-		const nextChar = longer[shorter.length];
-		return nextChar === '/' || nextChar === '-' || nextChar === '.' || nextChar === undefined;
-	};
-
 	const want = vdevPathOrAnyPath;
 	const wantBase = clean(want);
 
@@ -720,15 +709,9 @@ export function matchDiskByVdevOrPath(
 		...(disk.alias_paths ?? []),
 	];
 
-	let d = disks.find(dd => pathsFor(dd).some(v => {
+	return disks.find(dd => pathsFor(dd).some(v => {
 		return v === want || clean(v) === wantBase;
 	}));
-	if (d) return d;
-
-	d = disks.find(dd => pathsFor(dd).some(v => {
-		return sameOrStartsWith(v ?? "", want) || sameOrStartsWith(clean(v), wantBase);
-	}));
-	return d;
 }
 
 

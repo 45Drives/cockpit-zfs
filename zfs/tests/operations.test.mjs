@@ -136,6 +136,38 @@ test('cancelled snapshot deletion starts no command, including the small-range p
     assert.deepEqual(result, { succeeded: [], failed: [], cancelled: true });
 });
 
+test('snapshot cancellation label describes stopping after the current batch', () => {
+    const source = sourceFor('components/common/UniversalConfirmation.vue');
+    const expression = /{{ (operationRunning && props\.item === 'snapshots' \? [^\n]+) }}/.exec(source);
+    assert.ok(expression);
+    const label = new Function('operationRunning', 'props', `return ${expression[1]};`);
+    assert.equal(label(true, { item: 'snapshots' }), 'Stop After Current Batch');
+    assert.equal(label(false, { item: 'snapshots' }), 'Cancel');
+    assert.equal(label(true, { item: 'filesystem' }), 'Cancel');
+});
+
+test('range cancellation allows the active command to finish but schedules no further batch', async () => {
+    for (const count of [2, 105]) {
+        const cancel = { value: false };
+        const commands = [];
+        let complete;
+        const destroy = bulkDeletion(argv => {
+            commands.push(argv);
+            return { promise: () => new Promise(resolve => { complete = resolve; }) };
+        });
+        const snapshots = Array.from({ length: count }, (_, index) => `pool/data@s${index}`);
+        const pending = destroy(snapshots, snapshots, undefined, cancel);
+        assert.equal(commands.length, 1);
+        cancel.value = true;
+        complete({ stdout: '' });
+        const result = await pending;
+        assert.equal(commands.length, 1);
+        assert.deepEqual(result.succeeded, snapshots.slice(0, 100));
+        assert.deepEqual(result.failed, []);
+        assert.equal(result.cancelled, count > 100);
+    }
+});
+
 test('snapshot deletion stops scheduling after a completed batch is cancelled', async () => {
     const cancel = { value: false };
     const commands = [];

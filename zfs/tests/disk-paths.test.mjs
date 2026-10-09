@@ -105,6 +105,31 @@ test('alternate aliases and partitions match distinct disks', () => {
     assert.equal(matchDisk([{ sd_path: '/dev/sdab' }], '/dev/sda'), undefined);
 });
 
+test('persistent disk aliases do not match arbitrary prefix suffixes', () => {
+    const base = '/dev/disk/by-id/ata-Model_SERIAL';
+    for (const field of ['id_path', 'alias_paths']) {
+        const original = { name: 'first', [field]: field === 'alias_paths' ? [base] : base };
+        for (const suffix of ['-extra', '.extra', '/extra']) {
+            const extendedPath = base + suffix;
+            const extended = { name: 'second', [field]: field === 'alias_paths' ? [extendedPath] : extendedPath };
+            assert.equal(matchDisk([original], extendedPath), undefined);
+            assert.equal(matchDisk([extended], base), undefined);
+            assert.equal(matchDisk([original, extended], extendedPath + '-part1'), extended);
+            assert.equal(matchDisk([extended, original], base + '-part1'), original);
+        }
+    }
+});
+
+test('disk matching retains partition and ATA target suffix normalization', () => {
+    const disk = {
+        sd_path: '/dev/sda', phy_path: '/dev/disk/by-path/pci-0000:00:17.0-ata-3.0',
+        alias_paths: ['/dev/nvme0n1', '/dev/mmcblk0'],
+    };
+    for (const path of ['/dev/sda2', '/dev/nvme0n1p2', '/dev/mmcblk0p2', '/dev/disk/by-path/pci-0000:00:17.0-ata-3-part2']) {
+        assert.equal(matchDisk([disk], path), disk);
+    }
+});
+
 test('lookup supports full paths and alternate alias names without mutating inventory', () => {
     const disk = makeDisk();
     const original = structuredClone(disk);

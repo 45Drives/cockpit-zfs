@@ -198,7 +198,7 @@
                     <button @click="closeModal" :id="getIdKey('confirm-no')" name="button-no"
                         :class="operationRunning ? 'btn btn-danger' : 'btn btn-secondary'"
                         class="mt-1 object-left justify-start h-fit">
-                        {{ operationRunning && props.item === 'snapshots' ? 'Stop' : 'Cancel' }}
+                        {{ operationRunning && props.item === 'snapshots' ? 'Stop After Current Batch' : 'Cancel' }}
                     </button>
 
                     <!-- add a computed property to determine which buttons to render? -->
