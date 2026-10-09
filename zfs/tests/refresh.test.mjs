@@ -13,8 +13,29 @@ test('snapshot epochs use local time with an explicit offset, including DST and 
         assert.equal(formatSnapshotCreation(Date.parse('2026-10-06T20:00:25Z') / 1000), '2026-10-06 16:00:25 GMT-4');
         assert.equal(formatSnapshotCreation(Date.parse('2026-01-06T20:00:25Z') / 1000), '2026-01-06 15:00:25 GMT-5');
         assert.equal(formatSnapshotCreation(Date.parse('2026-10-06T04:00:00Z') / 1000), '2026-10-06 00:00:00 GMT-4');
-        for (const invalid of [null, undefined, '', ' ', 'None', '2026-10-06 20:00:25', NaN, Infinity, 1e20]) {
+        for (const invalid of [null, undefined, '', ' ', 'None', '2026-10-06 20:00:25', NaN, Infinity, 1e20, true, false, [], {}, Symbol('invalid')]) {
             assert.equal(formatSnapshotCreation(invalid), '-');
+        }
+    } finally {
+        if (previousTimezone === undefined) delete process.env.TZ;
+        else process.env.TZ = previousTimezone;
+    }
+});
+
+test('snapshot epochs preserve fractional-hour local offsets without locale formatting', () => {
+    const previousTimezone = process.env.TZ;
+    const format = loadFunction('composables/helpers.ts', 'formatSnapshotCreation', {
+        Intl: { DateTimeFormat() { throw new Error('Locale formatting must not determine snapshot output'); } },
+    });
+    try {
+        const epoch = Date.parse('2026-01-06T20:00:25Z') / 1000;
+        for (const [timezone, expected] of [
+            ['Asia/Kolkata', '2026-01-07 01:30:25 GMT+5:30'],
+            ['Asia/Kathmandu', '2026-01-07 01:45:25 GMT+5:45'],
+            ['America/St_Johns', '2026-01-06 16:30:25 GMT-3:30'],
+        ]) {
+            process.env.TZ = timezone;
+            assert.equal(format(epoch), expected);
         }
     } finally {
         if (previousTimezone === undefined) delete process.env.TZ;

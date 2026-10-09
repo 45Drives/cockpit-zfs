@@ -173,7 +173,7 @@ export function convertRawTimestampToString(rawTimestamp) {
 }
 
 export function formatSnapshotCreation(epoch: string | number | null | undefined): string {
-	if (epoch === null || epoch === undefined || (typeof epoch === 'string' && !epoch.trim())) {
+	if ((typeof epoch !== 'number' && typeof epoch !== 'string') || (typeof epoch === 'string' && !epoch.trim())) {
 		return '-';
 	}
 	const seconds = Number(epoch);
@@ -181,12 +181,15 @@ export function formatSnapshotCreation(epoch: string | number | null | undefined
 	if (!Number.isFinite(seconds) || isNaN(date.getTime())) {
 		return '-';
 	}
-	const parts = Object.fromEntries(new Intl.DateTimeFormat('en-US', {
-		year: 'numeric', month: '2-digit', day: '2-digit',
-		hour: '2-digit', minute: '2-digit', second: '2-digit',
-		hourCycle: 'h23', timeZoneName: 'shortOffset',
-	}).formatToParts(date).map(part => [part.type, part.value]));
-	return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}:${parts.second} ${parts.timeZoneName}`;
+	const pad = (value: number) => String(value).padStart(2, '0');
+	const day = `${String(date.getFullYear()).padStart(4, '0')}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+	const time = `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+	const offsetMinutes = -date.getTimezoneOffset();
+	const absoluteOffset = Math.abs(offsetMinutes);
+	const offsetHours = Math.floor(absoluteOffset / 60);
+	const remainingMinutes = absoluteOffset % 60;
+	const offset = offsetMinutes === 0 ? '' : `${offsetMinutes > 0 ? '+' : '-'}${offsetHours}${remainingMinutes ? `:${pad(remainingMinutes)}` : ''}`;
+	return `${day} ${time} GMT${offset}`;
 }
 
 export function convertTimestampToLocal(timestamp) {
