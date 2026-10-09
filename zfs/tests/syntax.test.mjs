@@ -3,7 +3,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { stripTypeScriptTypes } from 'node:module';
 import test from 'node:test';
 
-const vueScriptPattern = /<script\b[^>]*>([\s\S]*?)<\/script>/gi;
+const vueScriptPattern = /<script\b[^>]*>([\s\S]*?)<\/script\s*>/gi;
 
 test('Vue syntax extraction checks uppercase and mixed-case script tags', () => {
     const source = '<SCRIPT setup lang="ts">const valid: number = 1;</SCRIPT><sCrIpT>const = ;</ScRiPt>';
