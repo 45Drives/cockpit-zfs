@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { loadFunction } from './source-loader.mjs';
+import { loadFunction, sourceFor } from './source-loader.mjs';
 
 test('replication UI propagates send errors and always closes the progress watcher', async () => {
     for (const failed of [false, true]) {
@@ -20,6 +20,77 @@ const detectRange = loadFunction('composables/snapshots.ts', 'detectSnapshotRang
 function bulkDeletion(spawn) {
     return loadFunction('composables/snapshots.ts', 'destroySnapshotsBulk', {
         detectSnapshotRange: detectRange, useSpawn: spawn, errorString: error => error.message,
+    });
+}
+
+test('snapshot UI uses chronology for deletion even when display sorting makes selections adjacent', async () => {
+    const chronological = ['pool/data@a', 'pool/data@middle', 'pool/data@b'];
+    const selected = [chronological[0], chronological[2]];
+    const source = sourceFor('components/snapshots/SnapshotsList.vue');
+    const expression = /const allSnapNames = ([^\n]+);/.exec(source);
+    assert.ok(expression);
+    const getNames = new Function('snapshotsInFilesystem', 'sortedSnapshotsInFilesystem', `return ${expression[1]};`);
+    for (const displayOrder of [[...selected, chronological[1]], [...chronological].reverse()]) {
+        const allNames = getNames(
+            { value: chronological.map(name => ({ name })) },
+            { value: displayOrder.map(name => ({ name })) },
+        );
+        const commands = [];
+        const destroy = bulkDeletion(argv => {
+            commands.push(argv);
+            return { promise: async () => ({ stdout: '' }) };
+        });
+        await destroy(selected, allNames);
+        assert.deepEqual(commands, selected.map(name => ['zfs', 'destroy', name]));
+    }
+});
+
+for (const scenario of ['creation', 'refresh', 'filesystem', 'zvol', 'reservation', 'success']) {
+    test(`pool wizard handles ${scenario} outcome without inviting a duplicate creation`, async () => {
+        const refs = Object.fromEntries(['finishPressed', 'creatingPool', 'poolCreated', 'filesystemCreated'].map(name => [name, { value: false }]));
+        const showWizard = { value: true };
+        const notifications = [];
+        let refreshCalls = 0;
+        let datasetCalls = 0;
+        const finish = loadFunction('components/pool-creation-wizard/CreatePool.vue', 'finishBtn', {
+            ...refs, showWizard, certifiedFipsProfile: { value: false },
+            poolConfiguration: { value: {
+                fillNewPoolData() {}, getDatasetCreationType: () => scenario === 'zvol' ? 'zvol' : 'filesystem',
+                getZvolConfig: () => ({ name: 'volume' }),
+            } },
+            datasetCreationType: { value: '' }, zvolConfigData: { value: {} },
+            zfsManager: { createPool: async () => {
+                if (scenario === 'creation') throw new Error('create failed');
+                if (scenario === 'reservation') throw Object.assign(new Error('reservation failed'), { poolCreated: true });
+            } },
+            refreshAllData: async () => {
+                refreshCalls++;
+                if (scenario === 'refresh' && refreshCalls === 1) throw new Error('refresh failed');
+            },
+            newFS: async () => {
+                datasetCalls++;
+                if (scenario === 'filesystem' || scenario === 'zvol') throw new Error('dataset failed');
+            },
+            extractProcessErr: error => error.message,
+            pushNotification: notification => notifications.push(notification),
+            Notification: class { constructor(title, message, severity) { Object.assign(this, { title, message, severity }); } },
+        });
+        await finish({ name: 'tank', vdevs: [] });
+        assert.equal(showWizard.value, scenario === 'creation');
+        assert.ok(Object.values(refs).every(ref => ref.value === false));
+        assert.equal(datasetCalls, ['filesystem', 'zvol', 'success'].includes(scenario) ? 1 : 0);
+        const error = notifications.find(notification => notification.severity === 'error');
+        const titles = {
+            creation: 'Pool Creation Failed', refresh: 'Pool Created; Refresh Failed',
+            filesystem: 'Pool Created; Dataset Creation Failed', zvol: 'Pool Created; Dataset Creation Failed',
+            reservation: 'Pool Created; Reservation Failed',
+        };
+        if (scenario === 'success') assert.equal(error, undefined);
+        else {
+            assert.equal(error.title, titles[scenario]);
+            if (scenario !== 'creation') assert.match(error.message, /Pool 'tank' exists\./);
+        }
+        assert.equal(refreshCalls, scenario === 'creation' ? 0 : ['refresh', 'filesystem', 'zvol'].includes(scenario) ? 2 : 1);
     });
 }
 

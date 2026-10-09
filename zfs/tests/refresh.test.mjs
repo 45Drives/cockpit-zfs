@@ -2,6 +2,50 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { loadFunction } from './source-loader.mjs';
 
+const formatSnapshotCreation = loadFunction('composables/helpers.ts', 'formatSnapshotCreation');
+
+test('snapshot epochs use local time with an explicit offset, including DST and midnight', () => {
+    const previousTimezone = process.env.TZ;
+    try {
+        process.env.TZ = 'UTC';
+        assert.equal(formatSnapshotCreation('0'), '1970-01-01 00:00:00 GMT');
+        process.env.TZ = 'America/New_York';
+        assert.equal(formatSnapshotCreation(Date.parse('2026-10-06T20:00:25Z') / 1000), '2026-10-06 16:00:25 GMT-4');
+        assert.equal(formatSnapshotCreation(Date.parse('2026-01-06T20:00:25Z') / 1000), '2026-01-06 15:00:25 GMT-5');
+        assert.equal(formatSnapshotCreation(Date.parse('2026-10-06T04:00:00Z') / 1000), '2026-10-06 00:00:00 GMT-4');
+        for (const invalid of [null, undefined, '', ' ', 'None', '2026-10-06 20:00:25', NaN, Infinity, 1e20]) {
+            assert.equal(formatSnapshotCreation(invalid), '-');
+        }
+    } finally {
+        if (previousTimezone === undefined) delete process.env.TZ;
+        else process.env.TZ = previousTimezone;
+    }
+});
+
+test('all snapshot loaders format the numeric creation epoch, never backend date strings', async () => {
+    const epoch = String(Date.parse('2026-10-06T20:00:25Z') / 1000);
+    const snapshot = {
+        name: 'tank/data@scheduler-2026.10.06-20.00.24', snapshot_name: 'scheduler-2026.10.06-20.00.24',
+        properties: {
+            guid: { value: '123' }, creation: { rawvalue: epoch, parsed: 'ambiguous backend date', value: 'another date' },
+            clones: { parsed: [] }, referenced: {}, used: {},
+        },
+    };
+    const fetch = async () => ({ 'tank/data': [snapshot] });
+    for (const name of ['loadSnapshots', 'loadSnapshotsInPool', 'loadSnapshotsInDataset']) {
+        const load = loadFunction('composables/loadData.ts', name, {
+            getSnapshots: fetch, getSnapshotsOfPool: fetch, getSnapshotsOfDataset: fetch, formatSnapshotCreation,
+            console: { log() {}, error(error) { throw error; } },
+        });
+        const snapshots = { value: [] };
+        await load(snapshots, 'tank/data', null, null);
+        assert.equal(snapshots.value[0].properties.creation.parsed, formatSnapshotCreation(epoch));
+        assert.equal(snapshots.value[0].creationTimestamp, epoch);
+        assert.equal(snapshots.value[0].name, snapshot.name);
+    }
+    assert.equal(snapshot.properties.creation.parsed, 'ambiguous backend date');
+});
+
 function refreshFixture(loader) {
     const ref = value => ({ value });
     const ctx = {

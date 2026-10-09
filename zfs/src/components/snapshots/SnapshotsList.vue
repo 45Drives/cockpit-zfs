@@ -18,6 +18,7 @@
 								<ChevronUpIcon v-if="sortColumn === 'creation' && sortDirection === 'asc'" class="w-4 h-4" />
 								<ChevronDownIcon v-else-if="sortColumn === 'creation' && sortDirection === 'desc'" class="w-4 h-4" />
 							</span>
+							<span class="block text-xs font-normal">Browser Local</span>
 						</th>
 						<th class="py-2 col-span-1 text-center cursor-pointer select-none" :class="truncateText" title="Sort by Used" @click="toggleSort('used')">
 							<span class="inline-flex items-center gap-1">Used
@@ -55,7 +56,7 @@
 							:class="truncateText" :title="snapshot.name">
 							{{ snapshot.name }}
 						</td>
-						<td class="py-1 px-3 text-sm text-default text-center col-span-1" :class="truncateText"
+						<td class="py-1 px-3 text-sm text-default text-center col-span-1 whitespace-normal break-words"
 							:title="snapshot.properties.creation.parsed">
 							{{ snapshot.properties.creation.parsed }}
 						</td>
@@ -152,6 +153,7 @@
 								<ChevronUpIcon v-if="sortColumn === 'creation' && sortDirection === 'asc'" class="w-4 h-4" />
 								<ChevronDownIcon v-else-if="sortColumn === 'creation' && sortDirection === 'desc'" class="w-4 h-4" />
 							</span>
+							<span class="block text-xs font-normal">Browser Local</span>
 						</th>
 						<th class="py-2 col-span-1 text-center cursor-pointer select-none" :class="truncateText" title="Sort by Used" @click="toggleSort('used')">
 							<span class="inline-flex items-center gap-1">Used
@@ -201,7 +203,7 @@
 							:class="truncateText" :title="snapshot.name">
 							{{ snapshot.name }}
 						</td>
-						<td class="py-1 px-3 text-sm text-default text-center col-span-1" :class="truncateText"
+						<td class="py-1 px-3 text-sm text-default text-center col-span-1 whitespace-normal break-words"
 							:title="snapshot.properties.creation.parsed">
 							{{ snapshot.properties.creation.parsed }}
 						</td>
@@ -586,8 +588,8 @@ watch(confirmBulkDestroy, async (newVal, oldVal) => {
 			cancelBulkDestroy.value = false;
 
 			// Use optimized bulk destroy with range detection
-			// Pass sorted list to enable range detection for contiguous selections
-			const allSnapNames = sortedSnapshotsInFilesystem.value.map(s => s.name);
+			// Use loader chronology, independent of the table's display sorting
+			const allSnapNames = snapshotsInFilesystem.value.map(s => s.name);
 			
 			const result = await destroySnapshotsBulk(
 				selectedForDestroy.value,

@@ -172,6 +172,23 @@ export function convertRawTimestampToString(rawTimestamp) {
     return timestamp.substring(0, 19);
 }
 
+export function formatSnapshotCreation(epoch: string | number | null | undefined): string {
+	if (epoch === null || epoch === undefined || (typeof epoch === 'string' && !epoch.trim())) {
+		return '-';
+	}
+	const seconds = Number(epoch);
+	const date = new Date(seconds * 1000);
+	if (!Number.isFinite(seconds) || isNaN(date.getTime())) {
+		return '-';
+	}
+	const parts = Object.fromEntries(new Intl.DateTimeFormat('en-US', {
+		year: 'numeric', month: '2-digit', day: '2-digit',
+		hour: '2-digit', minute: '2-digit', second: '2-digit',
+		hourCycle: 'h23', timeZoneName: 'shortOffset',
+	}).formatToParts(date).map(part => [part.type, part.value]));
+	return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}:${parts.second} ${parts.timeZoneName}`;
+}
+
 export function convertTimestampToLocal(timestamp) {
     // Guard against null/undefined/"None" from Python
     if (!timestamp || timestamp === 'None' || timestamp === 'null') {

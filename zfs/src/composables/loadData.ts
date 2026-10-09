@@ -2,7 +2,7 @@ import { ref, Ref } from 'vue';
 import { getPools } from "./pools";
 import { getDisks } from "./disks";
 import { getDatasets } from "./datasets";
-import { matchDiskByVdevOrPath, convertBytesToSize, onOffToBool, getQuotaRefreservUnit, getSizeUnitFromString, getParentPath, convertTimestampToLocal, formatCapacityString, isCapacityPatternInvalid, changeUnitToBinary } from "./helpers";
+import { matchDiskByVdevOrPath, convertBytesToSize, onOffToBool, getQuotaRefreservUnit, getSizeUnitFromString, getParentPath, formatSnapshotCreation, formatCapacityString, isCapacityPatternInvalid, changeUnitToBinary } from "./helpers";
 import { getSnapshots, getSnapshotsOfDataset, getSnapshotsOfPool } from './snapshots';
 import { getDiskStats, getScanGroup } from './scan';
 import { VDevDisk, ZFSFileSystemInfo, VDev } from "@45drives/houston-common-lib"
@@ -928,7 +928,13 @@ export async function loadSnapshots(snapshots) {
 					type: snapshot.type,
 					guid: snapshot.properties.guid.value,
 					creationTimestamp: snapshot.properties.creation.rawvalue,
-					properties: snapshot.properties,
+					properties: {
+						...snapshot.properties,
+						creation: {
+							...snapshot.properties.creation,
+							parsed: formatSnapshotCreation(snapshot.properties.creation.rawvalue),
+						},
+					},
 					holds: snapshot.holds
 				};
 				allSnapshots.push(snap);
@@ -967,7 +973,13 @@ export async function loadSnapshotsInPool(snapshots, poolName) {
 					type: snapshot.type,
 					guid: snapshot.properties.guid.value,
 					creationTimestamp: snapshot.properties.creation.rawvalue,
-					properties: snapshot.properties,
+					properties: {
+						...snapshot.properties,
+						creation: {
+							...snapshot.properties.creation,
+							parsed: formatSnapshotCreation(snapshot.properties.creation.rawvalue),
+						},
+					},
 					holds: snapshot.holds
 				};
 
@@ -1009,7 +1021,7 @@ export async function loadSnapshotsInDataset(snapshots, datasetName, snapshotNot
 						clones: snapshot.properties.clones.parsed,
 						creation: {
 							rawTimestamp: snapshot.properties.creation.rawvalue,
-							parsed: convertTimestampToLocal(snapshot.properties.creation.parsed),
+							parsed: formatSnapshotCreation(snapshot.properties.creation.rawvalue),
 							value: snapshot.properties.creation.value,
 						},
 						referenced: snapshot.properties.referenced,

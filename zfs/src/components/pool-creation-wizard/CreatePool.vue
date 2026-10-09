@@ -293,6 +293,7 @@ function extractProcessErr(e: any): string {
 async function finishBtn(newPoolData) {
 	finishPressed.value = true;
 	creatingPool.value = true;
+	let failureTitle = 'Pool Creation Failed';
 
 	try {
 		poolConfiguration.value.fillNewPoolData();
@@ -315,12 +316,15 @@ async function finishBtn(newPoolData) {
 
 		// This will throw on non-zero exit (e.g., LVM2_member on the disk)
 		const proc: any = await zfsManager.createPool(poolBase, poolOptions);
+		poolCreated.value = true;
+		failureTitle = 'Pool Created; Refresh Failed';
 
 		// success path
 		await refreshAllData();
 		pushNotification(new Notification('Pool Created!', 'Created new pool.', 'success', 5000));
 
 		// Only create filesystem if the pool creation actually succeeded
+		failureTitle = 'Pool Created; Dataset Creation Failed';
 		datasetCreationType.value = poolConfiguration.value.getDatasetCreationType();
 		if (poolConfiguration.value.getDatasetCreationType() === 'zvol') {
 			const zc = poolConfiguration.value.getZvolConfig();
@@ -331,8 +335,11 @@ async function finishBtn(newPoolData) {
 		showWizard.value = false;
 	} catch (e: any) {
 		const msg = extractProcessErr(e);
-		pushNotification(new Notification(e.poolCreated ? 'Pool Created; Reservation Failed' : 'Pool Creation Failed', msg, 'error', 10000));
-		if (e.poolCreated) {
+		const wasPoolCreated = poolCreated.value || e.poolCreated;
+		const title = poolCreated.value ? failureTitle : e.poolCreated ? 'Pool Created; Reservation Failed' : failureTitle;
+		const detail = wasPoolCreated ? `Pool '${newPoolData.name}' exists. ${msg}` : msg;
+		pushNotification(new Notification(title, detail, 'error', 10000));
+		if (wasPoolCreated) {
 			showWizard.value = false;
 			try { await refreshAllData(); } catch (refreshError) { console.error(refreshError); }
 		}
