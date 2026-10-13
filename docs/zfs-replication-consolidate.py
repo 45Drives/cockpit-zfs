@@ -203,9 +203,24 @@ class Transport:
         return int(value) if value.isdigit() else 0
 
     def lost_by_rollback(self, snapshot, dataset):
-        """Return non-directory changes a rollback of dataset to snapshot would discard."""
+        """Return paths of files whose current content a rollback of dataset to snapshot would discard."""
         output = self.query(["zfs", "diff", "-H", "-F", snapshot, dataset], True)
-        return [line for line in output.splitlines() if len(fields := line.split("\t")) < 3 or fields[1] != "/"]
+        entries = [line.split("\t") for line in output.splitlines()]
+        folders = {fields[2].rstrip("/") for fields in entries if len(fields) >= 3 and fields[1] == "/"}
+        lost = []
+        for fields in entries:
+            if len(fields) < 3:
+                lost.append("\t".join(fields))
+                continue
+            change, kind, name = fields[:3]
+            # Removed or renamed entries are restored by the rollback, so nothing is lost.
+            if change not in ("+", "M") or kind == "/":
+                continue
+            # Extended attributes (e.g. SELinux labels) of folders are not files.
+            if "/<xattrdir>" in name and name.split("/<xattrdir>", 1)[0].rstrip("/") in folders:
+                continue
+            lost.append(name)
+        return lost
 
     def used_by_dataset(self, name):
         value = self.query(["zfs", "get", "-H", "-p", "-o", "value", "usedbydataset", name], True)
@@ -464,12 +479,17 @@ def classify(transport):
         parent = config["destination_root"].rsplit("/", 1)[0] if "/" in config["destination_root"] else None
         if parent is None or transport.dataset(parent, True) is None:
             blockers.append(f"Parent of backup root {config['destination_root']} does not exist on the backup.")
-    if any(
-        snapshot["name"].endswith("@" + SNAPSHOT)
+    previous = sorted(
+        snapshot["name"]
         for dataset in list(source.values()) + list(destination.values()) + list(legacy.values())
-        for snapshot in dataset["snapshots"]
-    ):
-        blockers.append("Migration snapshot already exists. Do not start a new migration over it.")
+        for snapshot in dataset["snapshots"] if snapshot["name"].endswith("@" + SNAPSHOT)
+    )
+    if previous:
+        blockers.append(
+            f"A previous migration already ran here ({len(previous)} @{SNAPSHOT} snapshots, e.g. "
+            f"{', '.join(previous[:3])}). If it finished, there is nothing to do; otherwise continue it with its "
+            f"own state file. Do not start a new migration over it."
+        )
     blockers = [f"{row['source']}: {row['reason']}" for row in rows if row["status"] == "BLOCKED"] + blockers
     return {"datasets": rows, "blockers": blockers, "left_in_place": left, "park": park}
 
