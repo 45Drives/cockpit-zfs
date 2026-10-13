@@ -26,9 +26,12 @@ from pathlib import Path
 
 DATASET_PATTERN = r"[A-Za-z][A-Za-z0-9_.:-]*(?:/[A-Za-z0-9_.:-]+)*"
 SNAPSHOT = "migration-to-recursive"
-VERSION = 5
+VERSION = 6
 # An incremental without -L fails if earlier replication used -L, so always send large blocks.
 SEND_FLAGS = ["-L", "-e", "-c"]
+WRITTEN = "Backup has data written after its latest snapshot."
+# An empty dataset that only holds mountpoint folders uses well under this.
+OVERWRITE_LIMIT = 16 * 1024 ** 2
 
 
 class MigrationError(Exception):
@@ -195,6 +198,15 @@ class Transport:
             raise MigrationError("Cannot read the resume token's target snapshot.")
         return match.group(1)
 
+    def available(self, name):
+        value = self.query(["zfs", "get", "-H", "-p", "-o", "value", "available", name], True)
+        return int(value) if value.isdigit() else 0
+
+    def lost_by_rollback(self, snapshot, dataset):
+        """Return non-directory changes a rollback of dataset to snapshot would discard."""
+        output = self.query(["zfs", "diff", "-H", "-F", snapshot, dataset], True)
+        return [line for line in output.splitlines() if len(fields := line.split("\t")) < 3 or fields[1] != "/"]
+
     def used_by_dataset(self, name):
         value = self.query(["zfs", "get", "-H", "-p", "-o", "value", "usedbydataset", name], True)
         return int(value) if value.isdigit() else 0
@@ -290,7 +302,7 @@ def unusable(source, backup):
     return None
 
 
-def find_base(transport, source, backup_name, backup):
+def find_base(transport, source, backup_name, backup, allow_written=False):
     reason = unusable(source, backup)
     if reason:
         return None, reason
@@ -300,9 +312,11 @@ def find_base(transport, source, backup_name, backup):
     base = next((snapshot for snapshot in source["snapshots"] if snapshot["guid"] == latest["guid"]), None)
     if not base:
         return None, "Latest backup snapshot is not shared with the source."
-    if transport.written(backup_name, latest["name"]):
-        return None, "Backup has data written after its latest snapshot."
-    return {"base_source": base["name"], "base_destination": latest["name"], "base_guid": base["guid"]}, None
+    written = transport.written(backup_name, latest["name"])
+    if written and not allow_written:
+        return None, WRITTEN
+    return {"base_source": base["name"], "base_destination": latest["name"], "base_guid": base["guid"],
+            "written": written}, None
 
 
 def load_inventories(transport):
@@ -359,6 +373,7 @@ def new_row(config, name):
     return {
         "source": name, "destination": config["destination_root"] + suffix,
         "legacy": config["legacy_root"] + suffix, "action": None, "rename": False, "overwrite": False,
+        "rollback": False,
         "status": "BLOCKED", "reason": "", "note": "",
         "base_source": None, "base_destination": None, "base_guid": None, "migration_guid": None,
     }
@@ -394,13 +409,38 @@ def classify(transport):
                 row.update(status="BLOCKED", reason="The new backup root is inside this existing replica.")
         elif not relocate and not candidate["snapshots"] and not unusable(dataset, candidate):
             # No snapshots means it never received a replica; usually an empty container dataset.
+            own = transport.used_by_dataset(row["legacy"])
+            if own > OVERWRITE_LIMIT:
+                row["reason"] = (f"{row['legacy']} has no snapshots but holds {size(own)} of its own data, which a "
+                                 f"full receive would replace. Service review required; nothing was changed.")
+                continue
             row.update(
                 action="full", overwrite=True, status="READY",
-                note=f"{row['legacy']} has no snapshots. Its own data "
-                     f"({size(transport.used_by_dataset(row['legacy']))}) is replaced; child datasets are not touched.",
+                note=f"{row['legacy']} has no snapshots and only {size(own)} of its own data (folders); "
+                     f"it is replaced. Child datasets are not touched.",
             )
         elif relocate or parent is not None:
             row.update(action="full", status="READY", note=why or "")
+        elif why == WRITTEN:
+            # Usually only mountpoint folders created in the root when child datasets were added later.
+            base, _ = find_base(transport, dataset, row["legacy"], candidate, allow_written=True)
+            snapshot = base["base_destination"]
+            try:
+                lost = transport.lost_by_rollback(snapshot, row["legacy"])
+            except MigrationError as error:
+                lost = [f"cannot compare ({error})"]
+            if lost:
+                row["reason"] = (
+                    f"{row['legacy']} itself has files changed since {snapshot} that a rollback would discard: "
+                    + "; ".join(lost[:5]) + (" ..." if len(lost) > 5 else "")
+                    + ". Service review required; nothing was changed."
+                )
+                continue
+            row.update(
+                base, action="incremental", rollback=True, status="READY",
+                note=f"{row['legacy']} itself changed since @{snapshot.split('@', 1)[1]}, but only folders "
+                     f"(checked with zfs diff), so the rollback discards no files. Child datasets are not touched.",
+            )
         else:
             row["reason"] = (why or "") + (
                 " The backup root has snapshots or is encrypted, so it cannot be overwritten in place."
@@ -477,7 +517,7 @@ def observe_row(transport, row, source, destination, existing):
         return "BLOCKED", location, "Approved source starting snapshot is missing."
     if migration and base["txg"] >= migration["txg"]:
         return "BLOCKED", location, "Starting snapshot is not older than the migration snapshot."
-    if transport.written(location, latest["name"]):
+    if transport.written(location, latest["name"]) and not row.get("rollback"):
         return "BLOCKED", location, "Backup has data written after the starting snapshot."
     return "READY", location, ""
 
@@ -577,6 +617,8 @@ def event(path, status, message, quiet=False):
 def label(row):
     if row["overwrite"]:
         return "FULL, OVERWRITE"
+    if row.get("rollback"):
+        return "INCREMENTAL, ROLLBACK"
     if row["rename"]:
         return "MOVE + INCREMENTAL"
     return {"incremental": "INCREMENTAL", "full": "FULL"}.get(row["action"], "-")
@@ -765,6 +807,26 @@ def detach(path):
     return True
 
 
+def protect(transport, plan, path):
+    """Snapshot and hold backup datasets outside the plan so no later forced receive can destroy them."""
+    config = transport.config
+    keep = f"migration-keep-{config['hold_tag'][-12:]}"
+    names = list(plan.get("left_in_place", []))
+    for top in plan["park"]:
+        names += list(transport.inventory(parked_name(config, plan["park"], top), True))
+    for name in names:
+        dataset = transport.dataset(name, True)
+        if dataset is None:
+            raise MigrationError(f"{name} is missing on the backup; Service review required.")
+        snapshot = f"{name}@{keep}"
+        if not any(existing["name"] == snapshot for existing in dataset["snapshots"]):
+            transport.query(["zfs", "snapshot", snapshot], True)
+        transport.hold(snapshot, True)
+        event(path, "PROTECTED", snapshot, quiet=True)
+    if names:
+        print(f"  PROTECTED {len(names)} backup datasets outside the new task (snapshot + hold @{keep}).")
+
+
 def copy(transport, state, path, approved=False):
     if state["phase"] not in ("prepared", "completed"):
         raise MigrationError("Copy requires a successful prepare. Ask Service about incomplete preparation.")
@@ -774,11 +836,20 @@ def copy(transport, state, path, approved=False):
     observations = observe_all(transport, plan, require_snapshot=True)
     expect(observations, {"READY", "PARTIAL", "COMPLETE"})
     require_holds(transport, plan, observations)
+    needed = sum(row.get("estimate", {}).get("bytes", 0) for row in plan["datasets"]
+                 if observations[row["source"]][0] != "COMPLETE")
+    free = transport.available(transport.config["legacy_root"])
+    if needed > free * 0.9:
+        raise MigrationError(f"Not enough free space on the backup: about {size(needed)} to send, "
+                             f"{size(free)} free. Nothing was changed.")
     if not approved:
         for row in plan["datasets"]:
             if row["overwrite"] and observations[row["source"]][0] == "READY":
                 print(f"NOTE: {row['destination']} itself is overwritten (it has no snapshots); its child datasets "
                       "are not touched but are briefly unmounted and remounted.")
+            if row.get("rollback") and observations[row["source"]][0] == "READY":
+                print(f"NOTE: {row['destination']} itself is rolled back to {row['base_destination']} before its "
+                      "incremental; its child datasets are not touched.")
         confirm("COPY")
         state["copy_approved"] = True
         save_state(path, state)
@@ -792,6 +863,7 @@ def copy(transport, state, path, approved=False):
         if transport.dataset(moved, True) is None:
             transport.rename(top, moved, parents=True)
             event(path, "PARKED", f"{top} -> {moved}")
+    protect(transport, plan, path)
     for index, row in enumerate(plan["datasets"], 1):
         name = f"{row['source']} -> {row['destination']}"
         target = f"{row['source']}@{SNAPSHOT}"
@@ -809,11 +881,16 @@ def copy(transport, state, path, approved=False):
                 remaining = None
             progress = Progress(tag + " (resuming)", remaining, done_before, grand_total)
             try:
-                sent = transport.transfer(["-t", token], row["destination"], row["overwrite"], progress)
+                sent = transport.transfer(["-t", token], row["destination"], row["overwrite"] or row.get("rollback"), progress)
             finally:
                 progress.clear()
             status, location, reason = observe_one(transport, plan, row)
         elif status == "READY":
+            if row.get("rollback"):
+                lost = transport.lost_by_rollback(row["base_destination"], row["destination"])
+                if lost:
+                    raise MigrationError(f"{row['destination']} now has files a rollback would discard: "
+                                         + "; ".join(lost[:5]) + ". Service review required; root not changed.")
             if row["action"] == "incremental" and location != row["destination"]:
                 if not row["rename"]:
                     raise MigrationError(f"{location} did not move with its parent; Service review required.")
@@ -825,7 +902,7 @@ def copy(transport, state, path, approved=False):
             event(path, "STARTED", name, quiet=True)
             progress = Progress(tag, row.get("estimate", {}).get("bytes"), done_before, grand_total)
             try:
-                sent = transport.transfer(send_args(row), row["destination"], row["overwrite"], progress)
+                sent = transport.transfer(send_args(row), row["destination"], row["overwrite"] or row.get("rollback"), progress)
             finally:
                 progress.clear()
             status, location, reason = observe_one(transport, plan, row)

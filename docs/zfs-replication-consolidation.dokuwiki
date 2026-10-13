@@ -48,7 +48,7 @@ Service must test this script on a small representative hierarchy and confirm th
 
 **At any error: stop and give Service the reports and log. Do not enable force/overwrite, delete snapshots, or try to fix a partial receive yourself.**
 
-**Backup permissions:** the backup must accept ''%%zfs receive -s%%'' (resumable), ''%%zfs receive -F%%'' (for ''%%FULL, OVERWRITE%%'' rows) and ''%%zfs rename%%'' over SSH for the chosen account.
+**Backup permissions:** the backup must accept ''%%zfs receive -s%%'' (resumable), ''%%zfs receive -F%%'' (for ''%%FULL, OVERWRITE%%'' and ''%%INCREMENTAL, ROLLBACK%%'' rows) and ''%%zfs rename%%'' over SSH for the chosen account.
 
 ===== 1. Pause the Old Tasks =====
 
@@ -93,12 +93,13 @@ Each dataset in the readiness report is labelled:
 
   * ''%%INCREMENTAL%%'': existing replica, sent incrementally at the same path. The ''%%from @...%%'' snapshot is where it continues from.
   * ''%%FULL%%'': nothing on the backup yet; full send.
-  * ''%%FULL, OVERWRITE%%'': the backup dataset exists but has no snapshots (usually the backup root). Its own data is replaced; the report shows how much. Its children are not touched.
+  * ''%%FULL, OVERWRITE%%'': the backup dataset exists but has no snapshots (usually the backup root) and holds only folders (under 16 MiB of its own data). Its own data is replaced. Its children are not touched. If it holds more, ''%%check%%'' blocks.
+  * ''%%INCREMENTAL, ROLLBACK%%'': **root only.** The backup root already shares a snapshot with the source (for example from an earlier pool-level task), but the root dataset itself changed since. The script runs ''%%zfs diff%%'' itself: if only folders changed (normally mountpoint folders for newer datasets), the root is rolled back to that snapshot during its receive. If any **file** changed, ''%%check%%'' blocks and lists the files. ''%%copy%%'' repeats this check right before the root receive. Child datasets are never touched.
   * ''%%MOVE + INCREMENTAL%%'': only with ''%%--new-root%%'' or when moving aside; the replica is renamed, then sent incrementally.
 
 ''%%MOVE ASIDE%%'' lines are rare in root-to-root mode. They list a backup copy that has snapshots but none shared with the source, so it can neither be continued nor safely overwritten. During ''%%copy%%'' it is **renamed** (not deleted) to ''%%<backup pool>/migration-parked-<id>/...%%'' and the dataset is sent in full. Service must approve each one.
 
-''%%Not part of the new task, left untouched%%'' lists backup datasets that have no source dataset. They are kept. Keep **Allow Overwrite** off in the new task, because a forced recursive receive would destroy them.
+''%%Not part of the new task, left untouched%%'' lists backup datasets that have no source dataset. They are kept. Before ''%%copy%%'' changes anything, the script protects each of them, and every moved-aside dataset, with a snapshot ''%%@migration-keep-<id>%%'' and a hold. ZFS refuses to destroy a dataset with a held snapshot, so even a misconfigured forced recursive task cannot delete them. Still keep **Allow Overwrite** off in the new task.
 
 The console shows a summary; the full report file (''%%migration-state.readiness-<time>.txt%%'') has GUIDs and details.
 
@@ -128,7 +129,7 @@ Service must review the transfer report (''%%migration-state.transfer-<time>.txt
 python3 zfs-replication-consolidate.py copy
 </code>
 
-After Service approves the transfer report, type ''%%COPY%%'' at the confirmation prompt.
+After Service approves the transfer report, type ''%%COPY%%'' at the confirmation prompt. ''%%copy%%'' refuses to start if the backup does not have room for the estimated transfer (with a 10% margin).
 
 **Keep the copy running if the terminal closes.** If the command is not running inside ''%%tmux%%'' or ''%%screen%%'', the script warns you and asks:
 
@@ -228,7 +229,8 @@ Never remove the last usable shared snapshot or holds belonging to another workf
   * **Backup paths moved to ''%%<backup>/<source root>/...%%'':** an older script version relocated replicas by default. Stop, keep the log, and have Service rename them back (see **Migration abandoned**), or roll back. The current version replicates root to root in place.
   * **''%%cannot be overwritten in place%%'' on the root:** the backup root has snapshots or encryption. Give Service the readiness report; do not use ''%%--new-root%%'' unless path changes are approved.
   * **Check blocked:** give Service the readiness report. Do not prepare or copy. After review, run ''%%check%%'' again.
-  * **''%%Backup has data written after its latest snapshot%%'':** something changed that backup replica (often a mounted backup with ''%%atime=on%%'', or a user writing to it). An incremental receive will be refused. Service decides whether those backup-side changes can be discarded (''%%zfs rollback%%'' to the latest snapshot) and then reruns ''%%check%%''.
+  * **''%%Backup has data written after its latest snapshot%%'':** something changed that backup replica (often a mounted backup with ''%%atime=on%%'', or a user writing to it). An incremental receive will be refused. Service decides whether those backup-side changes can be discarded (''%%zfs rollback%%'' to the latest snapshot) and then reruns ''%%check%%''. On the **root** this is handled automatically as ''%%INCREMENTAL, ROLLBACK%%''. On a child, the copy is moved aside and sent in full unless Service rolls it back first.
+  * **''%%encryption, a clone origin, or a pending receive%%'' on a backup child:** often an interrupted old receive. Service checks ''%%zfs get receive_resume_token,origin,encryption <dataset>%%''. If it is only a pending receive, ''%%zfs receive -A <dataset>%%'' discards just the unfinished part; then rerun ''%%check%%''.
   * **Prepare failed:** stop. Snapshots or holds may already exist; do not repeat preparation or delete the state file.
   * **Copy interrupted:** after Service review, run ''%%copy%%'' again; it resumes the interrupted receive.
   * **Background copy:** ''%%tail -f migration-state.copy-<time>.out%%'' shows its output. If it ended with ''%%STOPPED%%'', give Service that file and the log, then run ''%%copy%%'' again after approval.
