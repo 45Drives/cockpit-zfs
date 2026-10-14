@@ -4,7 +4,7 @@ This procedure brings every dataset to the same migration snapshot, then switche
 
 The selected root may be a pool's root dataset or a dataset below it. This replicates that dataset and its children, not the pool's configuration.
 
-**You use one Python script, four times.** It asks for the customer's settings once and remembers them. No Bash variables or separate ZFS commands are needed.
+**You use one Python script, three times (''%%check%%'', ''%%prepare%%'', ''%%copy%%''), plus an optional ''%%verify%%''.** It asks for the customer's settings once and remembers them. No Bash variables or separate ZFS commands are needed.
 
 ==== How it works ====
 
@@ -143,7 +143,7 @@ Press **Enter** (yes). The copy continues as a separate background process and t
 Watch progress:  tail -f migration-state.copy-<time>.out
 </code>
 
-You can then close the terminal or disconnect. To check on it later, reconnect, go to the same directory and run the ''%%tail -f%%'' command again (Ctrl+C stops watching, not the copy). Wait until the output ends with ''%%COPY PASSED%%'' (or ''%%STOPPED%%''), then continue with Step 6. Do not start another ''%%copy%%'' while the background one is running; the script refuses to.
+You can then close the terminal or disconnect. To check on it later, reconnect, go to the same directory and run the ''%%tail -f%%'' command again (Ctrl+C stops watching, not the copy). Wait until the output ends with ''%%COPY PASSED%%'' (or ''%%STOPPED%%''), then continue with Step 7. Do not start another ''%%copy%%'' while the background one is running; the script refuses to.
 
 If you answer ''%%n%%'', or you are already in ''%%tmux%%''/''%%screen%%'', the copy runs in the current terminal.
 
@@ -170,11 +170,20 @@ All receives are resumable (''%%-s%%''). New datasets are received unmounted (''
 
 A ''%%FULL, OVERWRITE%%'' receive fails with ''%%cannot unmount ... busy%%'' if something on the backup is using that dataset or its children; stop that process and run ''%%copy%%'' again.
 
+After the last dataset, ''%%copy%%'' runs the Step 6 verification automatically. The output ends with:
+
+<code>
+VERIFY PASSED: all <n> datasets under <backup root> share @migration-to-recursive with the source.
+COPY PASSED. Next: create and test the recursive task (Step 7).
+</code>
+
 **Continue only after ''%%COPY PASSED%%''.** Keep ''%%migration-state.log.jsonl%%'' with the reports and state file.
 
 If the command stops, give Service the error and log. After Service approves, run the same ''%%copy%%'' command again: it skips completed datasets and **resumes** an interrupted receive using its resume token (after checking the token targets the expected migration snapshot). Do not restart ''%%check%%'' or ''%%prepare%%''.
 
-===== 6. Verify Before Handover =====
+===== 6. Verify Before Handover (optional re-check) =====
+
+''%%copy%%'' already ran this check and printed ''%%VERIFY PASSED%%''. Run it again only if time has passed since the copy, the backup may have been touched, or Service asks for it:
 
 <code bash>
 python3 zfs-replication-consolidate.py verify
