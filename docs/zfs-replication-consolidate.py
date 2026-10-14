@@ -131,6 +131,9 @@ class Transport:
         command = [
             "ssh", "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=yes",
             "-o", "ConnectTimeout=15", "-p", str(self.config["port"]),
+            # Prefer AES-GCM (fast with AES-NI); later entries are fallbacks if the backup refuses it.
+            "-o", "Ciphers=aes128-gcm@openssh.com,aes256-gcm@openssh.com,"
+                  "chacha20-poly1305@openssh.com,aes128-ctr,aes256-ctr",
             "-o", "ControlMaster=auto", "-o", "ControlPersist=60",
             "-o", f"ControlPath={self.control_dir}/%C",
         ]
