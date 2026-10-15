@@ -441,7 +441,10 @@ def classify(transport):
             row.update(action="full", status="READY", note=why or "")
         elif why == WRITTEN:
             # Usually only mountpoint folders created in the root when child datasets were added later.
-            base, _ = find_base(transport, dataset, row["legacy"], candidate, allow_written=True)
+            base, why = find_base(transport, dataset, row["legacy"], candidate, allow_written=True)
+            if base is None:
+                row["reason"] = (why or "") + " Service review required; nothing was changed."
+                continue
             snapshot = base["base_destination"]
             try:
                 lost = transport.lost_by_rollback(snapshot, row["legacy"])
@@ -775,6 +778,7 @@ class Progress:
         self.done_before, self.grand_total = done_before, grand_total
         self.interactive = sys.stdout.isatty()
         self.start = self.last = time.monotonic()
+        self.last_sent = 0
         self.width = 0
         if not self.interactive:
             print(f"  {label}: started" + (f", about {size(total)} to send" if total else ""), flush=True)
@@ -783,7 +787,8 @@ class Progress:
         now = time.monotonic()
         if now - self.last < (1 if self.interactive else 10):
             return
-        self.last = now
+        current = (sent - self.last_sent) / max(now - self.last, 0.001)
+        self.last, self.last_sent = now, sent
         rate = sent / max(now - self.start, 0.001)
         text = f"  {self.label}: {size(sent)}"
         if self.total:
@@ -794,7 +799,7 @@ class Progress:
             text += f" / {size(total)} [{'#' * filled}{'-' * (20 - filled)}] {fraction:.0%}"
             if rate > 0 and sent < total:
                 text += f"  ETA {datetime.timedelta(seconds=int((total - sent) / rate))}"
-        text += f"  {size(rate)}/s"
+        text += f"  {size(current)}/s (avg {size(rate)}/s)"
         if self.grand_total:
             text += f"  | all: {min((self.done_before + sent) / self.grand_total, 1.0):.0%}"
         if self.interactive:
@@ -806,6 +811,10 @@ class Progress:
     def clear(self):
         if self.interactive and self.width:
             print("\r" + " " * self.width + "\r", end="", flush=True)
+
+    def summary(self, sent):
+        elapsed = max(time.monotonic() - self.start, 0.001)
+        return f"{size(sent / elapsed)}/s avg over {datetime.timedelta(seconds=int(elapsed))}"
 
 
 def detach(path):
@@ -891,7 +900,7 @@ def copy(transport, state, path, approved=False):
         name = f"{row['source']} -> {row['destination']}"
         target = f"{row['source']}@{SNAPSHOT}"
         status, location, reason = observe_one(transport, plan, row)
-        result, sent = "DONE", None
+        result, sent, progress = "DONE", None, None
         tag = f"[{index}/{len(plan['datasets'])}] {row['source']}"
         if status == "PARTIAL":
             token = transport.dataset(row["destination"], True)["token"]
@@ -936,6 +945,8 @@ def copy(transport, state, path, approved=False):
         transport.hold(f"{row['destination']}@{SNAPSHOT}", True)
         done_before += row.get("estimate", {}).get("bytes", 0)
         detail = "already done" if sent is None else f"{row['action']}, sent {size(sent)}"
+        if sent is not None and progress is not None:
+            detail += f", {progress.summary(sent)}"
         event(path, result, f"{name} ({detail})")
     verify(transport, state)
     state["phase"] = "completed"
