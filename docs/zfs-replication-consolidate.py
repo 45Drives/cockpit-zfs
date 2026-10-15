@@ -477,6 +477,10 @@ def classify(transport):
             row["note"] = f"Existing copy {row['legacy']} is not usable ({row['note']}) and " + (
                 f"will be moved aside to {moved}." if moved else "is left in place."
             )
+    blockers += [
+        f"{name} (left untouched) has an interrupted receive from another task; Service must resume or abort it "
+        f"(zfs receive -A {name}) before this migration." for name in left if legacy[name]["token"] != "-"
+    ]
     if park and transport.dataset(park_root(config), True) is not None:
         blockers.append(f"{park_root(config)} already exists; Service review required.")
     if relocate and destination:
@@ -852,8 +856,17 @@ def protect(transport, plan, path):
         if dataset is None:
             raise MigrationError(f"{name} is missing on the backup; Service review required.")
         snapshot = f"{name}@{keep}"
+        if dataset["token"] != "-":
+            raise MigrationError(f"{name} has an interrupted receive from another task, so it cannot be protected. "
+                                 "Service must resume or abort it (zfs receive -A), then run copy again.")
         if not any(existing["name"] == snapshot for existing in dataset["snapshots"]):
-            transport.query(["zfs", "snapshot", snapshot], True)
+            try:
+                transport.query(["zfs", "snapshot", snapshot], True)
+            except MigrationError as error:
+                if "busy" not in str(error):
+                    raise
+                raise MigrationError(f"{name} is busy, usually because another replication task is receiving into "
+                                     "it right now. Pause that task or let it finish, then run copy again.") from None
         transport.hold(snapshot, True)
         event(path, "PROTECTED", snapshot, quiet=True)
     if names:
