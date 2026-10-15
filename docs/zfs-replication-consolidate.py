@@ -736,7 +736,7 @@ def prepare(transport, state, path):
     plan = state["plan"]
     observations = observe_all(transport, plan, require_absent=True)
     expect(observations, {"READY"})
-    print("Creates one recursive snapshot set and holds the starting snapshots. Pause applications first if needed.")
+    print("Creates one recursive snapshot set and holds the starting snapshots. Applications may keep writing.")
     confirm("PREPARE")
     state["phase"] = "preparing"
     save_state(path, state)
@@ -752,6 +752,7 @@ def prepare(transport, state, path):
     target = f"{transport.config['source_root']}@{SNAPSHOT}"
     transport.query(["zfs", "snapshot", "-r", target])
     event(path, "SNAPSHOT", target)
+    print("  Snapshot taken. Any application paused for consistency may resume now.", flush=True)
     transport.query(["zfs", "hold", "-r", transport.config["hold_tag"], target])
     source = transport.inventory(transport.config["source_root"])
     for row in plan["datasets"]:
@@ -767,7 +768,7 @@ def prepare(transport, state, path):
     report(path, transport.config, plan, "transfer")
     state.update(phase="prepared", plan=plan)
     save_state(path, state)
-    print("PREPARE PASSED. Applications may resume. Approve the report and backup capacity, then run copy.")
+    print("PREPARE PASSED. Approve the report and backup capacity, then run copy.")
 
 
 class Progress:

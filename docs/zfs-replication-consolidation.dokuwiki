@@ -56,7 +56,7 @@ Let active transfers finish. Disable the old replication schedules and snapshot/
 
 **Keep the tasks and snapshots.** Until handover is complete, do not write to the backup or create, rename, or delete datasets in either selected hierarchy. Keep pruning paused.
 
-Source applications may continue writing. If application-consistent backups are required, arrange an application pause for Step 4. A recursive ZFS snapshot alone does not guarantee application consistency.
+Source applications may continue writing throughout; no pause is needed. The recursive snapshot is atomic and crash-consistent (like a power cut at one instant), and writes made after it are picked up by the new recursive task. Only if an application needs application-consistent backups (for example a database that must be flushed or quiesced), arrange a brief pause around the snapshot moment in Step 4.
 
 ===== 2. Download the Script to the Source Server =====
 
@@ -109,7 +109,7 @@ The script creates ''%%migration-state.json%%'' to remember the settings and pla
 
 ===== 4. Prepare the Migration Snapshots =====
 
-If application consistency is required, pause the applications now. Then run:
+Applications may keep writing during ''%%prepare%%''. Run:
 
 <code bash>
 python3 zfs-replication-consolidate.py prepare
@@ -119,7 +119,9 @@ After Service approves the readiness report, type ''%%PREPARE%%'' at the confirm
 
 The script rechecks the plan, protects the incremental starting snapshots on both servers, and creates one recursive ''%%@migration-to-recursive%%'' snapshot set on the source. It protects those snapshots and writes transfer estimates.
 
-**Continue only after ''%%PREPARE PASSED%%''.** Applications paused only for snapshot creation may then resume. Keep pruning paused and the dataset layout fixed.
+Only if an application pause was arranged (see Step 1): pause it just before typing ''%%PREPARE%%'' and resume it as soon as the script prints ''%%Snapshot taken%%''. Before the snapshot, the script places holds on the starting snapshots, which can take a few minutes with hundreds of datasets. The snapshot itself is instant.
+
+**Continue only after ''%%PREPARE PASSED%%''.** Keep pruning paused and the dataset layout fixed.
 
 Service must review the transfer report (''%%migration-state.transfer-<time>.txt%%'') and approve the estimates and backup capacity. Each dataset shows its estimated send size: an ''%%INCREMENTAL%%'' row shows only the changes, not the dataset's full size. Stream-size estimates are not a guarantee of final disk-space usage.
 
