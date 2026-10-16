@@ -484,7 +484,7 @@
 import { inject, ref, Ref, computed, watchEffect, onMounted, watch } from 'vue';
 import { ChevronUpIcon, ExclamationCircleIcon, ExclamationTriangleIcon } from '@heroicons/vue/24/outline';
 import { Switch, Disclosure, DisclosureButton, DisclosurePanel } from '@headlessui/vue';
-import { isBoolOnOff, convertSizeToBytes, upperCaseWord, isBoolCompression, getDiskIDName, truncateName, getFullDiskInfo } from '../../composables/helpers';
+import { isBoolOnOff, convertSizeToBytes, upperCaseWord, isBoolCompression, getDiskIDName, truncateName, getFullDiskInfo, matchDiskByVdevOrPath } from '../../composables/helpers';
 import { loadImportablePools } from '../../composables/loadImportables';
 import { ZPool ,VDevDisk, ZFSFileSystemInfo, ZpoolCreateOptions, ZPoolBase, VDev, ZFSManager, ZvolCreateOptions } from '@45drives/houston-common-lib';
 import { NavigationCallback, StepsNavigationItem } from '../../types';
@@ -751,12 +751,13 @@ const diskBelongsToImportablePool = () => {
 			if (!selectedDisk) return;
 
 			// Reset errors for each disk before checking
-			selectedDisk.errors = [];
+			selectedDisk.errors = (selectedDisk.errors ?? []).filter(error => !error.startsWith('Disk belongs to '));
 
 			importablePools.value.forEach(pool => {
 				pool.vdevs.forEach(importableVDev => {
 					importableVDev.disks.forEach(disk => {
-						if (selectedDisk.name === disk.name) {
+						if ((disk.path && matchDiskByVdevOrPath([selectedDisk], disk.path)) ||
+							getFullDiskInfo([selectedDisk], disk.name ?? '')) {
 							result = true;
 							selectedDisk.errors!.push(`Disk belongs to ${pool.name}`);
 							diskBelongsFeedback.value = 'There are disks belonging to exported pools. Use Force Create to override and use disk in new pool.';
@@ -883,47 +884,40 @@ function removeVDev(index: number) {
 
 const newPoolData = inject<Ref<ZPoolBase & ZpoolCreateOptions>>('new-pool-data')!;
 // const newVDevs = ref<VDev[]>([]);
-const newVDevDisks = ref<VDevDisk[]>([]);
 
 function fillNewPoolData() {
-	// console.log("fillData function's poolConfig:", poolConfig.value);
-
-	newPoolData.value.name = poolConfig.value.name;
-	poolConfig.value.vdevs.forEach(vDev => {
-		const newVDev : VDev = {
-			type: 'disk',
-			disks: [],
-		}
-		newVDev.type = vDev.type;
-		newVDev.isMirror = vDev.isMirror;
-		// console.log("fillNewPoolData vDev before disks: ", vDev)
-
-		vDev.selectedDisks!.forEach(selectedDisk => {
-			// const diskNameFinal = getDiskIDName(disks.value, vDev.diskIdentifier!, diskObject.path.toString());
-			// console.log('selectedDisk being checked:', selectedDisk);
-			const diskNameFinal = getDiskIDName(disks.value, vDev.diskIdentifier!, selectedDisk);
-			// const fullDisk = disks.value.find(disk => disk.path === diskNameFinal);
+	if (!diskCheck() || !diskSizeMatch() || !replicationLevelCheck()) {
+		throw new Error(diskFeedback.value || diskSizeFeedback.value || isProperReplicationFeedback.value || 'Invalid disk configuration.');
+	}
+	if (diskBelongsToImportablePool()) {
+		throw new Error(diskBelongsFeedback.value);
+	}
+	const selectedNames = new Set<string>();
+	const preparedVDevs: VDev[] = poolConfig.value.vdevs.map(vDev => {
+		const preparedDisks = (vDev.selectedDisks ?? []).map(selectedDisk => {
 			const fullDisk = getFullDiskInfo(disks.value, selectedDisk);
-
-			if (fullDisk) {
-				newVDevDisks.value.push(fullDisk);
-				// console.log('fullVDevDisk:', fullDisk);
-			} else {
-				console.error(`Disk with path ${diskNameFinal} not found in available disks.`);
+			if (!fullDisk) {
+				throw new Error(`Disk ${selectedDisk} is no longer available.`);
 			}
+			if (selectedNames.has(fullDisk.name!)) {
+				throw new Error(`Disk ${selectedDisk} is selected more than once.`);
+			}
+			if (fullDisk.guid && fullDisk.guid !== 'N/A') {
+				throw new Error(`Disk ${selectedDisk} already belongs to an imported pool.`);
+			}
+			selectedNames.add(fullDisk.name!);
+			const diskPath = fullDisk[vDev.diskIdentifier as keyof VDevDisk];
+			if (typeof diskPath !== 'string' || !diskPath.startsWith('/dev/')) {
+				throw new Error(`No valid ${vDev.diskIdentifier} path for disk ${selectedDisk}.`);
+			}
+			return { ...fullDisk, path: diskPath };
 		});
-		
-		// console.log("fillNewPoolData vDev after disks: ", vDev)
-
-		newVDev.disks = newVDevDisks.value;
-		newVDevDisks.value = [];
-		// newVDevs.value.push(newVDev);
-		newPoolData.value.vdevs.push(newVDev);
+		return { type: vDev.type, isMirror: vDev.isMirror, disks: preparedDisks };
 	});
 
-	// newPoolData.value.vdevs = newVDevs.value;
-
-	newPoolData.value.autoexpand = poolConfig.value.autotrim;
+	newPoolData.value.name = poolConfig.value.name;
+	newPoolData.value.vdevs = preparedVDevs;
+	newPoolData.value.autoexpand = poolConfig.value.autoexpand;
 	newPoolData.value.autoreplace = poolConfig.value.autoreplace;
 	newPoolData.value.autotrim = poolConfig.value.autotrim;
 	newPoolData.value.compression = poolConfig.value.compression;

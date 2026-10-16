@@ -20,7 +20,7 @@ export async function getDatasets() {
         return datasets;
     } catch (state) {
         console.error(errorString(state));
-        return null;
+		return JSON.stringify({ error: errorString(state) });
     }
 }
 
@@ -47,9 +47,9 @@ export async function createEncryptedDataset(fileSystemData : Dataset&DatasetCre
 			keyformat: 'keyformat=passphrase',
 			keylocation: 'keylocation=prompt',
 			path : (fileSystemData.parent + '/' + fileSystemData.name),
-			passphrase : passphrase!,
 		}
-		const state = useSpawn(['/usr/bin/env', 'python3', '-c', create_encrypted_dataset_script, args.cmd, args.atime, args.case, args.compress, args.dedup, args.dnode, args.xattr, args.record, args.quota, args.readonly, args.encryption, args.keyformat, args.keylocation, args.path, args.passphrase], { superuser: 'try'});
+		const state = useSpawn(['/usr/bin/env', 'python3', '-c', create_encrypted_dataset_script, args.cmd, args.atime, args.case, args.compress, args.dedup, args.dnode, args.xattr, args.record, args.quota, args.readonly, args.encryption, args.keyformat, args.keylocation, args.path], { superuser: 'try'});
+		state.proc.input(passphrase ?? '');
 
 		const output = await state.promise();
 		// console.log(output)
@@ -64,7 +64,8 @@ export async function createEncryptedDataset(fileSystemData : Dataset&DatasetCre
 
 export async function changePassphrase(fileSystemName : string, newPassphrase : string) {
 	try {
-		const state = useSpawn(['/usr/bin/env', 'python3', '-c', change_passphrase_script, fileSystemName, newPassphrase], { superuser: 'try'});
+		const state = useSpawn(['/usr/bin/env', 'python3', '-c', change_passphrase_script, fileSystemName], { superuser: 'try'});
+		state.proc.input(newPassphrase);
 		const output = await state.promise();
 		// console.log(output);
 
@@ -78,11 +79,12 @@ export async function changePassphrase(fileSystemName : string, newPassphrase : 
 
 export async function isPassphraseValid(fileSystemName : string, passphrase : string) {
 	try {
-		const state = useSpawn(['/usr/bin/env', 'python3', '-c', validate_passphrase_script, fileSystemName, passphrase], { superuser: 'try'});
+		const state = useSpawn(['/usr/bin/env', 'python3', '-c', validate_passphrase_script, fileSystemName], { superuser: 'try'});
+		state.proc.input(passphrase);
 		const output = await state.promise();
 		// console.log(`fileSystemName: ${fileSystemName}, pass: ${passphrase}, function call output: ${output.stdout}`);
 
-		if (output.stdout!.includes('true')) {
+		if (output.stdout?.trim() === 'true') {
 			return true;
 		} else {
 			return false;
@@ -131,16 +133,16 @@ export async function configureDataset(fileSystemData : FileSystemEditConfig) {
 			if (fileSystemData.xattr) {
 				cmdString.push('xattr=' + fileSystemData.xattr);
 			}
-			if (fileSystemData.quota) {
+			if (fileSystemData.quota != null && fileSystemData.quota !== '') {
 				if (Number(fileSystemData.quota) == 0) {
 					cmdString.push('quota=none');
 				} else {
 					cmdString.push('quota=' + fileSystemData.quota);
 				}
 			}
-			if (fileSystemData.refreservation) {
+			if (fileSystemData.refreservation != null && fileSystemData.refreservation !== '') {
 				if (Number(fileSystemData.refreservation) == 0) {
-					cmdString.push('refreservation=off');
+					cmdString.push('refreservation=none');
 				} else {
 					cmdString.push('refreservation=' + fileSystemData.refreservation);
 				}
@@ -152,6 +154,7 @@ export async function configureDataset(fileSystemData : FileSystemEditConfig) {
 				cmdString.push('canmount=' + fileSystemData.canmount);
 			}
 
+			if (cmdString.length === 2) return '';
 			cmdString.push(fileSystemData.name);
 	
 			// console.log("configure cmdString:" , cmdString);
@@ -164,6 +167,7 @@ export async function configureDataset(fileSystemData : FileSystemEditConfig) {
 
 		} else {
 			console.log("There are no selected properties to change.");
+			return '';
 		}
 
 	} catch (state) {
@@ -266,7 +270,8 @@ export async function lockFileSystem(fileSystemData: ZFSFileSystemInfo) {
 
 export async function unlockFileSystem(fileSystemData: ZFSFileSystemInfo, passphrase : string) {
 	try {
-		const state = useSpawn(['/usr/bin/env', 'python3', '-c', unlock_dataset_script, fileSystemData.name, passphrase], { superuser: 'try'});
+		const state = useSpawn(['/usr/bin/env', 'python3', '-c', unlock_dataset_script, fileSystemData.name], { superuser: 'try'});
+		state.proc.input(passphrase);
 		const output = await state.promise();
 		// console.log(output);
 		return output.stdout;

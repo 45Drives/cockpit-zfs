@@ -131,7 +131,7 @@ import { ref, inject, Ref, computed, onMounted } from 'vue';
 import { Switch } from '@headlessui/vue';
 import OldModal from '../common/OldModal.vue';
 import { ExclamationCircleIcon, ExclamationTriangleIcon } from '@heroicons/vue/24/outline';
-import { convertSizeToBytes, getDiskIDName, truncateName } from '../../composables/helpers';
+import { convertSizeToBytes, getDiskIDName, truncateName, matchDiskByVdevOrPath, getFullDiskInfo } from '../../composables/helpers';
 import { attachDisk } from '../../composables/disks';
 import { loadImportablePools } from '../../composables/loadImportables';
 import { ZPool, VDev, VDevDisk, ZFSFileSystemInfo, DiskIdentifier } from '@45drives/houston-common-lib';
@@ -228,10 +228,15 @@ const diskCardClass = (diskName) => {
 function setDiskNamePath() {
     const oldDisks = props.vDev.disks;
     // console.log('setting oldDisks:', oldDisks);
-    oldDisk.value = oldDisks.pop();
+    oldDisk.value = oldDisks.at(-1);
     // console.log('setting oldDisk.value:', oldDisk.value);
     // console.log('getting selectedDisk.value:', selectedDisk.value);
     newDisk.value = allDisks.value.find(disk => disk.name === selectedDisk.value);
+    const selectedPath = newDisk.value?.[diskIdentifier.value as keyof VDevDisk];
+    if (!oldDisk.value?.path || typeof selectedPath !== 'string' || !selectedPath.startsWith('/dev/')) {
+        diskSizeFeedback.value = 'The selected disk or device path is no longer available.';
+        return false;
+    }
     // console.log('setting newDisk.value:', newDisk.value);
     switch (diskIdentifier.value) {
         case 'vdev_path':
@@ -260,15 +265,16 @@ function setDiskNamePath() {
             break;
         default:
             console.log('error with set diskName/paths');
-            break;
+            return false;
     }
+    return true;
 }
 
 async function attachDiskBtn() {
     if (diskSizeMatch()) {
         if (!diskBelongsToImportablePool() || diskVDevPoolData.value.forceAttach) {
-            setDiskNamePath();
-            diskVDevPoolData.value.newDiskName = diskNewName.value;
+            if (!setDiskNamePath()) return;
+            diskVDevPoolData.value.newDiskName = diskNewPath.value;
             diskVDevPoolData.value.existingDiskName = diskExistName.value;
             // console.log('all data of disk being attached:', diskVDevPoolData.value);
                 
@@ -288,6 +294,9 @@ async function attachDiskBtn() {
                 }
             } catch (error) {
                 console.error(error);
+                pushNotification(new Notification('Disk Attach Failed', String(error), 'error', 5000));
+            } finally {
+                adding.value = false;
             }
 
           
@@ -307,6 +316,11 @@ const diskSizeMatch = () => {
     }
 
     const newDiskData = allDisks.value.find(fullDisk => fullDisk.name === selectedDisk.value);
+
+    if (!newDiskData || (newDiskData.guid && newDiskData.guid !== 'N/A')) {
+        diskSizeFeedback.value = 'The selected disk is unavailable or already belongs to an imported pool.';
+        return false;
+    }
 
     if (newDiskData) {
         const newCapacity = convertSizeToBytes(newDiskData!.capacity!);
@@ -346,7 +360,7 @@ const diskBelongsToImportablePool = () => {
                 // console.log('importableVDev:', importableVDev);
                 importableVDev.disks.forEach(disk => {
                     // console.log('importableDisk:', disk);
-                    if (selectedNewDisk!.name == disk.name) {
+                    if (selectedNewDisk && ((disk.path && matchDiskByVdevOrPath([selectedNewDisk], disk.path)) || getFullDiskInfo([selectedNewDisk], disk.name ?? ''))) {
                         result = true;
                         diskBelongsFeedback.value = `This disk was used in exported pool '${pool.name}'.\n Use Force Add to override and use disk in new Vdev.`;
                         console.log(`Disk belongs to importable pool: ${pool.name}`);

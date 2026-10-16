@@ -48,10 +48,10 @@ def get_logger(name: str, file_basename: str, app_name: str = "cockpit-zfs") -> 
             pass
 
     # 3) Fallback stdout
-    sh = logging.StreamHandler(sys.stdout)
+    sh = logging.StreamHandler(sys.stderr)
     sh.setFormatter(fmt)
     logger.addHandler(sh)
-    logger.warning("No syslog/file target available; logging to stdout.")
+    logger.warning("No syslog/file target available; logging to stderr.")
     return logger
 # --- end inline logger ---
 
@@ -67,7 +67,7 @@ def _parse_vdevs_from_status(pool_name):
         )
         if res.returncode != 0:
             logger.error(f"zpool status {pool_name} failed: {res.stderr.strip()}")
-            return {"data": [], "cache": [], "dedup": [], "log": [], "spare": [], "special": []}
+            raise RuntimeError(res.stderr.strip() or "zpool status failed")
 
         lines = res.stdout.splitlines()
         groups = {"data": [], "cache": [], "dedup": [], "log": [], "spare": [], "special": []}
@@ -76,8 +76,10 @@ def _parse_vdevs_from_status(pool_name):
         section_map = {
             "cache": "cache",
             "log": "log",
+            "logs": "log",
             "dedup": "dedup",
             "spare": "spare",
+            "spares": "spare",
             "special": "special",
         }
         pool_line_seen = False
@@ -118,6 +120,8 @@ def _parse_vdevs_from_status(pool_name):
                 continue
 
             indent = len(line) - len(line.lstrip())
+            while vdev_stack and indent <= vdev_stack[-1][0]:
+                vdev_stack.pop()
 
             # Determine if this is a vdev (mirror/raidz/etc.) or a leaf disk
             is_vdev_type = any(raw_name.startswith(prefix) for prefix in
@@ -168,8 +172,11 @@ def _parse_vdevs_from_status(pool_name):
 
             if is_vdev_type:
                 # This is a top-level vdev (mirror-0, raidz1-0, etc.)
-                groups[current_section].append(vdev_entry)
-                vdev_stack = [(indent, vdev_entry)]
+                if vdev_stack:
+                    vdev_stack[-1][1]["children"].append(vdev_entry)
+                else:
+                    groups[current_section].append(vdev_entry)
+                vdev_stack.append((indent, vdev_entry))
             else:
                 # This is a leaf disk
                 if vdev_stack:
@@ -183,7 +190,7 @@ def _parse_vdevs_from_status(pool_name):
         return groups
     except Exception as e:
         logger.error(f"Failed to parse vdevs from zpool status: {e}")
-        return {"data": [], "cache": [], "dedup": [], "log": [], "spare": [], "special": []}
+        raise
 
 
 def _pools_from_zpool_list_min():
@@ -195,8 +202,10 @@ def _pools_from_zpool_list_min():
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True
         )
         if res.returncode != 0:
+            if not res.stdout.strip() and res.stderr.strip().lower() in ("no pools available", "no pools available."):
+                return []
             logger.error(f"zpool list failed: {res.stderr.strip()}")
-            return []
+            raise RuntimeError(res.stderr.strip() or "zpool list failed")
 
         pools = []
         for line in res.stdout.strip().splitlines():
@@ -240,7 +249,7 @@ def _pools_from_zpool_list_min():
         return pools
     except Exception as e:
         logger.error(f"Fallback zpool parse failed: {e}")
-        return []
+        raise
 
 def basic_typed_children(children):
     try:
@@ -298,7 +307,7 @@ def main():
             print(json.dumps(_pools_from_zpool_list_min(), indent=4))
     except Exception as e:
         logger.error(f"Exception in main: {e}")
-        print("[]")
+        print(json.dumps({"error": str(e)}))
 
 if __name__ == "__main__":
     main()

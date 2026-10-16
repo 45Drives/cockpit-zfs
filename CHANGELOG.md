@@ -1,3 +1,3 @@
-## zfs module 1.2.33-1
+## zfs module 1.3.1-4
 
-* Fixes some disk data display issues, adds replace disk for removed disks, fixes some notification rendering bugs
+* Testing fixes from copilot review and new signing fix

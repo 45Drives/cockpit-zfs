@@ -1,4 +1,4 @@
-import { legacy, ZPool, server, Command, unwrap } from '@45drives/houston-common-lib';
+import { legacy, ZPool, ZFSManager, server, Command, unwrap } from '@45drives/houston-common-lib';
 import { convertSizeToBytes, exec } from './helpers';
 // @ts-ignore
 import get_pools_script from "../scripts/get-pools.py?raw";
@@ -17,22 +17,19 @@ export async function getPools() {
 	try {
 		const { stdout, stderr } = await exec(['/usr/bin/env', 'python3', '-c', get_pools_script]);
 		if (stderr) console.warn('getPools warnings:', stderr);
-		return sanitizeRawJson((stdout) ?? '', '[]');
+		return sanitizeRawJson(stdout ?? '', JSON.stringify({ error: 'Pool discovery returned invalid output.' }));
 	} catch (err: any) {
 		const errorMessage = errorString(err);
 		console.error(errorMessage);
-		// Always return an array JSON string so callers never zero-out pools by accident
-		return "[]";
+		return JSON.stringify({ error: errorMessage });
 	}
 }
 
 
 export async function setRefreservation(pool: ZPool, refreservationPercent: number) {
 	try {
-		const sizeInBytes = convertSizeToBytes(pool.properties.size);
-		const refreservationBytes = (sizeInBytes / 100) * refreservationPercent;
-		const { stdout } = await exec(['zfs', 'set', `refreservation=${refreservationBytes}`, pool.name]);
-		return stdout;
+		await new ZFSManager().setPoolRefreservation(pool, refreservationPercent);
+		return '';
 	} catch (err: any) {
 		const errorMessage = errorString(err);
 		console.error(errorMessage);

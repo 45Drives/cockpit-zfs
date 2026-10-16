@@ -145,7 +145,7 @@ const mostRecentRemoteDestSnap = ref<SnapSnippet>();
 const mostRecentDestSnapMsg = ref('');
 const invalidConfig = ref(false);
 const invalidConfigMsg = ref('');
-const useForceOverwriteMsg = ref("Use 'Force Overwrite' to force a COMPLETE OVERWRITE of Destination File System - including any Encryption.");
+const useForceOverwriteMsg = ref("Force Overwrite allows ZFS receive to roll back destination changes and remove newer snapshots. It does not delete the destination tree or replace its encryption.");
 const invalidFlags = ref(false);
 const invalidFlagMsg = ref('');
 const destinationHostUser = ref('');
@@ -619,26 +619,17 @@ async function readSendProgress(sendProgressData : SendProgress[], fileReader: I
 
 // Function to run both functions concurrently
 async function sendAndReadProgress(sendingData : SendingDataset, sendProgress : SendProgress[]) {
+    const fileReader = new BetterCockpitFile('/run/user/0/full_output.json', { syntax: JSON });
     try {
-        const fileReader = new BetterCockpitFile('/run/user/0/full_output.json', { syntax: JSON });
-        // Run both functions concurrently using Promise.all
         const [snapshotResult, sendProgressData] = await Promise.all([
             sendSnapshot(sendingData),
             readSendProgress(sendProgress, fileReader),
         ]);
-
-        // console.log('Progress data:', sendProgress);
-        // console.log('Sent snapshot result:', snapshotResult);
-
+        if (snapshotResult && typeof snapshotResult === 'object' && 'error' in snapshotResult) {
+            throw new Error(snapshotResult.error);
+        }
+    } finally {
         fileReader.close();
-        // return snapshotResult;
-
-        // return true;
-    } catch (error) {
-        console.error("An error occurred in sendAndReadProgress:", error);
-        // return null;
-        
-        // return false;
     }
 }
 

@@ -6,6 +6,9 @@
     "houston-common/houston-common-*"
   ],
   "scripts": {
+    "test": "npm run test:frontend && npm run test:backend",
+    "test:frontend": "node --test zfs/tests/*.test.mjs",
+    "test:backend": "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s zfs/tests -p 'test_*.py' -v",
     "build": "yarn build:common && yarn build:app",
     "prepare-deb": "chmod +x packaging/debian/DEBIAN/postinst",
     "package": "yarn build && yarn prepare-deb && dpkg-deb --build packaging/debian"

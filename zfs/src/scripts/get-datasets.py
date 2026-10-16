@@ -32,7 +32,7 @@ def main():
             except Exception as e:
                 import sys
                 print(f"Warning: skipping dataset: {e}", file=sys.stderr)
-                continue
+                raise
 
     print(json.dumps(z_datasets, indent=4))
 if __name__ == '__main__':

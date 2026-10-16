@@ -3,6 +3,7 @@ import subprocess
 import argparse
 import tempfile
 import os
+import sys
 
 def check_key(fileSystemName, passphrase):
     try:
@@ -37,19 +38,18 @@ def check_key(fileSystemName, passphrase):
             os.remove(temp_passphrase_file_path)
 
     except Exception as e:
-        return str(False).lower()
+        return False
 
 def main():
     # Parse command-line arguments
     parser = argparse.ArgumentParser(description='Check encryption key validity for ZFS Dataset')
     parser.add_argument('fileSystemName', type=str, help='fileSystemName')
-    parser.add_argument('passphrase', type=str, help='passphrase')
 
     args = parser.parse_args()
 
     # Extract values from command-line arguments
     fileSystemName = args.fileSystemName
-    passphrase = args.passphrase
+    passphrase = sys.stdin.read()
 
     # Call function to check key
     is_valid = check_key(fileSystemName, passphrase)

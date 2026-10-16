@@ -10,6 +10,9 @@ const errors: string[] = [];
 
 export function parseImportVDevData(vDev, poolName, vDevType) {
     try {
+        const leafDisks = (node): any[] => node.children?.length
+            ? node.children.flatMap(leafDisks)
+            : node.path || node.type === 'disk' ? [node] : [];
         // console.log('vDevData Importing:', vDev);
         const vDevData : VDev = {
             name: vDev.name,
@@ -17,7 +20,7 @@ export function parseImportVDevData(vDev, poolName, vDevType) {
             status: vDev.status,
             guid: vDev.guid,
             stats: vDev.stats,
-            disks: vDev.children,
+            disks: leafDisks(vDev),
             poolName: poolName,
             selectedDisks: [],
             // console.log("loaded Disks:", allDisks);

@@ -85,7 +85,6 @@ import OldModal from '../common/OldModal.vue';
 import WizardTabs from './WizardTabs.vue';
 import PoolConfig from './PoolConfig.vue';
 import { convertSizeToBytes, isBoolCompression, isBoolOnOff } from '../../composables/helpers';
-import { setRefreservation } from '../../composables/pools';
 import {ZFSManager, ZPool ,VDevDisk,ZFSFileSystemInfo,ZpoolCreateOptions,ZPoolBase} from '@45drives/houston-common-lib';
 import { pushNotification, Notification } from '@45drives/houston-common-ui';
 import { PoolScanObjectGroup, PoolDiskStats, Activity, StepsNavigationItem, StepNavigationCallback } from '../../types';
@@ -294,14 +293,15 @@ function extractProcessErr(e: any): string {
 async function finishBtn(newPoolData) {
 	finishPressed.value = true;
 	creatingPool.value = true;
-
-	poolConfiguration.value.fillNewPoolData();
-
-	const { name, vdevs, ...options } = newPoolData;
-	const poolBase: ZPoolBase = { name, vdevs };
-	const poolOptions: ZpoolCreateOptions = options;
+	let failureTitle = 'Pool Creation Failed';
 
 	try {
+		poolConfiguration.value.fillNewPoolData();
+
+		const { name, vdevs, ...options } = newPoolData;
+		const poolBase: ZPoolBase = { name, vdevs };
+		const poolOptions: ZpoolCreateOptions = options;
+
 		if (certifiedFipsProfile.value) {
 			const devices = vdevs.flatMap(vdev => vdev.disks.map(disk => disk.path));
 			const validation = await controlPlane?.validateLuksDevices(devices);
@@ -316,14 +316,15 @@ async function finishBtn(newPoolData) {
 
 		// This will throw on non-zero exit (e.g., LVM2_member on the disk)
 		const proc: any = await zfsManager.createPool(poolBase, poolOptions);
+		poolCreated.value = true;
+		failureTitle = 'Pool Created; Refresh Failed';
 
 		// success path
 		await refreshAllData();
-		const newPoolFound = pools.value.find(p => p.name === newPoolData.name);
 		pushNotification(new Notification('Pool Created!', 'Created new pool.', 'success', 5000));
-		if (newPoolFound) setRefreservation(newPoolFound, newPoolData.refreservationPercent);
 
 		// Only create filesystem if the pool creation actually succeeded
+		failureTitle = 'Pool Created; Dataset Creation Failed';
 		datasetCreationType.value = poolConfiguration.value.getDatasetCreationType();
 		if (poolConfiguration.value.getDatasetCreationType() === 'zvol') {
 			const zc = poolConfiguration.value.getZvolConfig();
@@ -334,7 +335,14 @@ async function finishBtn(newPoolData) {
 		showWizard.value = false;
 	} catch (e: any) {
 		const msg = extractProcessErr(e);
-		pushNotification(new Notification('Pool Creation Failed', msg, 'error', 10000));
+		const wasPoolCreated = poolCreated.value || e.poolCreated;
+		const title = poolCreated.value ? failureTitle : e.poolCreated ? 'Pool Created; Reservation Failed' : failureTitle;
+		const detail = wasPoolCreated ? `Pool '${newPoolData.name}' exists. ${msg}` : msg;
+		pushNotification(new Notification(title, detail, 'error', 10000));
+		if (wasPoolCreated) {
+			showWizard.value = false;
+			try { await refreshAllData(); } catch (refreshError) { console.error(refreshError); }
+		}
 		// keep wizard open so user can toggle “Forcefully Create” or fix disks
 		// optionally: await refreshAllData();
 	} finally {

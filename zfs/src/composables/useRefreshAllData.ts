@@ -29,12 +29,12 @@ type RefreshCtx = {
 };
 
 type RefreshOpts = {
-    keepOldOnEmpty?: boolean;     // default true
+    keepOldOnEmpty?: boolean;
     rebuildActivitiesOnSwap?: boolean; // default true
 };
 
 export function useRefreshAllData(ctx: RefreshCtx, opts: RefreshOpts = {}) {
-    const keepOldOnEmpty = opts.keepOldOnEmpty ?? true;
+    const keepOldOnEmpty = opts.keepOldOnEmpty ?? false;
     const rebuildActivitiesOnSwap = opts.rebuildActivitiesOnSwap ?? true;
 
     let inFlight: Promise<void> | null = null;
@@ -55,8 +55,12 @@ export function useRefreshAllData(ctx: RefreshCtx, opts: RefreshOpts = {}) {
                 const nextDatasets = ref<ZFSFileSystemInfo[]>([]);
 
                 try {
-                    await loadDisksThenPools(nextDisks, nextPools);
-                    await loadDatasets(nextDatasets);
+                    if (await loadDisksThenPools(nextDisks, nextPools) === false) {
+                        throw new Error('Disk or pool discovery failed; previous inventory was retained.');
+                    }
+                    if (await loadDatasets(nextDatasets) === false) {
+                        throw new Error('Dataset discovery failed; previous inventory was retained.');
+                    }
 
                     const gotPools = nextPools.value.length > 0;
                     const shouldSwap = keepOldOnEmpty ? gotPools : true;
@@ -76,6 +80,11 @@ export function useRefreshAllData(ctx: RefreshCtx, opts: RefreshOpts = {}) {
 
                     await loadScanObjectGroup(ctx.scanObjectGroup);
                     await loadDiskStats(ctx.poolDiskStats);
+                    if (shouldSwap) {
+                        const names = new Set(ctx.poolData.value.map(pool => pool.name));
+                        ctx.scanObjectGroup.value = Object.fromEntries(Object.entries(ctx.scanObjectGroup.value).filter(([name]) => names.has(name)));
+                        ctx.poolDiskStats.value = Object.fromEntries(Object.entries(ctx.poolDiskStats.value).filter(([name]) => names.has(name)));
+                    }
                 } finally {
                     ctx.disksLoaded.value = true;
                     ctx.poolsLoaded.value = true;
@@ -85,7 +94,7 @@ export function useRefreshAllData(ctx: RefreshCtx, opts: RefreshOpts = {}) {
                 isRefreshing.value = false;
             }
         })();
-        inFlight.finally(() => (inFlight = null));
+        inFlight.then(() => (inFlight = null), () => (inFlight = null));
         return inFlight;
     }
 

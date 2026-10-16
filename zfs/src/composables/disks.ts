@@ -10,17 +10,19 @@ export async function getDisks() {
 		const { stdout, stderr } = await exec(["/usr/bin/env", "python3", "-u", "-c", script_py]);
 		if (stderr) console.warn("getDisks warnings:", stderr);
 		// Python prints a JSON string
-		return stdout ?? "[]";
+		return stdout || JSON.stringify({ error: 'Disk discovery returned no output.' });
 	} catch (err: any) {
 		console.error("getDisks failed:", err);
 		// Safety: always return a JSON string
-		return JSON.stringify([]);
+		return JSON.stringify({ error: errorString(err) });
 	}
 }
 
-export async function clearPartitions(disk: { name: string }) {
+export async function clearPartitions(disk: { name: string; sd_path?: string }) {
 	try {
-		const { stdout } = await exec(["wipefs", "-a", `/dev/${disk.name}`]);
+		const path = disk.sd_path || (/^(sd[a-z]+|nvme\d+n\d+|mmcblk\d+)$/.test(disk.name) ? `/dev/${disk.name}` : '');
+		if (!path.startsWith('/dev/')) throw new Error('No valid block-device path for partition clearing.');
+		const { stdout } = await exec(["wipefs", "-a", path]);
 		return stdout;
 	} catch (err: any) {
 		const errorMessage = errorString(err);

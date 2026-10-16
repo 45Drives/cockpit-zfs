@@ -273,7 +273,7 @@ import { Switch } from '@headlessui/vue';
 import { ExclamationCircleIcon, ExclamationTriangleIcon } from '@heroicons/vue/24/outline';
 import { upperCaseWord, convertSizeToBytes } from '../../composables/helpers';
 import { setRefreservation } from '../../composables/pools';
-import { getDiskIDName, truncateName, getFullDiskInfo } from '../../composables/helpers';
+import { getDiskIDName, truncateName, getFullDiskInfo, matchDiskByVdevOrPath } from '../../composables/helpers';
 import { loadImportablePools } from '../../composables/loadImportables';
 import { ZFSManager, ZPool, ZFSFileSystemInfo, VDev, DiskIdentifier, VDevDisk } from "@45drives/houston-common-lib"
 import { pushNotification, Notification, Modal, CardContainer } from '@45drives/houston-common-ui';
@@ -365,60 +365,45 @@ const diskCardClass = (diskName) => {
 const adding = ref(false);
 
 async function addVDevBtn() {
-    newVDev.value.disks = [];   
-    if (replicationLevelCheck() && diskSizeMatch() && diskCheck()) {
-        if (!diskBelongsToImportablePool() || newVDev.value.forceAdd!) {
-
-            for (const selectedDisk of selectedDisks.value) {
-                const diskNameFinal = getDiskIDName(allDisks.value, diskIdentifier.value, selectedDisk);
-                const diskFinal = getFullDiskInfo(allDisks.value, diskNameFinal);
-                if (diskFinal) newVDev.value.disks.push(diskFinal);
+    if (adding.value) return;
+    adding.value = true;
+    let attempted = false;
+    try {
+        if (!replicationLevelCheck() || !diskSizeMatch() || !diskCheck()) return;
+        if (diskBelongsToImportablePool() && !newVDev.value.forceAdd?.force) return;
+        const seen = new Set<string>();
+        const prepared = selectedDisks.value.map(name => {
+            const disk = getFullDiskInfo(allDisks.value, name);
+            if (!disk) throw new Error(`Disk '${name}' is no longer available.`);
+            if (disk.guid && disk.guid !== 'N/A') throw new Error(`Disk '${name}' is already in an imported pool.`);
+            const key = disk.sd_path || disk.name;
+            if (seen.has(key)) throw new Error(`Disk '${name}' is selected more than once.`);
+            seen.add(key);
+            const path = disk[diskIdentifier.value];
+            if (typeof path !== 'string' || !path.startsWith('/dev/')) throw new Error(`Disk '${name}' has no valid selected identifier.`);
+            return { ...disk, path };
+        });
+        newVDev.value.disks = prepared;
+        attempted = true;
+        const output: any = await zfsManager.addVDevsToPool(props.pool, [newVDev.value], newVDev.value.forceAdd!);
+        if (output == null || output.error) throw new Error(output?.error || 'Unknown error');
+        pushNotification(new Notification('Added VDev', 'Virtual device added successfully.', 'success', 5000));
+        if (props.pool.properties.refreservationRawSize) {
+            const reservation: any = await setRefreservation(props.pool, props.pool.properties.refreservationPercent!);
+            if (reservation == null || reservation.error) {
+                pushNotification(new Notification('Refreservation Update Failed', `VDev was added, but the reservation could not be updated: ${reservation?.error || 'Unknown error'}`, 'error', 5000));
             }
-
-            // dedupe just in case (by a stable key; vdev_path is safest here)
-            const seen = new Set<string>();
-            newVDev.value.disks = newVDev.value.disks.filter(d => {
-                const key = d.vdev_path || d.phy_path || d.sd_path || d.name;
-                if (!key || seen.has(key)) return false;
-                seen.add(key);
-                return true;
-            });
-
-            adding.value = true;
-
-            try {
-                const output: any = await zfsManager.addVDevsToPool(props.pool, [newVDev.value], newVDev.value.forceAdd!);
-                if (output == null || output.error) {
-                    const errorMessage = output?.error || 'Unknown error';
-                    pushNotification(new Notification('Add VDev Failed', `There was an error adding this virtual device: ${errorMessage}`, 'error', 5000));
-
-                } else {
-                    pushNotification(new Notification('Added VDev', `Virtual device added successfully.`, 'success', 5000));
-
-                    if (props.pool.properties.refreservationRawSize!) {
-                        const output: any = await setRefreservation(props.pool, props.pool.properties.refreservationPercent!);
-                        if (output == null || output.error) {
-                            const errorMessage = output?.error || 'Unknown error';
-                            pushNotification(new Notification('Refreservation Update Failed', `There was an error updating pools refreservation value: ${errorMessage}`, 'error', 5000));
-                        } else {
-                            pushNotification(new Notification('Refreservation Updated', `Refreservation of pool was updated successfully.`, 'success', 5000));
-                            resetModalState();
-                            showAddVDevModal.value = false;
-                        }
-                    } else {
-                        showAddVDevModal.value = false;
-                    }
-                }
-
-            } catch (error) {
-                pushNotification(new Notification('Add VDev Failed', `There was an error adding this virtual device: ${error}`, 'error', 5000));
-                adding.value = false;
-                console.error(error);
-            } finally {
-                adding.value = false;
-                await refreshAllData();
+        }
+        resetModalState();
+        showAddVDevModal.value = false;
+    } catch (error) {
+        pushNotification(new Notification('Add VDev Failed', String(error), 'error', 5000));
+    } finally {
+        adding.value = false;
+        if (attempted) {
+            try { await refreshAllData(); } catch (error) {
+                pushNotification(new Notification('Pool Refresh Failed', String(error), 'error', 5000));
             }
-
         }
     }
 }
@@ -453,7 +438,7 @@ const replicationLevelCheck = () => {
     let result = true;
     isProperReplicationFeedback.value = '';
 
-    if ((newVDev.value.type == 'dedup' || newVDev.value.type == 'special') && !newVDev.value.forceAdd && !newVDev.value.isMirror) {
+    if ((newVDev.value.type == 'dedup' || newVDev.value.type == 'special') && !newVDev.value.forceAdd?.force && !newVDev.value.isMirror) {
         result = false;
         isProperReplicationFeedback.value = 'Mismatched replication level. Forcefully create to override.';
     } else if (newVDev.value.isMirror && (newVDev.value.type == 'special' || newVDev.value.type == 'dedup' || newVDev.value.type == 'log') && selectedDisks.value.length < 2) {
@@ -468,7 +453,7 @@ const diskSizeMatch = () => {
     let result = true;
     diskSizeFeedback.value = '';
 
-    if (newVDev.value!.forceAdd) {
+    if (newVDev.value.forceAdd?.force) {
         return true;
     }
     if (newVDev.value.type === 'disk') {
@@ -496,16 +481,17 @@ const diskSizeMatch = () => {
 }
 
 const importablePools = inject<Ref<ZPool[]>>('importable-pools')!;
-const diskBelongsToImportablePool = () => {
+function diskBelongsToImportablePool() {
     let result = false;
     diskBelongsFeedback.value = '';
 
-    if (newVDev.value.forceAdd) {
+    if (newVDev.value.forceAdd?.force) {
         return false;
     }
 
     selectedDisks.value.forEach(diskName => {
         const selectedDisk = allDisks.value.find(fullDisk => fullDisk.name == diskName);
+        if (!selectedDisk) return;
         // console.log('selectedDisk:', selectedDisk);
         importablePools.value.forEach(pool => {
             // console.log('importablePool:', pool);
@@ -513,7 +499,7 @@ const diskBelongsToImportablePool = () => {
                 // console.log('importableVDev:', importableVDev);
                 importableVDev.disks.forEach(disk => {
                     // console.log('importableDisk:', disk);
-                    if (selectedDisk!.name == disk.name) {
+                    if (matchDiskByVdevOrPath([selectedDisk], disk.path) || getFullDiskInfo([selectedDisk], disk.name)) {
                         result = true;
                         diskBelongsFeedback.value = `This disk was used in exported pool '${pool.name}'.\n Use Force Add to override and use disk in new Vdev.`;
                         // console.log(`Disk belongs to importable pool: ${pool.name}`);
