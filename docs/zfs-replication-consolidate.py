@@ -374,16 +374,17 @@ def backup_layout(config, rows, legacy):
     return park, left
 
 
-def existing_replica(config, park, row, lookup):
+def existing_replica(config, plan, row, lookup):
     """Return (name, dataset, pending_park) for a replica that is not yet at its destination."""
-    moved = parked_name(config, park, row["legacy"])
+    moved = parked_name(config, plan["park"], row["legacy"])
     if moved:
         dataset = lookup(moved)
         if dataset is not None:
             return moved, dataset, False
     if relocating(config):
         return row["legacy"], lookup(row["legacy"]), False
-    return row["legacy"], None, moved is not None
+    done = any(within(row["legacy"], top) for top in plan.get("parked", []))
+    return row["legacy"], None, moved is not None and not done
 
 
 def new_row(config, name):
@@ -593,14 +594,14 @@ def observe_all(transport, plan, require_absent=False, require_snapshot=False):
     return {
         row["source"]: observe_row(
             transport, row, source.get(row["source"]), destination.get(row["destination"]),
-            existing_replica(config, park, row, lookup),
+            existing_replica(config, plan, row, lookup),
         )
         for row in rows
     }
 
 
 def observe_one(transport, plan, row):
-    existing = existing_replica(transport.config, plan["park"], row, lambda name: transport.dataset(name, True))
+    existing = existing_replica(transport.config, plan, row, lambda name: transport.dataset(name, True))
     return observe_row(
         transport, row, transport.dataset(row["source"]), transport.dataset(row["destination"], True), existing,
     )
@@ -850,11 +851,12 @@ def protect(transport, plan, path):
     keep = f"migration-keep-{config['hold_tag'][-12:]}"
     names = list(plan.get("left_in_place", []))
     for top in plan["park"]:
-        names += list(transport.inventory(parked_name(config, plan["park"], top), True))
+        names += list(transport.inventory(parked_name(config, plan["park"], top), True, missing_ok=True))
     for name in names:
         dataset = transport.dataset(name, True)
         if dataset is None:
-            raise MigrationError(f"{name} is missing on the backup; Service review required.")
+            event(path, "GONE", f"{name} no longer exists on the backup; nothing to protect")
+            continue
         snapshot = f"{name}@{keep}"
         if dataset["token"] != "-":
             raise MigrationError(f"{name} has an interrupted receive from another task, so it cannot be protected. "
@@ -904,11 +906,20 @@ def copy(transport, state, path, approved=False):
     grand_total = sum(row.get("estimate", {}).get("bytes", 0) for row in plan["datasets"])
     done_before = 0
     # Move aside before any rename so original paths are still valid.
+    done = plan.setdefault("parked", [])
     for top in plan["park"]:
+        if top in done:
+            continue
         moved = parked_name(transport.config, plan["park"], top)
         if transport.dataset(moved, True) is None:
-            transport.rename(top, moved, parents=True)
-            event(path, "PARKED", f"{top} -> {moved}")
+            if transport.dataset(top, True) is None:
+                event(path, "GONE", f"{top} no longer exists on the backup; nothing to move aside, it is sent in full")
+            else:
+                transport.rename(top, moved, parents=True)
+                event(path, "PARKED", f"{top} -> {moved}")
+        # Recorded so a later run never moves this dataset's new full copy aside.
+        done.append(top)
+        save_state(path, state)
     protect(transport, plan, path)
     for index, row in enumerate(plan["datasets"], 1):
         name = f"{row['source']} -> {row['destination']}"
